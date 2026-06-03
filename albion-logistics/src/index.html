@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Albion 製作與📦 物流庫存<br><span style="font-size: 0.8em; opacity: 0.7;">Logistics</span>系統</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="logo-container"><div class="logo-icon">A</div><span class="logo-text">Albion Logistics</span></div>
+      <nav class="nav-menu">
+        <a class="nav-item active" onclick="switchTab('tab-crafting')">🔨 製作管理<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting</span></a>
+        <a class="nav-item" onclick="switchTab('tab-inventory')">📦 物流庫存<br><span style="font-size: 0.8em; opacity: 0.7;">Logistics</span></a>
+        <a class="nav-item" onclick="switchTab('tab-laborer')">🏡 工人島嶼<br><span style="font-size: 0.8em; opacity: 0.7;">Laborers</span></a>
+        <a class="nav-item" onclick="switchTab('tab-ledger')">📊 財務帳本<br><span style="font-size: 0.8em; opacity: 0.7;">Ledger</span></a>
+      </nav>
+      <div style="padding:0 20px; display:flex; flex-direction:column; gap:10px; margin-top:auto; margin-bottom:20px;">
+        <button class="btn btn-secondary" onclick="exportData()" style="width:100%; font-size:0.85rem;">📤 匯出<br><span style="font-size: 0.8em; opacity: 0.7;">Export</span></button>
+        <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+        <button class="btn btn-warning" onclick="document.getElementById('import-file').click()" style="width:100%; font-size:0.85rem;">📥 匯入<br><span style="font-size: 0.8em; opacity: 0.7;">Import</span></button>
+      </div>
+      <div class="nav-footer">
+        <p>Albion Logistics V4.0.0-beta</p>
+        <button class="btn btn-danger" style="width:100%; margin-top:10px; font-size:0.8rem; padding:8px;" onclick="resetSystemData()">⚠️ 重置系統<br><span style="font-size: 0.8em; opacity: 0.7;">Factory Reset</span></button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="header-bar"><h1 class="page-title">資產總覽</h1></header>
+      <section class="asset-summary">
+        <div class="summary-card" style="position:relative;">
+          <div class="summary-icon cash"></div>
+          <div class="summary-info">
+            <span class="summary-label">累計現金流<br><span style="font-size: 0.8em; opacity: 0.7;">Net Cash Flow</span></span>
+            <span class="summary-value" id="summary-cash">0</span>
+            <button class="btn btn-secondary" style="position:absolute; top:15px; right:15px; padding:2px 6px; font-size:0.75rem;" onclick="adjustCashBalance()">✏️ 校正餘額<br><span style="font-size: 0.8em; opacity: 0.7;">Adjust Balance</span></button>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon inventory"></div>
+          <div class="summary-info"><span class="summary-label">庫存總估值<br><span style="font-size: 0.8em; opacity: 0.7;">Inventory Value</span></span><span class="summary-value" style="color:var(--accent-cyan);" id="summary-inventory">0</span></div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon cash" style="background:var(--accent-purple); color:#fff;"></div>
+          <div class="summary-info"><span class="summary-label">製造淨資產<br><span style="font-size: 0.8em; opacity: 0.7;">Net Worth</span></span><span class="summary-value" style="color:var(--accent-purple);" id="summary-networth">0</span></div>
+        </div>
+      </section>
+
+      <!-- TAB 1: Crafting -->
+      <section id="tab-crafting" class="tab-content active">
+        <div class="panel-grid">
+          <div class="left-col">
+            <div class="card">
+              <div class="card-header"><h2 class="card-title">製作面板 Calculator</h2></div>
+              
+              <div class="form-group" style="margin-bottom:20px;">
+                <label class="form-label">目標裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Target Item</span></label>
+                <button id="btn-open-item-selector" class="btn btn-primary" style="width:100%; height:auto; text-align:center; padding:10px; font-size:1.1rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;" onclick="openItemSelector()">
+                  <div>🔍 點擊選擇目標裝備</div>
+                  <div style="font-size:0.9rem; color:var(--text-primary); margin-top:5px;">目前選擇: <span id="craft-recipe-display" style="color:var(--accent-cyan); font-weight:bold;">單手錘矛</span></div>
+                </button>
+                <input type="hidden" id="craft-recipe" value="單手錘矛">
+              </div>
+
+              <div class="form-group" style="margin-bottom:20px;">
+                <label class="form-label">材料品質<br><span style="font-size: 0.8em; opacity: 0.7;">Material Quality</span></label>
+                <div id="craft-quality-pill-group"></div>
+              </div>
+
+              <div id="craft-advice" class="suggestion-box" style="display:none; margin-bottom:20px;"></div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">製作數量<br><span style="font-size: 0.8em; opacity: 0.7;">Craft Amount</span></label>
+                  <div style="display:flex; gap:5px; align-items:center;">
+                    <input type="number" id="craft-qty" value="20" oninput="runCraftingCalculator()" style="flex:1; font-weight:bold; color:var(--accent-cyan);">
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjCraftQty(-10)">-10</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjCraftQty(-5)">-5</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjCraftQty(5)">+5</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjCraftQty(10)">+10</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">製作城市<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting City</span></label>
+                  <select id="craft-city" onchange="handleCityDropdownChange(event)"></select>
+                </div>
+              </div>
+
+              <!-- Hideout specific fields -->
+              <div id="hideout-group" class="form-row" style="display:none; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:15px; border-left: 3px solid var(--accent-purple);">
+                <div class="form-group">
+                  <label class="form-label" style="color:var(--accent-purple);">地圖加成<br><span style="font-size: 0.8em; opacity: 0.7;">Location Bonus</span></label>
+                  <input type="text" class="format-num" id="hideout-map-bonus" value="25" oninput="onMapBonusInput()">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="color:var(--accent-purple);">專注返還<br><span style="font-size: 0.8em; opacity: 0.7;">Focus RRR</span></label>
+                  <input type="text" class="format-num" id="hideout-focus-rrr" value="58.8" oninput="runCraftingCalculator()">
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom:20px;">
+                <label class="switch-container" for="craft-focus">
+                  <input type="checkbox" id="craft-focus" class="switch-checkbox" checked onchange="runCraftingCalculator()">
+                  <div class="switch-track"><div class="switch-thumb"></div></div>
+                  <span class="switch-label">專注點<br><span style="font-size: 0.8em; opacity: 0.7;">Use Focus</span></span>
+                  <span class="quality-badge quality-5" id="rra-badge">當前返還率: 47.9%</span>
+                </label>
+              </div>
+
+              <div class="form-row">
+                <div id="main-material-group" class="form-group"><span class="form-label" id="main-material-label" style="color:var(--accent-cyan);">主料需求 Main Material</span></div>
+                <div id="sub-material-group" class="form-group"><span class="form-label" id="sub-material-label" style="color:var(--accent-purple);">副料需求 Sub Material</span></div>
+              </div>
+              <!-- NEW Alchemy Block -->
+              <div class="form-row" id="alchemy-group" style="display:none; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:15px; border-left: 3px solid var(--accent-yellow);">
+                <div class="form-group" style="flex:1;">
+                  <span class="form-label" id="alchemy-label" style="color:var(--accent-yellow);">鍊金材料 Alchemy</span>
+                  <div class="input-with-suffix"><input type="text" class="format-num" id="craft-alchemy-cost" value="0" oninput="runCraftingCalculator()"><span class="input-suffix">銀幣</span></div>
+                </div>
+              </div>
+
+              <div class="output-grid" style="margin-bottom:20px;">
+                <div class="output-item"><div class="output-label" id="out-main-label">預估消耗主料<br><span style="font-size:0.8em; opacity:0.7;">消耗 / 總需</span></div><div class="output-value" id="out-main-qty">0 / 0</div></div>
+                <div class="output-item"><div class="output-label" id="out-sub-label">預估消耗副料<br><span style="font-size:0.8em; opacity:0.7;">消耗 / 總需</span></div><div class="output-value" id="out-sub-qty">0 / 0</div></div>
+              </div>
+
+              <button class="btn btn-primary" style="width:100%; height:50px; font-size:1.05rem;" onclick="addToCraftingQueue()">➕ 加入批次<br><span style="font-size: 0.8em; opacity: 0.7;">Add to Queue</span></button>
+            </div>
+          </div>
+
+          <div class="right-col">
+            <div class="card" style="border-color:var(--accent-purple); display:flex; flex-direction:column; height:100%;">
+              <div class="card-header"><h2 class="card-title">製作清單 Crafting Queue</h2></div>
+              <div class="table-wrapper" style="flex:1; margin-bottom:15px; overflow-y:auto; max-height:450px;">
+                <table>
+                  <thead><tr><th><input type="checkbox" id="queue-check-all" checked onchange="toggleQueueAll()"></th><th style="white-space: nowrap;">裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Item</span></th><th style="white-space: nowrap;">品質<br><span style="font-size: 0.8em; opacity: 0.7;">Quality</span></th><th style="white-space: nowrap;">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></th><th style="white-space: nowrap;">城市<br><span style="font-size: 0.8em; opacity: 0.7;">City</span></th><th style="white-space: nowrap;">消耗明細<br><span style="font-size: 0.8em; opacity: 0.7;">Material Cost</span></th><th style="white-space: nowrap;">操作<br><span style="font-size: 0.8em; opacity: 0.7;">Actions</span></th></tr></thead>
+                  <tbody id="crafting-queue-tbody"></tbody>
+                </table>
+              </div>
+              <div class="card" style="background:rgba(255,255,255,0.01); border:1px solid var(--accent-cyan); padding:16px; margin:0;">
+                <h3 class="card-title" style="margin-bottom:12px; color:var(--accent-cyan); font-size:1rem;">總材料結算<br><span style="font-size:0.8em;opacity:0.7;">Checked Materials</span></h3>
+                <div id="shopping-list-content" style="font-size:0.95rem; line-height:1.6; margin-bottom:15px;">
+                   <span style="color:var(--text-muted)">佇列中尚無勾選裝備...</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px dashed var(--border-glass); padding-top:10px;">
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <span class="form-label" style="margin:0;">店鋪使用費<br><span style="font-size:0.8em;opacity:0.7;">Usage Fee (per 100)</span></span>
+                      <input type="text" class="format-num" id="global-shopfee" value="500" style="width:100px; padding:4px 8px;" oninput="updateShoppingListTotal()">
+                    </div>
+                    <div><span class="output-label">預估總支出<br><span style="font-size:0.8em;opacity:0.7;">Total Est. Cost</span>: </span><span id="queue-total-cost" class="output-value highlight-red" style="font-size:1.3rem;">0</span></div>
+                  </div>
+                  <button class="btn btn-success" style="height:45px; padding:0 30px;" onclick="submitCraftAll()">製作已勾選項目<br><span style="font-size:0.8em;opacity:0.7;">Craft Selected</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Inventory -->
+      <section id="tab-inventory" class="tab-content">
+        <div class="panel-grid">
+          <div class="left-col">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">採購入庫<br><span style="font-size: 0.8em; opacity: 0.7;">Purchase</span></h3></div>
+              <div class="form-group" style="margin-bottom:15px;">
+                <label class="form-label">採購物品</label>
+                <select id="buy-item">
+                  <option value="鋼條">鋼條</option>
+                  <option value="布料">布料</option>
+                  <option value="板材">板材</option>
+                  <option value="皮革">皮革</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:15px;">
+                <label class="form-label">品質</label>
+                <div id="buy-quality-pill-group"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">採購數量</label>
+                  <div style="display:flex; gap:5px; align-items:center;">
+                    <input type="text" class="format-num" id="buy-qty" value="100" style="flex:1;">
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjBuyQty(-10)">-10</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjBuyQty(-1)">-1</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjBuyQty(1)">+1</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjBuyQty(10)">+10</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">這批貨的總花費</label>
+                  <div class="input-with-suffix"><input type="text" class="format-num" id="buy-total-price" placeholder="輸入總價"><span class="input-suffix">銀幣</span></div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">存入倉庫位置</label>
+                <select id="buy-city" onchange="handleCityDropdownChange(event)"></select>
+              </div>
+              <button class="btn btn-success" style="width:100%;" onclick="submitPurchase()">確認採購扣款並入庫</button>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">物流轉移<br><span style="font-size: 0.8em; opacity: 0.7;">Transport</span></h3></div>
+              <div class="transport-layout">
+                <div class="form-group">
+                  <label class="form-label">出發地</label>
+                  <select id="trans-from" onchange="handleCityDropdownChange(event)"></select>
+                </div>
+                <div class="arrow-divider">➔</div>
+                <div class="form-group">
+                  <label class="form-label">目的地</label>
+                  <select id="trans-to" onchange="handleCityDropdownChange(event)"></select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">轉移物品 (僅顯示有庫存)</label>
+                <select id="trans-item" onchange="updateTransMax()"><option value="">請先選擇出發地</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">轉移數量</label>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <input type="range" id="trans-qty-slider" min="1" max="1" value="1" style="flex:1;" oninput="document.getElementById('trans-qty').value=this.value.replace(/\B(?=(\d{3})+(?!\d))/g, ',')">
+                  <input type="text" class="format-num" id="trans-qty" value="1" style="width:80px;" oninput="document.getElementById('trans-qty-slider').value=parseNum(this.value)">
+                  <button class="btn btn-secondary" onclick="adjustTransQty(-10)">-10</button>
+                  <button class="btn btn-secondary" onclick="adjustTransQty(-1)">-1</button>
+                  <button class="btn btn-secondary" onclick="adjustTransQty(1)">+1</button>
+                  <button class="btn btn-secondary" onclick="adjustTransQty(10)">+10</button>
+                  <button class="btn btn-primary" onclick="setTransQtyMax()">MAX</button>
+                </div>
+              </div>
+              <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="submitTransport()">啟動貨運轉移</button>
+            </div>
+          </div>
+
+          <div class="right-col">
+            <div class="card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+              <div class="card-header" style="flex-direction:column; align-items:stretch; gap:12px; border:none; padding-bottom:0;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <h3 class="card-title">全局庫存<br><span style="font-size: 0.8em; opacity: 0.7;">Global Inventory</span></h3>
+                  <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.85rem;" onclick="openManageLocationsModal()">⚙️ 管理倉庫<br><span style="font-size: 0.8em; opacity: 0.7;">Manage Locations</span></button>
+                </div>
+                <input type="text" id="inventory-search" placeholder="🔍 搜尋成品、材料或品質..." oninput="renderInventoryTable()">
+              </div>
+              <div id="inventory-city-cards" style="margin-top:20px; display:grid; grid-template-columns:1fr; gap:16px;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: Laborer Island -->
+      <section id="tab-laborer" class="tab-content">
+        <div class="panel-grid">
+          <div class="left-col">
+            <div class="card laborer-inventory-card" style="margin-bottom:20px;">
+              <div class="card-header"><h3 class="card-title" style="color:var(--accent-purple);">🏡 勞工收成紀錄 Harvest Logs</h3></div>
+              <div class="form-row">
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">日記本階級 (T4~T8)</label>
+                  <div id="labor-harvest-pill-group"></div>
+                </div>
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">投入滿日記本數</label>
+                  <input type="text" class="format-num" id="labor-filled-qty" value="15">
+                  <div style="display:flex; gap:5px; margin-top:5px;">
+                    <button class="btn btn-secondary" style="padding:2px 5px; flex:1; font-size:0.75rem;" onclick="adjHarvestQty(-15)">-15</button>
+                    <button class="btn btn-secondary" style="padding:2px 5px; flex:1; font-size:0.75rem;" onclick="adjHarvestQty(-1)">-1</button>
+                    <button class="btn btn-secondary" style="padding:2px 5px; flex:1; font-size:0.75rem;" onclick="adjHarvestQty(1)">+1</button>
+                    <button class="btn btn-secondary" style="padding:2px 5px; flex:1; font-size:0.75rem;" onclick="adjHarvestQty(15)">+15</button>
+                  </div>
+                </div>
+              </div>
+              <div id="labor-dynamic-list" style="margin-top:10px;"></div>
+              <button class="btn btn-secondary" style="margin-bottom:15px; width:100%; border-style:dashed;" onclick="addLaborItemRow()">+ 新增產出物</button>
+              <button class="btn btn-primary" style="width:100%; background:linear-gradient(135deg,var(--accent-purple),var(--accent-cyan));" onclick="submitLaborHarvest()">確認收成入庫</button>
+            </div>
+            
+            <div class="card" style="border-color:var(--accent-cyan);">
+              <div class="card-header"><h3 class="card-title">📝 滿日記本採購/入庫</h3></div>
+              <div class="form-row">
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">日記本階級</label>
+                  <div id="labor-add-filled-pill-group"></div>
+                </div>
+                <div class="form-group" style="flex:1;"><label class="form-label">輸入數量</label><input type="text" class="format-num" id="labor-add-filled-qty" value="10"></div>
+              </div>
+              <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="submitAddFilledJournals()">確認入庫 (不記帳)</button>
+            </div>
+          </div>
+          
+          <div class="right-col">
+            <div class="card" style="border-color:var(--accent-cyan); margin-bottom:20px;">
+              <div class="card-header"><h3 class="card-title">📘 滿日記本庫存 Full Journals</h3></div>
+              <div class="table-wrapper">
+                <table><thead><tr><th>階級</th><th style="white-space: nowrap;">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></th><th>可用操作</th></tr></thead><tbody id="labor-journal-tbody"></tbody></table>
+              </div>
+            </div>
+            <div class="card" style="border-color:var(--accent-purple); margin-bottom:20px;">
+              <div class="card-header"><h3 class="card-title">🏝️ 產出物庫存 Yield Inventory</h3></div>
+              <div class="table-wrapper">
+                <table><thead><tr><th>物資項目</th><th style="white-space: nowrap;">品質<br><span style="font-size: 0.8em; opacity: 0.7;">Quality</span></th><th style="white-space: nowrap;">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></th><th>可用操作</th></tr></thead><tbody id="labor-tbody"></tbody></table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">📅 收成歷史紀錄</h3></div>
+              <div class="table-wrapper">
+                <table><thead><tr><th style="white-space: nowrap;">日期<br><span style="font-size: 0.8em; opacity: 0.7;">Date</span></th><th>日記本消耗</th><th colspan="2">產出細節</th></tr></thead><tbody id="labor-logs-tbody"></tbody></table>
+              </div>
+              <div id="labor-logs-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:10px;">
+                <button class="btn btn-secondary" onclick="prevLaborLogsPage()">上一頁</button>
+                <span id="labor-logs-page-info" style="font-weight:bold; color:var(--accent-cyan);">1 / 1</span>
+                <button class="btn btn-secondary" onclick="nextLaborLogsPage()">下一頁</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Ledger -->
+      <section id="tab-ledger" class="tab-content">
+        <div class="panel-grid" style="display: block;">
+          <div class="left-col" style="width: 100%;">
+            <div class="card">
+              <div class="card-header" style="flex-direction:column; align-items:stretch; gap:12px;">
+                <h3 class="card-title">📖 製造錢包流水明細</h3>
+                <input type="text" id="ledger-search" placeholder="🔍 搜尋日期、類別或項目..." oninput="filterLedger(true)">
+              </div>
+              <div class="table-wrapper">
+                <table><thead><tr><th style="white-space: nowrap;">日期<br><span style="font-size: 0.8em; opacity: 0.7;">Date</span></th><th style="white-space: nowrap;">類別<br><span style="font-size: 0.8em; opacity: 0.7;">Category</span></th><th style="white-space: nowrap;">項目<br><span style="font-size: 0.8em; opacity: 0.7;">Item</span></th><th style="white-space: nowrap;">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></th><th style="white-space: nowrap;">單價<br><span style="font-size: 0.8em; opacity: 0.7;">Unit Price</span></th><th style="white-space: nowrap;">總金額<br><span style="font-size: 0.8em; opacity: 0.7;">Total Price</span></th><th style="white-space: nowrap;">操作<br><span style="font-size: 0.8em; opacity: 0.7;">Actions</span></th></tr></thead><tbody id="ledger-tbody"></tbody></table>
+              </div>
+              <div id="ledger-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:10px;">
+                <button class="btn btn-secondary" onclick="prevLedgerPage()">上一頁</button>
+                <span id="ledger-page-info" style="font-weight:bold; color:var(--accent-cyan);">1 / 1</span>
+                <button class="btn btn-secondary" onclick="nextLedgerPage()">下一頁</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODALS -->
+  <div id="import-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:200;">
+    <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-cyan);">
+      <div class="card-header"><h3 class="card-title">匯入一般庫存</h3><button class="btn btn-secondary" onclick="closeImportModal()">✕</button></div>
+      <div class="form-group"><label class="form-label">匯入數量</label><input type="text" class="format-num" id="import-qty"></div>
+      <div class="form-group">
+        <label class="form-label">目的地倉庫</label>
+        <select id="import-city" onchange="handleCityDropdownChange(event)"></select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="submitImportLaborStock()">確認轉移</button>
+    </div>
+  </div>
+
+  <div id="sell-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:200;">
+    <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-red);">
+      <div class="card-header"><h3 class="card-title">直接出售工人島物資</h3><button class="btn btn-secondary" onclick="closeSellLaborStockModal()">✕</button></div>
+      <div class="form-group"><label class="form-label">出售數量 Sell Amount</label><input type="text" class="format-num" id="sell-qty"></div>
+      <div class="form-group"><label class="form-label">這筆訂單銷售總額</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-price"><span class="input-suffix">銀幣</span></div></div>
+      <button class="btn btn-danger" style="width:100%;" onclick="submitSellLaborStock()">確認出售套現</button>
+    </div>
+  </div>
+
+  <!-- Estimator Sell Modal -->
+  <div id="sell-crafted-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:200;">
+    <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-purple);">
+      <div class="card-header"><h3 id="sell-crafted-title" class="card-title">估價計算機與銷售</h3><button class="btn btn-secondary" onclick="closeSellCraftedModal()">✕</button></div>
+      <div class="form-group"><label class="form-label">出售倉庫位置</label><select id="sell-crafted-city" onchange="runEstimator()"></select></div>
+      <div class="form-group">
+        <label class="form-label">出售數量 Sell Amount (剩餘:<span id="sell-crafted-max"></span>)</label>
+        <div style="display:flex; gap:5px; align-items:center;">
+          <input type="text" class="format-num" id="sell-crafted-qty" value="1" oninput="runEstimator()" style="flex:1;">
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjustSellCraftedQty(-10)">-10</button>
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjustSellCraftedQty(-1)">-1</button>
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjustSellCraftedQty(1)">+1</button>
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="adjustSellCraftedQty(10)">+10</button>
+        </div>
+      </div>
+      <div class="form-group" style="background:rgba(0,0,0,0.2); padding:10px; border-radius:8px;"><div style="font-size:0.85rem; color:var(--text-secondary);">每件平均成本 (Avg Cost): <span id="sell-crafted-cost" style="color:var(--accent-red); font-weight:bold;"></span></div></div>
+      <div class="form-group" style="margin-top:15px;"><label class="form-label">總預估市值 Est. Total Value</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-estimate" oninput="runEstimator()"><span class="input-suffix">銀幣</span></div></div>
+      <div class="benchmark-container" style="margin-top:10px;">
+        <div class="benchmark-card pct90"><div class="benchmark-percent">90% 參考</div><div class="benchmark-val" id="sell-bench-90">0</div></div>
+        <div class="benchmark-card pct85"><div class="benchmark-percent">85% 參考</div><div class="benchmark-val" id="sell-bench-85">0</div></div>
+      </div>
+      <div class="form-row" style="border-top:1px dashed var(--border-glass); padding-top:15px;">
+        <div class="form-group"><label class="form-label">實際售出單價 Unit Price</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-actual" oninput="onSellPriceChange('unit')"><span class="input-suffix">銀幣</span></div></div>
+        <div class="form-group"><label class="form-label">實際售出總價 Total Price</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-actual-total" oninput="onSellPriceChange('total')"><span class="input-suffix">銀幣</span></div></div>
+      </div>
+      <div class="form-group"><div style="font-size:0.9rem; color:var(--text-secondary);">這筆訂單預期總利潤: <span id="sell-crafted-profit" style="font-weight:bold; font-size:1.2rem;">0</span></div></div>
+      <button class="btn btn-success" style="width:100%; height:45px;" onclick="submitSellCrafted()">確認完成交易 (更新庫存與錢包)</button>
+    </div>
+  </div>
+
+  <!-- Edit Inventory Modal -->
+  <div id="edit-inventory-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:300;">
+    <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-cyan);">
+      <div class="card-header"><h3 class="card-title">✏️ 庫存校正</h3><button class="btn btn-secondary" style="padding:4px 8px;" onclick="closeEditInventoryModal()">✕</button></div>
+      <div class="form-group"><label class="form-label">修改物品</label><div id="edit-inv-name" style="font-size:1.1rem; font-weight:bold; color:var(--text-primary); margin-bottom:10px;"></div></div>
+      <div class="form-group"><label class="form-label">選擇需校正之倉庫</label><select id="edit-inv-city" onchange="onEditCityChange()"></select></div>
+      <div class="form-group"><label class="form-label">該城市正確數量</label><input type="text" class="format-num" id="edit-inv-qty"></div>
+      <div class="form-group">
+        <label class="form-label">全局正確加權均價</label>
+        <div class="input-with-suffix"><input type="text" class="format-num" id="edit-inv-cost"><span class="input-suffix">銀幣</span></div>
+        <div class="info-tip">⚠️ 系統會寫入一筆「成本校正」紀錄以對齊此均價。</div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button class="btn btn-success" style="flex:2;" onclick="submitEditInventory()">確認修改</button>
+        <button class="btn btn-danger" style="flex:1;" onclick="deleteEditInventory()">刪除此項庫存</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Item Selector Modal -->
+  <div id="item-selector-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:500;">
+    <div class="card" style="width:80%; height:80vh; margin:10vh auto; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+      <div style="display:flex; padding:15px; border-bottom:1px solid var(--border-glass); gap:15px; align-items:center;">
+        <input type="text" id="item-search" placeholder="🔍 搜尋裝備名稱或俗稱 (全域搜尋)..." oninput="searchItems(this.value)" style="flex:1; padding:10px; font-size:1.1rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:var(--text-primary); border-radius:8px;">
+        <button class="btn btn-secondary" style="padding:10px 20px;" onclick="closeItemSelector()">關閉</button>
+      </div>
+      <div style="display:flex; flex:1; overflow:hidden;">
+        <div style="width:200px; border-right:1px solid var(--border-glass); overflow-y:auto; padding:10px;" id="item-selector-tabs">
+        </div>
+        <div style="flex:1; padding:20px; overflow-y:auto; align-content:start;" id="item-selector-grid">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Manage Locations Modal -->
+  <div id="manage-locations-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:400;">
+    <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-cyan);">
+      <div class="card-header"><h3 class="card-title">⚙️ 管理倉庫<br><span style="font-size: 0.8em; opacity: 0.7;">Manage Locations</span></h3><button class="btn btn-secondary" style="padding:4px 8px;" onclick="closeManageLocationsModal()">✕</button></div>
+      <div id="manage-locations-list" style="margin-top:15px; display:flex; flex-direction:column; gap:10px; max-height: 400px; overflow-y:auto;">
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Custom Location Modal -->
+  <div id="custom-location-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:600;">
+    <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-purple);">
+      <div class="card-header"><h3 class="card-title">新增/編輯倉庫 Location</h3></div>
+      <div class="form-group">
+        <input type="text" id="custom-location-input" placeholder="輸入倉庫名稱..." style="font-size:1.1rem; padding:10px;">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button class="btn btn-primary" style="flex:2;" onclick="submitCustomLocation()">確認 Confirm</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeCustomLocationModal()">取消 Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Labor Inventory Modal -->
+  <div id="edit-labor-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:350;">
+    <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-purple);">
+      <div class="card-header"><h3 class="card-title">✏️ 工人島庫存校正</h3><button class="btn btn-secondary" style="padding:4px 8px;" onclick="closeEditLaborModal()">✕</button></div>
+      <div class="form-group"><label class="form-label">修改物品</label><div id="edit-labor-name" style="font-size:1.1rem; font-weight:bold; color:var(--text-primary); margin-bottom:10px;"></div></div>
+      <div class="form-group"><label class="form-label">正確數量</label><input type="text" class="format-num" id="edit-labor-qty"></div>
+      <div class="info-tip" style="margin-top:10px; color:var(--accent-yellow);">⚠️ 此修改為靜默操作，僅覆寫工人島狀態，絕不影響任何流水帳或資金！</div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button class="btn btn-success" style="width:100%;" onclick="submitEditLabor()">儲存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Ledger Modal -->
+  <div id="edit-ledger-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:400;">
+    <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-yellow);">
+      <div class="card-header"><h3 class="card-title">✏️ 編輯流水明細</h3><button class="btn btn-secondary" style="padding:4px 8px;" onclick="closeEditLedgerModal()">✕</button></div>
+      <div class="form-group"><label class="form-label">日期與類別</label><div id="edit-ledger-info" style="font-size:1.1rem; font-weight:bold; margin-bottom:10px;"></div></div>
+      <div class="form-group"><label class="form-label">明細項目</label><div id="edit-ledger-item" style="font-size:1.1rem; font-weight:bold; margin-bottom:10px; color:var(--accent-cyan);"></div></div>
+      <div class="form-group"><label class="form-label">修改數量</label><input type="text" class="format-num" id="edit-ledger-qty"></div>
+      <div class="form-group">
+        <label class="form-label">修改總金額</label>
+        <div class="input-with-suffix"><input type="text" class="format-num" id="edit-ledger-total"><span class="input-suffix">銀幣</span></div>
+        <div class="info-tip">⚠️ 系統提示：修改或刪除歷史紀錄將會歸還數量與現金，但【不會】自動回溯重算物品的全局均價。若導致成本失真，請至「📦 物流庫存」面板使用「✏️ 編輯」功能手動校正均價。</div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button class="btn btn-success" style="flex:2;" onclick="submitEditLedger()">儲存修改</button>
+        <button class="btn btn-danger" style="flex:1;" onclick="deleteEditLedger()">刪除紀錄</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-notification" class="toast-notification"><div id="toast-icon"></div><span id="toast-text"></span></div>
+  <script src="database.js"></script>
+  <script src="app.js"></script>
+
+  <div id="edit-queue-qty-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:500;">
+    <div class="card" style="width:400px; margin:15vh auto; border-color:var(--accent-cyan);">
+      <div class="card-header"><h3 class="card-title">✏️ 修改批次數量</h3><button class="btn btn-secondary" onclick="closeModal('edit-queue-qty-modal')">✕</button></div>
+      <div id="edit-queue-item-name" style="text-align:center; font-size:1.2rem; font-weight:bold; color:var(--accent-cyan); margin-bottom:15px;"></div>
+      
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+        <button class="btn btn-secondary" style="padding: 8px 15px;" onclick="adjustEditModalQty(-1)">-1</button>
+        <input type="number" id="edit-queue-qty-input" class="format-num" min="1" style="flex:1; padding:8px; text-align:center; font-size:1.2rem;">
+        <button class="btn btn-secondary" style="padding: 8px 15px;" onclick="adjustEditModalQty(1)">+1</button>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-primary" style="flex:1;" onclick="confirmEditQueueQty()">確認修改</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('edit-queue-qty-modal')">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="delete-confirm-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:500;">
+    <div class="card" style="width:400px; margin:15vh auto; border-color:var(--accent-red);">
+      <div class="card-header"><h3 class="card-title" style="color:var(--accent-red);">🗑️ 確認刪除</h3><button class="btn btn-secondary" onclick="closeModal('delete-confirm-modal')">✕</button></div>
+      <p style="margin-bottom:20px; text-align:center; font-size:1.1rem;">您確定要將此裝備從製作清單中移除嗎？</p>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-danger" style="flex:1;" onclick="confirmDeleteQueue()">確認刪除</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeModal('delete-confirm-modal')">取消</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
