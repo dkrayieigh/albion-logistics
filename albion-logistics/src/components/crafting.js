@@ -1,0 +1,354 @@
+import { TAX_RATE, BASE_RRR, FOCUS_RRR_BONUS, SYSTEM_CITIES, BONUSES, EN_MAT, QUAL_GROUPS } from '../data/constants.js';
+import { ALBION_DB } from '../data/albion_db.js';
+import { escapeHTML, parseNum, formatSilver } from '../utils/formatters.js';
+import { state, craftingQueue, currentCraftQuality, saveState, initDefaultState } from '../core/state.js';
+
+export function getAllRecipes() {
+  let list = [];
+  for (let cat in ALBION_DB) {
+    for (let branch in ALBION_DB[cat]) {
+      if (ALBION_DB[cat][branch] && ALBION_DB[cat][branch].items) {
+        list = list.concat(ALBION_DB[cat][branch].items);
+      }
+    }
+  }
+  return list;
+}
+export const RECIPES = getAllRecipes();
+
+export function getEnchantAndTier(q) { 
+  const p = q.split('.'); 
+  return { tier: parseInt(p[0]) || 4, enchant: parseInt(p[1]) || 0 }; 
+}
+
+export function getRRA(c, city, f) {
+  if (state.customLocations.includes(city)) {
+    if (f) return parseNum(document.getElementById('hideout-focus-rrr').value) / 100.0;
+    else { const b = parseNum(document.getElementById('hideout-map-bonus').value); return (18 + b) / (100 + 18 + b); }
+  }
+  const b = BONUSES[c];
+  const r = (c === '鋼條' && city === 'Thetford') || (c === '布料' && city === 'Lymhurst') || (c === '板材' && city === 'Fort Sterling');
+  const cb = (b === city && !r);
+  if (f) return (cb || r) ? 0.479 : FOCUS_RRR_BONUS;
+  else { if (cb || r) return (18 + 15) / (100 + 18 + 15); else return BASE_RRR; }
+}
+
+export function calculateCraftingFee(r, q, qual, sf) { 
+  const { tier, enchant } = getEnchantAndTier(qual); 
+  const mv = Math.pow(2, tier+enchant); 
+  const sv = r.subBaseQty > 0 ? Math.pow(2, tier+enchant) : 0; 
+  const iv = (r.mainBaseQty*mv + r.subBaseQty*sv)*q; 
+  const av = r.artifactVal > 0 ? (r.artifactVal * Math.pow(2, tier-4)) : 0; 
+  return Math.round((iv + av) * TAX_RATE * sf); 
+}
+
+export function getAlchemyRequirement(tier) {
+  const t = parseInt(tier);
+  if (t === 4) return { tier: 'T3', qty: 1 };
+  if (t === 5) return { tier: 'T5', qty: 1 };
+  if (t === 6) return { tier: 'T5', qty: 2 };
+  if (t === 7) return { tier: 'T7', qty: 1 };
+  if (t === 8) return { tier: 'T7', qty: 2 };
+  return { tier: 'T3', qty: 1 };
+}
+
+export function estimateFocusRRR(b) {
+  const baseRF = (18 + b) * 100;
+  const focusRF = baseRF + 10000;
+  const focusRRR = (focusRF / (10000 + focusRF)) * 100;
+  return parseFloat(focusRRR.toFixed(1));
+}
+
+export function onMapBonusInput() {
+  const b = parseNum(document.getElementById('hideout-map-bonus').value);
+  document.getElementById('hideout-focus-rrr').value = estimateFocusRRR(b);
+  runCraftingCalculator();
+}
+
+export function adjCraftQty(d) { 
+  let el = document.getElementById('craft-qty'); 
+  let v = parseInt(el.value) + d; 
+  if(v < 1) v = 1; 
+  el.value = v; 
+  runCraftingCalculator(); 
+}
+
+export function onRecipeChange() {
+  const rn = document.getElementById('craft-recipe').value; const r = RECIPES.find(x => x.name === rn); if (!r) return;
+  document.getElementById('main-material-label').innerHTML = `主料需求: ${r.main}<br><span style="font-size:0.8em;opacity:0.7;">Main Material: ${EN_MAT[r.main]||''}</span>`;
+  
+  if (r.subBaseQty > 0) { 
+      document.getElementById('sub-material-label').innerHTML = `副料需求: ${r.sub}<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: ${EN_MAT[r.sub]||''}</span>`; 
+      document.getElementById('sub-material-group').style.display = 'block'; 
+  } else { 
+      document.getElementById('sub-material-label').innerHTML = `副料需求: 無<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: None</span>`; 
+      document.getElementById('sub-material-group').style.display = 'block'; 
+  }
+  runCraftingCalculator();
+}
+
+export function runCraftingCalculator() {
+  const rn = document.getElementById('craft-recipe').value; const r = RECIPES.find(x => x.name === rn); if (!r) return;
+  const q = parseNum(document.getElementById('craft-qty').value); const qual = currentCraftQuality; const city = document.getElementById('craft-city').value;
+  const foc = document.getElementById('craft-focus').checked;
+  const rra = getRRA(r.category, city, foc); document.getElementById('rra-badge').innerText = `返還率: ${(rra*100).toFixed(1)}%`;
+  let returnQty = Math.floor(r.mainBaseQty * q * rra); const amc = r.mainBaseQty * q - returnQty;
+  let returnSubQty = Math.floor(r.subBaseQty * q * rra); const asc = r.subBaseQty * q - returnSubQty;
+  document.getElementById('out-main-qty').innerText = `${amc} / ${r.mainBaseQty*q}`; document.getElementById('out-sub-qty').innerText = r.subBaseQty>0 ? `${asc} / ${r.subBaseQty*q}` : '0';
+  
+  const oml = document.getElementById('out-main-label'); if(oml) oml.innerHTML = `預估消耗 ${r.main}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.main]||''} Consumption</span>`;
+  const osl = document.getElementById('out-sub-label'); if(osl) osl.innerHTML = r.subBaseQty > 0 ? `預估消耗 ${r.sub}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.sub]||''} Consumption</span>` : `預估消耗 無<br><span style="font-size:0.8em; opacity:0.7;">Est. None</span>`;
+  
+  const alcGroup = document.getElementById('alchemy-group');
+  if (r.alchemyName) {
+      alcGroup.style.display = 'block';
+      let tier = '4';
+      if (qual && qual.includes('.')) { tier = qual.split('.')[0]; }
+      const req = getAlchemyRequirement(tier);
+      document.getElementById('alchemy-label').innerHTML = `鍊金材料<br><span style="font-size:0.8em; opacity:0.7;">${req.tier} ${r.alchemyName} (需求: ${req.qty})</span>`;
+  } else {
+      alcGroup.style.display = 'none';
+  }
+}
+
+export function addToCraftingQueue() {
+  const rn = document.getElementById('craft-recipe').value; const r = RECIPES.find(x => x.name === rn); if (!r) return window.showToast('裝備錯誤', 'error');
+  const q = parseNum(document.getElementById('craft-qty').value); if(q<=0) return window.showToast('數量必須大於0', 'error');
+  const qual = currentCraftQuality; const city = document.getElementById('craft-city').value;
+  const foc = document.getElementById('craft-focus').checked;
+  
+  const mk = `${r.main}_${qual}`; const sk = `${r.sub}_${qual}`; const rra = getRRA(r.category, city, foc);
+  let returnQty = Math.floor(r.mainBaseQty * q * rra); const amc = r.mainBaseQty * q - returnQty;
+  let returnSubQty = Math.floor(r.subBaseQty * q * rra); const asc = r.subBaseQty * q - returnSubQty;
+  
+  let alcTier = null; let alcQty = 0; let alcPrice = 0;
+  if (r.alchemyName) {
+      let tier = '4'; if (qual && qual.includes('.')) tier = qual.split('.')[0];
+      const req = getAlchemyRequirement(tier); alcTier = req.tier; alcQty = req.qty;
+      const alcEl = document.getElementById('craft-alchemy-cost'); if (alcEl) alcPrice = parseNum(alcEl.value);
+  }
+  
+  craftingQueue.push({ id: Math.floor(Date.now() + Math.random() * 1000), checked: true, recipe: r, qty: q, quality: qual, city: city, focus: foc, mainKey: mk, mainQty: amc, subKey: sk, subQty: asc, tax: 0, artifactPrice: 0, artifactName: r.artifactVal > 0 || r.artifactName ? r.artifactName : null, artifactQty: r.artifactQty || 1, alchemyName: r.alchemyName, alchemyTier: alcTier, alchemyBaseQty: alcQty, alchemyPrice: alcPrice });
+  renderCraftingQueue(); updateShoppingListTotal(); window.showToast('已加入佇列', 'success');
+}
+
+export function renderCraftingQueue() {
+  const tb = document.getElementById('crafting-queue-tbody'); tb.innerHTML='';
+  craftingQueue.forEach(q => {
+    const tr = document.createElement('tr'); const bc = `quality-badge quality-${parseInt(q.quality.split('.')[0])||4}`;
+    tr.innerHTML = `
+    <td><input type="checkbox" ${q.checked ? 'checked' : ''} onchange="toggleQueueItem(${q.id}, this.checked)"></td>
+    <td style="white-space:nowrap;"><strong>T${parseInt(q.quality.split(".")[0])||4} ${q.recipe.name}</strong> ${q.focus?"✨":""}<br><span style="font-size:0.8em; opacity:0.7; color:var(--text-secondary);">${q.recipe.id}</span></td>
+    <td><span class="${bc}">${q.quality}</span></td>
+    <td style="color:var(--accent-cyan); font-weight:bold;">${q.qty}</td>
+    <td>${SYSTEM_CITIES[q.city]?.name||q.city}</td>
+    <td style="white-space:nowrap; font-size:0.8rem; line-height:1.4;">${q.recipe.main}: ${q.mainQty}<br>${q.recipe.subBaseQty>0?`${q.recipe.sub}: ${q.subQty}`:''}</td>
+    <td style="display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; gap:5px; align-items:center;">
+        <button class="btn btn-warning" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" onclick="editQueueQty(${q.id})">✏️ 編輯<br><span style="font-size:0.8em;opacity:0.7;">Edit</span></button>
+        <button class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" onclick="removeFromQueue(${q.id})">🗑️ 刪除<br><span style="font-size:0.8em;opacity:0.7;">Delete</span></button>
+      </div>
+      ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.artifactName}${q.artifactQty > 1 ? ` (需: ${q.artifactQty})` : ''}</div><input type="text" class="format-num" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" oninput="updateQueueArtPrice(${q.id}, this.value)"></div>` : ''}
+      ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">${q.alchemyTier} ${q.alchemyName} (需: ${q.alchemyBaseQty})</div><input type="text" class="format-num" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" oninput="updateQueueAlcPrice(${q.id}, this.value)"></div>` : ''}
+    </td>`;
+    tb.appendChild(tr);
+  });
+}
+
+export function updateShoppingListTotal() {
+  const sf = parseNum(document.getElementById('global-shopfee').value);
+  let aggregated = {}; let totalCash = 0;
+  craftingQueue.forEach(q => {
+    if(!q.checked) return;
+    q.tax = calculateCraftingFee(q.recipe, q.qty, q.quality, sf);
+    totalCash += (q.tax + (q.artifactPrice || 0) * (q.artifactQty || 1) * q.qty);
+    if (q.alchemyName) {
+        totalCash += (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
+        const ak = `${q.city}|${q.alchemyTier} ${q.alchemyName}`; aggregated[ak] = (aggregated[ak]||0) + (q.alchemyBaseQty * q.qty);
+    }
+    const k = `${q.city}|${q.mainKey}`; aggregated[k] = (aggregated[k]||0) + q.mainQty;
+    if(q.recipe.subBaseQty>0) { const sk = `${q.city}|${q.subKey}`; aggregated[sk] = (aggregated[sk]||0) + q.subQty; }
+  });
+  
+  const sc = document.getElementById('shopping-list-content');
+  if(Object.keys(aggregated).length === 0) { sc.innerHTML = '<span style="color:var(--text-muted)">無勾選裝備...</span>'; }
+  else {
+    let listHTML = '<ul style="list-style:none; padding:0; margin:0; display:grid; grid-template-columns:1fr 1fr; gap:8px;">';
+    for(let k in aggregated) {
+      const [city, mat] = k.split('|');
+      let matDisplay = mat.replace('_', ' ');
+      if (mat.includes(' ') && !mat.match(/^\d\./)) { 
+          const parts = mat.split(' ');
+          matDisplay = `${parts[0]}<br><span style="font-size:0.8em;opacity:0.7;font-weight:normal;">${parts.slice(1).join(' ')}</span>`;
+      }
+      listHTML += `<li style="display:flex; align-items:center; gap:5px; margin-bottom:5px; line-height:1.2;">
+        <span style="color:var(--text-secondary); white-space:nowrap;">[${SYSTEM_CITIES[city]?.name||city}]</span> 
+        <strong style="flex:1; ${mat.includes(' ') ? 'color:var(--accent-yellow);' : ''}">${matDisplay}</strong> 
+        <span style="color:var(--accent-cyan); font-weight:bold;"> x ${aggregated[k]}</span>
+      </li>`;
+    }
+    listHTML += '</ul>'; sc.innerHTML = listHTML;
+  }
+  document.getElementById('queue-total-cost').innerText = formatSilver(totalCash);
+}
+
+export function submitCraftAll() {
+  const toCraft = craftingQueue.filter(x => x.checked);
+  if (toCraft.length === 0) return window.showToast('沒有勾選任何項目！', 'error');
+  let needed = {}; let totalCashNeeded = 0;
+  toCraft.forEach(q => {
+    totalCashNeeded += (q.tax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty);
+    if (q.alchemyName) totalCashNeeded += (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
+    const mk = `${q.city}|${q.mainKey}`; needed[mk] = (needed[mk]||0) + q.mainQty;
+    if(q.recipe.subBaseQty>0) { const sk = `${q.city}|${q.subKey}`; needed[sk] = (needed[sk]||0) + q.subQty; }
+  });
+  
+  for(let k in needed) {
+    const [city, mat] = k.split('|'); const av = state.inventory[mat]?.qtyByCity[city] || 0;
+    if (av < needed[k]) return window.showToast(`短缺警告：${SYSTEM_CITIES[city]?.name||city} 的 ${mat.replace('_',' ')} 需要 ${needed[k]}，但庫存僅有 ${av}！`, 'error');
+  }
+  
+  toCraft.forEach(q => {
+    state.inventory[q.mainKey].qtyByCity[q.city] -= q.mainQty;
+    if(q.recipe.subBaseQty>0) state.inventory[q.subKey].qtyByCity[q.city] -= q.subQty;
+    state.assets.cash -= (q.tax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty);
+    if (q.alchemyName) state.assets.cash -= (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
+    
+    const mkCost = q.mainQty * (state.inventory[q.mainKey]?.globalAvgCost||0);
+    const skCost = q.recipe.subBaseQty>0 ? (q.subQty * (state.inventory[q.subKey]?.globalAvgCost||0)) : 0;
+    const tCost = mkCost + skCost + q.tax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty + (q.alchemyName ? (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty : 0);
+    
+    const ok = `${q.recipe.name}_${q.quality}`; if(!state.inventory[ok]) initDefaultState();
+    
+    const it = state.inventory[ok];
+    let oldGlobalQty = 0; for(let c in it.qtyByCity) oldGlobalQty += it.qtyByCity[c];
+    const oldTotalCost = oldGlobalQty * (it.globalAvgCost || 0);
+    const newTotalCost = oldTotalCost + tCost;
+    const newGlobalQty = oldGlobalQty + q.qty;
+    if (newGlobalQty > 0) it.globalAvgCost = Math.round(newTotalCost / newGlobalQty);
+
+    it.qtyByCity[q.city] += q.qty;
+    state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type: '製作入庫', item: q.recipe.name, quality: q.quality, qty: q.qty, total: tCost, unitPrice: Math.round(tCost/q.qty), location: q.city });
+  });
+  
+  // Update craftingQueue
+  for (let i = craftingQueue.length - 1; i >= 0; i--) {
+      if (craftingQueue[i].checked) craftingQueue.splice(i, 1);
+  }
+  renderCraftingQueue(); updateShoppingListTotal(); saveState(); window.updateDashboardUI();
+  window.showToast('🎉 製造成功！已勾選裝備入庫，成本與流水帳已更新。', 'success');
+}
+
+// === Item Selector Logic ===
+let currentSelectorTab = '戰士 Warrior';
+export function openItemSelector() {
+  document.getElementById('item-search').value = '';
+  document.getElementById('item-selector-modal').style.display = 'block';
+  renderItemSelectorTabs();
+  renderItemSelectorGrid(currentSelectorTab);
+}
+export function closeItemSelector() { document.getElementById('item-selector-modal').style.display = 'none'; }
+export function renderItemSelectorTabs() {
+  const tabs = document.getElementById('item-selector-tabs'); tabs.innerHTML = '';
+  const tabOrder = ['戰士 Warrior', '獵人 Hunter', '法師 Mage', '身體護甲 Body Armor', '頭部護甲 Head Armor', '足部護甲 Foot Armor', '副手武器 Off-Hand'];
+  for (let cat of tabOrder) {
+    if (!ALBION_DB[cat]) continue;
+    const btn = document.createElement('div');
+    const parts = cat.split(' ');
+    btn.innerHTML = `${parts[0]}<br><span style="font-size: 0.8em; opacity: 0.7;">${parts.slice(1).join(' ')}</span>`;
+    btn.style.padding = '10px 15px'; btn.style.cursor = 'pointer'; btn.style.borderBottom = '1px solid var(--border-glass)';
+    btn.style.color = cat === currentSelectorTab ? 'var(--accent-cyan)' : 'var(--text-secondary)';
+    btn.style.fontWeight = cat === currentSelectorTab ? 'bold' : 'normal'; btn.style.lineHeight = '1.3'; btn.style.textAlign = 'center';
+    btn.onclick = () => {
+      currentSelectorTab = cat; document.getElementById('item-search').value = '';
+      renderItemSelectorTabs(); renderItemSelectorGrid(cat);
+    };
+    tabs.appendChild(btn);
+  }
+}
+export function renderItemSelectorGrid(catOrItems) {
+  const grid = document.getElementById('item-selector-grid'); grid.innerHTML = '';
+  if (Array.isArray(catOrItems)) {
+    const div = document.createElement('div'); div.style.display = 'grid'; div.style.gridTemplateColumns = 'repeat(auto-fill, minmax(140px, 1fr))'; div.style.gap = '10px';
+    catOrItems.forEach(item => {
+      const btn = document.createElement('button'); btn.className = 'btn btn-secondary';
+      btn.style.padding = '10px'; btn.style.display = 'flex'; btn.style.flexDirection = 'column'; btn.style.alignItems = 'center'; btn.style.gap = '5px';
+      btn.innerHTML = `<span style="color:var(--accent-cyan); font-weight:bold;">${item.name}</span><br><span style="font-size:0.8em; opacity:0.7; color:var(--text-secondary);">${item.id}</span>`;
+      btn.onclick = () => selectCraftingRecipe(item); div.appendChild(btn);
+    });
+    grid.appendChild(div);
+  } else {
+    const catObj = ALBION_DB[catOrItems]; if (!catObj) return;
+    for (let branch in catObj) {
+      if (!catObj[branch] || !catObj[branch].items) continue;
+      const bHead = document.createElement('div'); const parts = branch.split(' ');
+      bHead.innerHTML = `${parts[0]} <span style="font-size:0.8em; opacity:0.7;">${parts.slice(1).join(' ')}</span>`;
+      bHead.style.color = 'var(--accent-purple)'; bHead.style.marginTop = '15px'; bHead.style.marginBottom = '10px'; bHead.style.fontWeight = 'bold';
+      grid.appendChild(bHead);
+      const div = document.createElement('div'); div.style.display = 'grid'; div.style.gridTemplateColumns = 'repeat(auto-fill, minmax(140px, 1fr))'; div.style.gap = '10px'; div.style.marginBottom = '15px';
+      catObj[branch].items.forEach(item => {
+        const btn = document.createElement('button'); btn.className = 'btn btn-secondary'; btn.style.padding = '10px'; btn.style.display = 'flex'; btn.style.flexDirection = 'column'; btn.style.alignItems = 'center'; btn.style.gap = '5px';
+        btn.innerHTML = `<span style="color:var(--accent-cyan); font-weight:bold;">${item.name}</span><br><span style="font-size:0.8em; opacity:0.7; color:var(--text-secondary);">${item.id}</span>`;
+        btn.onclick = () => selectCraftingRecipe(item); div.appendChild(btn);
+      });
+      grid.appendChild(div);
+    }
+  }
+}
+export function searchItems(q) {
+  if (!q) { renderItemSelectorTabs(); renderItemSelectorGrid(currentSelectorTab); return; }
+  const lowQ = q.toLowerCase(); const all = getAllRecipes();
+  const matches = all.filter(item => {
+    if (item.name.toLowerCase().includes(lowQ)) return true;
+    if (item.aliases && item.aliases.some(a => a.toLowerCase().includes(lowQ))) return true;
+    return false;
+  });
+  renderItemSelectorGrid(matches);
+}
+export function selectCraftingRecipe(item) {
+  document.getElementById('craft-recipe').value = item.name;
+  document.getElementById('craft-recipe-display').innerText = item.name;
+  closeItemSelector(); onRecipeChange();
+  if (item.artifactVal > 0) window.showToast(`提示：【${item.name}】需要神器材料，請注意估算成本！`, 'success');
+}
+
+// Queue Modals
+let queueEditTargetId = null;
+export function openEditQueueQtyModal(id) {
+  const q = craftingQueue.find(x => x.id === id); if(!q) return;
+  queueEditTargetId = id;
+  document.getElementById('edit-queue-item-name').innerText = `${q.recipe.name} (${q.quality})`;
+  document.getElementById('edit-queue-qty-input').value = q.qty;
+  document.getElementById('edit-queue-qty-modal').style.display = 'block';
+}
+export function closeEditQueueQtyModal() { document.getElementById('edit-queue-qty-modal').style.display = 'none'; queueEditTargetId = null; }
+export function submitEditQueueQty() {
+  if (!queueEditTargetId) return;
+  const q = craftingQueue.find(x => x.id === queueEditTargetId);
+  const nq = parseInt(document.getElementById('edit-queue-qty-input').value);
+  if(!isNaN(nq) && nq > 0) {
+    q.qty = nq; const rra = getRRA(q.recipe.category, q.city, q.focus);
+    let returnQty = Math.floor(q.recipe.mainBaseQty * nq * rra); q.mainQty = q.recipe.mainBaseQty * nq - returnQty;
+    let returnSubQty = Math.floor(q.recipe.subBaseQty * nq * rra); q.subQty = q.recipe.subBaseQty * nq - returnSubQty;
+    renderCraftingQueue(); updateShoppingListTotal(); window.showToast('數量已更新', 'success');
+  }
+  closeEditQueueQtyModal();
+}
+let queueDeleteTargetId = null;
+export function openDeleteConfirmModal(id) { queueDeleteTargetId = id; document.getElementById('delete-confirm-modal').style.display = 'block'; }
+export function closeDeleteConfirmModal() { document.getElementById('delete-confirm-modal').style.display = 'none'; queueDeleteTargetId = null; }
+export function submitDeleteQueue() {
+  if (!queueDeleteTargetId) return;
+  for (let i = craftingQueue.length - 1; i >= 0; i--) { if (craftingQueue[i].id === queueDeleteTargetId) craftingQueue.splice(i, 1); }
+  renderCraftingQueue(); updateShoppingListTotal(); closeDeleteConfirmModal();
+}
+
+export function toggleQueueAll() { const ch = document.getElementById('queue-check-all').checked; craftingQueue.forEach(q => q.checked = ch); renderCraftingQueue(); updateShoppingListTotal(); }
+export function editQueueQty(id) { openEditQueueQtyModal(id); }
+export function confirmEditQueueQty() { submitEditQueueQty(); }
+export function removeFromQueue(id) { openDeleteConfirmModal(id); }
+export function confirmDeleteQueue() { submitDeleteQueue(); }
+export function toggleQueueItem(id, checked) { const q = craftingQueue.find(x => x.id === id); if(q) q.checked = checked; updateShoppingListTotal(); }
+export function updateQueueArtPrice(id, val) { const q = craftingQueue.find(x => x.id === id); if(!q) return; q.artifactPrice = parseNum(val); updateShoppingListTotal(); }
+export function updateQueueAlcPrice(id, val) { const q = craftingQueue.find(x => x.id === id); if(!q) return; q.alchemyPrice = parseNum(val); updateShoppingListTotal(); }
+export function adjustEditModalQty(amt) { const inp = document.getElementById('edit-queue-qty-input'); let val = parseInt(inp.value) || 0; val += amt; if (val < 1) val = 1; inp.value = val; }
