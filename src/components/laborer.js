@@ -24,7 +24,7 @@ export function renderLaborerTable() {
     if(qty > 0) {
       const bc = `quality-badge quality-${parseInt(q.split('.')[0])||4}`;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td><span class="${bc}">T${q.split('.')[0]} 日記本 (${q})</span></td><td style="font-weight:600; color:var(--accent-cyan); font-size:1.1rem;">${qty}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" onclick="openEditLaborModal('滿日記本','${q}',${qty})">✏️ 編輯</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" onclick="openSellLaborStockModal('滿日記本','${q}',${qty})">套現</button></td>`;
+      tr.innerHTML = `<td><span class="${bc}">T${q.split('.')[0]} 日記本 (${q})</span></td><td style="font-weight:600; color:var(--accent-cyan); font-size:1.1rem;">${qty}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" data-action="edit-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">✏️ 編輯</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" data-action="sell-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">套現</button></td>`;
       tbj.appendChild(tr);
     }
   });
@@ -37,7 +37,7 @@ export function renderLaborerTable() {
       if(qty===0) return; 
       const bc = `quality-badge quality-${parseInt(q.split('.')[0])||4}`;
       const tr = document.createElement('tr'); 
-      tr.innerHTML=`<td><strong>${it}</strong></td><td><span class="${bc}">${q}</span></td><td style="font-weight:600; color:var(--accent-purple);">${qty}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" onclick="openEditLaborModal('${it}','${q}',${qty})">✏️ 編輯</button> <button class="btn btn-success" style="padding:4px 8px; font-size:0.75rem;" onclick="openImportModal('${it}','${q}',${qty})">匯入</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" onclick="openSellLaborStockModal('${it}','${q}',${qty})">套現</button></td>`; 
+      tr.innerHTML=`<td><strong>${it}</strong></td><td><span class="${bc}">${q}</span></td><td style="font-weight:600; color:var(--accent-purple);">${qty}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" data-action="edit-labor" data-item="${it}" data-q="${q}" data-qty="${qty}">✏️ 編輯</button> <button class="btn btn-success" style="padding:4px 8px; font-size:0.75rem;" data-action="import-labor" data-item="${it}" data-q="${q}" data-qty="${qty}">匯入</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" data-action="sell-labor" data-item="${it}" data-q="${q}" data-qty="${qty}">套現</button></td>`; 
       tbg.appendChild(tr); 
     }); 
   });
@@ -158,4 +158,46 @@ export function submitSellLaborStock() {
   if(q<=0||q>m||p<=0) return; state.laborerInventory[aSelI][aSelQ]-=q; state.assets.cash+=p;
   state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type:'工人島出售', item:aSelI, quality:aSelQ, qty:q, total:p, unitPrice:Math.round(p/q), location:'LaborerIsland' });
   saveState(); window.updateDashboardUI(); closeSellLaborStockModal(); window.showToast('套現成功','success');
+}
+
+export function initLaborerEvents() {
+  document.getElementById('btn-labor-qty-sub-15')?.addEventListener('click', () => adjHarvestQty(-15));
+  document.getElementById('btn-labor-qty-sub-1')?.addEventListener('click', () => adjHarvestQty(-1));
+  document.getElementById('btn-labor-qty-add-1')?.addEventListener('click', () => adjHarvestQty(1));
+  document.getElementById('btn-labor-qty-add-15')?.addEventListener('click', () => adjHarvestQty(15));
+  
+  document.getElementById('btn-add-labor-row')?.addEventListener('click', addLaborItemRow);
+  document.getElementById('btn-submit-labor-harvest')?.addEventListener('click', submitLaborHarvest);
+  
+  document.getElementById('btn-submit-add-journals')?.addEventListener('click', submitAddFilledJournals);
+  
+  document.getElementById('btn-labor-prev-page')?.addEventListener('click', prevLaborLogsPage);
+  document.getElementById('btn-labor-next-page')?.addEventListener('click', nextLaborLogsPage);
+
+  document.getElementById('btn-close-edit-labor-modal')?.addEventListener('click', closeEditLaborModal);
+  document.getElementById('btn-submit-edit-labor')?.addEventListener('click', submitEditLabor);
+  
+  document.getElementById('btn-close-import-modal')?.addEventListener('click', closeImportModal);
+  document.getElementById('btn-submit-import')?.addEventListener('click', submitImportLaborStock);
+  
+  document.getElementById('btn-close-sell-labor-modal')?.addEventListener('click', closeSellLaborStockModal);
+  document.getElementById('btn-submit-sell-labor')?.addEventListener('click', submitSellLaborStock);
+
+  const handleLaborClick = (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (btn) {
+      const action = btn.getAttribute('data-action');
+      const item = btn.getAttribute('data-item');
+      const q = btn.getAttribute('data-q');
+      const qty = parseFloat(btn.getAttribute('data-qty'));
+      if (action === 'edit-labor') openEditLaborModal(item, q, qty);
+      else if (action === 'import-labor') openImportModal(item, q, qty);
+      else if (action === 'sell-labor') openSellLaborStockModal(item, q, qty);
+    }
+  };
+  
+  const tbj = document.getElementById('labor-journal-tbody');
+  const tbg = document.getElementById('labor-tbody');
+  if (tbj) tbj.addEventListener('click', handleLaborClick);
+  if (tbg) tbg.addEventListener('click', handleLaborClick);
 }

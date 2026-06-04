@@ -56,7 +56,7 @@ function updateCraftQualityPills() { renderQualityPillsGroup('craft-quality-pill
 function updateBuyQualityPills() { renderQualityPillsGroup('buy-quality-pill-group', currentBuyQuality, q => { setCurrentBuyQuality(q); updateBuyQualityPills(); }); }
 // 共用城市下拉選單邏輯
 const SYSTEM_CITIES_ARR = [
-  {id: 'Thetford', name: 'Thetford (紫城)'}, {id: 'Martlock', name: 'Martlock (藍城)'}, {id: 'Bridgewatch', name: 'Bridgewatch (沙城)'}, {id: 'Lymhurst', name: 'Lymhurst (綠城)'}, {id: 'Fort Sterling', name: 'Fort Sterling (白城)'}
+  {id: 'Thetford', name: 'Thetford 紫城'}, {id: 'Martlock', name: 'Martlock 藍城'}, {id: 'Bridgewatch', name: 'Bridgewatch 黃城'}, {id: 'Lymhurst', name: 'Lymhurst 綠城'}, {id: 'Fort Sterling', name: 'Fort Sterling 白城'}
 ];
 
 function renderCityDropdowns() {
@@ -130,19 +130,105 @@ function importData(e) {
   reader.readAsText(file); e.target.value = '';
 }
 
-// 全局事件監聽
+// === 全局事件監聽 (解決千分位游標跳動) ===
 document.addEventListener('input', function(e) {
   if (e.target.classList.contains('format-num')) {
-    let rawVal = e.target.value.replace(/[^\d-]/g, ''); if (rawVal === '' || rawVal === '-') return;
-    let parsed = parseInt(rawVal, 10); if (!isNaN(parsed)) e.target.value = parsed.toLocaleString();
+    const input = e.target;
+    let cursorPos = input.selectionStart;
+    const oldVal = input.value;
+    
+    // 若不支援 selectionStart (防呆)，則直接使用舊版邏輯
+    if (cursorPos === null) {
+      let rawVal = oldVal.replace(/[^\d-]/g, '');
+      if (rawVal === '' || rawVal === '-') return;
+      let parsed = parseInt(rawVal, 10);
+      if (!isNaN(parsed)) input.value = parsed.toLocaleString();
+      return;
+    }
+
+    // 計算游標前有幾個「有效字元」(數字或負號)
+    let validCharsBefore = 0;
+    for (let i = 0; i < cursorPos; i++) {
+      if (/[0-9-]/.test(oldVal[i])) {
+        validCharsBefore++;
+      }
+    }
+
+    // 濾除雜訊
+    let rawVal = oldVal.replace(/[^\d-]/g, '');
+    if (rawVal === '' || rawVal === '-') return;
+
+    let parsed = parseInt(rawVal, 10);
+    if (!isNaN(parsed)) {
+      const newVal = parsed.toLocaleString();
+      input.value = newVal;
+
+      // 計算還原游標的新位置
+      let newCursorPos = newVal.length;
+      let validCharCount = 0;
+      
+      for (let i = 0; i < newVal.length; i++) {
+        if (validCharCount === validCharsBefore) {
+          newCursorPos = i;
+          break;
+        }
+        if (/[0-9-]/.test(newVal[i])) {
+          validCharCount++;
+        }
+      }
+
+      input.setSelectionRange(newCursorPos, newCursorPos);
+    }
   }
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-  const bi = document.getElementById('buy-item'); if(bi) bi.addEventListener('change', Inventory.onBuyItemChange);
-});
+export function initGlobalEvents() {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const tId = e.currentTarget.getAttribute('data-target');
+      if (tId) switchTab(tId);
+    });
+  });
+
+  document.getElementById('btn-export-data')?.addEventListener('click', exportData);
+  document.getElementById('import-file')?.addEventListener('change', importData);
+  document.getElementById('btn-import-data')?.addEventListener('click', () => {
+    document.getElementById('import-file')?.click();
+  });
+  document.getElementById('btn-reset-system')?.addEventListener('click', resetSystemData);
+
+  document.getElementById('craft-city')?.addEventListener('change', handleCityDropdownChange);
+  document.getElementById('buy-city')?.addEventListener('change', handleCityDropdownChange);
+  document.getElementById('trans-from')?.addEventListener('change', handleCityDropdownChange);
+  document.getElementById('trans-to')?.addEventListener('change', handleCityDropdownChange);
+  document.getElementById('import-city')?.addEventListener('change', handleCityDropdownChange);
+
+  // Catch-all for modals if not caught in components
+  document.querySelectorAll('button[id^="btn-close-"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const modal = e.currentTarget.closest('[id$="-modal"]');
+      if (modal) modal.style.display = 'none';
+    });
+  });
+
+ // 接收來自 Core 的狀態更新廣播，動態渲染下拉選單與各組件表格
+  document.addEventListener('stateUpdated', () => {
+    renderCityDropdowns();
+    if (Ledger.updateDashboardUI) Ledger.updateDashboardUI();
+    if (Inventory.renderInventoryTable) Inventory.renderInventoryTable();
+    if (Laborer.renderLaborerTable) Laborer.renderLaborerTable();
+    if (Laborer.filterLaborLogs) Laborer.filterLaborLogs();
+    if (Laborer.updateLaborQualityPills) Laborer.updateLaborQualityPills();
+  });
+}
 
 window.onload = () => {
+  initGlobalEvents();
+  Crafting.initCraftingEvents();
+  Inventory.initInventoryEvents();
+  Laborer.initLaborerEvents();
+  Ledger.initLedgerEvents();
+  
   updateCraftQualityPills();
   updateBuyQualityPills();
   loadState();
@@ -150,90 +236,3 @@ window.onload = () => {
   Crafting.onRecipeChange();
   Ledger.updateDashboardUI();
 };
-
-// ==========================================
-// WINDOW BINDING (確保 HTML 行內事件無縫對接)
-// ==========================================
-window.switchTab = switchTab;
-window.exportData = exportData;
-window.importData = importData;
-window.resetSystemData = resetSystemData;
-window.closeModal = closeModal;
-window.renderCityDropdowns = renderCityDropdowns;
-window.handleCityDropdownChange = handleCityDropdownChange;
-window.updateDashboardUI = Ledger.updateDashboardUI;
-
-// Crafting
-window.openItemSelector = Crafting.openItemSelector;
-window.closeItemSelector = Crafting.closeItemSelector;
-window.searchItems = Crafting.searchItems;
-window.adjCraftQty = Crafting.adjCraftQty;
-window.onMapBonusInput = Crafting.onMapBonusInput;
-window.runCraftingCalculator = Crafting.runCraftingCalculator;
-window.addToCraftingQueue = Crafting.addToCraftingQueue;
-window.toggleQueueAll = Crafting.toggleQueueAll;
-window.updateShoppingListTotal = Crafting.updateShoppingListTotal;
-window.submitCraftAll = Crafting.submitCraftAll;
-window.toggleQueueItem = Crafting.toggleQueueItem;
-window.updateQueueArtPrice = Crafting.updateQueueArtPrice;
-window.updateQueueAlcPrice = Crafting.updateQueueAlcPrice;
-window.editQueueQty = Crafting.editQueueQty;
-window.removeFromQueue = Crafting.removeFromQueue;
-window.confirmEditQueueQty = Crafting.confirmEditQueueQty;
-window.confirmDeleteQueue = Crafting.confirmDeleteQueue;
-window.adjustEditModalQty = Crafting.adjustEditModalQty;
-
-// Inventory
-window.adjBuyQty = Inventory.adjBuyQty;
-window.submitPurchase = Inventory.submitPurchase;
-window.updateTransMax = Inventory.updateTransMax;
-window.adjustTransQty = Inventory.adjustTransQty;
-window.setTransQtyMax = Inventory.setTransQtyMax;
-window.submitTransport = Inventory.submitTransport;
-window.openManageLocationsModal = Inventory.openManageLocationsModal;
-window.closeManageLocationsModal = Inventory.closeManageLocationsModal;
-window.renderInventoryTable = Inventory.renderInventoryTable;
-window.openSellCraftedModal = Inventory.openSellCraftedModal;
-window.openEditInventoryModal = Inventory.openEditInventoryModal;
-window.closeSellCraftedModal = Inventory.closeSellCraftedModal;
-window.runEstimator = Inventory.runEstimator;
-window.adjustSellCraftedQty = Inventory.adjustSellCraftedQty;
-window.onSellPriceChange = Inventory.onSellPriceChange;
-window.submitSellCrafted = Inventory.submitSellCrafted;
-window.closeEditInventoryModal = Inventory.closeEditInventoryModal;
-window.onEditCityChange = Inventory.onEditCityChange;
-window.submitEditInventory = Inventory.submitEditInventory;
-window.deleteEditInventory = Inventory.deleteEditInventory;
-window.submitCustomLocation = Inventory.submitCustomLocation;
-window.closeCustomLocationModal = Inventory.closeCustomLocationModal;
-
-// Laborer
-window.adjHarvestQty = Laborer.adjHarvestQty;
-window.addLaborItemRow = Laborer.addLaborItemRow;
-window.submitLaborHarvest = Laborer.submitLaborHarvest;
-window.submitAddFilledJournals = Laborer.submitAddFilledJournals;
-window.prevLaborLogsPage = Laborer.prevLaborLogsPage;
-window.nextLaborLogsPage = Laborer.nextLaborLogsPage;
-window.openEditLaborModal = Laborer.openEditLaborModal;
-window.openSellLaborStockModal = Laborer.openSellLaborStockModal;
-window.openImportModal = Laborer.openImportModal;
-window.closeImportModal = Laborer.closeImportModal;
-window.submitImportLaborStock = Laborer.submitImportLaborStock;
-window.closeSellLaborStockModal = Laborer.closeSellLaborStockModal;
-window.submitSellLaborStock = Laborer.submitSellLaborStock;
-window.closeEditLaborModal = Laborer.closeEditLaborModal;
-window.submitEditLabor = Laborer.submitEditLabor;
-window.renderLaborerTable = Laborer.renderLaborerTable;
-window.filterLaborLogs = Laborer.filterLaborLogs;
-window.updateLaborQualityPills = Laborer.updateLaborQualityPills;
-
-// Ledger
-window.filterLedger = Ledger.filterLedger;
-window.prevLedgerPage = Ledger.prevLedgerPage;
-window.nextLedgerPage = Ledger.nextLedgerPage;
-window.adjustCashBalance = Ledger.adjustCashBalance;
-window.adjustWallet = Ledger.adjustWallet;
-window.openEditLedgerModal = Ledger.openEditLedgerModal;
-window.closeEditLedgerModal = Ledger.closeEditLedgerModal;
-window.submitEditLedger = Ledger.submitEditLedger;
-window.deleteEditLedger = Ledger.deleteEditLedger;

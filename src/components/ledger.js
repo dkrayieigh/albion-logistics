@@ -24,12 +24,8 @@ export function updateDashboardUI() {
   const nwEl = document.getElementById('summary-networth');
   if(nwEl) nwEl.innerText = formatMillions(nw);
   
-  // 調用全域註冊的其他 Component 渲染函式
-  if (window.renderInventoryTable) window.renderInventoryTable();
-  if (window.renderLaborerTable) window.renderLaborerTable();
+  // 只保留自己的渲染，其他組件的渲染交給 app.js 統一廣播處理
   filterLedger(false);
-  if (window.filterLaborLogs) window.filterLaborLogs();
-  if (window.updateLaborQualityPills) window.updateLaborQualityPills();
 }
 
 export function filterLedger(resetPage = true) {
@@ -53,7 +49,7 @@ export function renderLedgerTable() {
 
   pageItems.forEach(t => {
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${t.date}</td><td><span style="color:var(--accent-cyan); font-weight:bold;">${t.type}</span></td><td>${t.item} ${t.quality !== '-' ? '('+t.quality+')':''}</td><td>${t.qty}</td><td>${formatSilver(t.unitPrice)}</td><td style="font-weight:bold; color:${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'var(--accent-red)':'var(--accent-green)'};">${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'-':'+'}${formatSilver(t.total)}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.8rem;" onclick="openEditLedgerModal(${t.originalIndex})">✏️ 編輯</button></td>`;
+    tr.innerHTML=`<td>${t.date}</td><td><span style="color:var(--accent-cyan); font-weight:bold;">${t.type}</span></td><td>${t.item} ${t.quality !== '-' ? '('+t.quality+')':''}</td><td>${t.qty}</td><td>${formatSilver(t.unitPrice)}</td><td style="font-weight:bold; color:${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'var(--accent-red)':'var(--accent-green)'};">${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'-':'+'}${formatSilver(t.total)}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.8rem;" data-action="edit-ledger" data-id="${t.originalIndex}">✏️ 編輯</button></td>`;
     tb.appendChild(tr);
   });
 }
@@ -130,5 +126,29 @@ export function adjustCashBalance() {
       state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type: '現金流校正', item: '-', quality: '-', qty: 1, total: diff, unitPrice: diff, location: '-' });
       saveState(); window.updateDashboardUI(); window.showToast('現金流校正成功', 'success');
     }
+  }
+}
+
+export function initLedgerEvents() {
+  document.getElementById('ledger-search')?.addEventListener('input', () => filterLedger(true));
+  document.getElementById('btn-ledger-prev-page')?.addEventListener('click', prevLedgerPage);
+  document.getElementById('btn-ledger-next-page')?.addEventListener('click', nextLedgerPage);
+  
+  document.getElementById('btn-close-edit-ledger-modal')?.addEventListener('click', closeEditLedgerModal);
+  document.getElementById('btn-submit-edit-ledger')?.addEventListener('click', submitEditLedger);
+  document.getElementById('btn-delete-edit-ledger')?.addEventListener('click', deleteEditLedger);
+
+  document.getElementById('btn-adjust-cash')?.addEventListener('click', adjustCashBalance);
+  
+  const tb = document.getElementById('ledger-tbody');
+  if (tb) {
+    tb.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (btn) {
+        const action = btn.getAttribute('data-action');
+        const id = parseInt(btn.getAttribute('data-id'));
+        if (action === 'edit-ledger') openEditLedgerModal(id);
+      }
+    });
   }
 }

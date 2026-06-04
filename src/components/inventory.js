@@ -22,8 +22,8 @@ export function renderInventoryTable() {
           <td style="font-weight:600;">${formatSilver(state.inventory[key].globalAvgCost)}</td>
           <td>
             <div style="display:flex;gap:5px;flex-direction:row;">
-              <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="openSellCraftedModal('${item}', '${q}', '${city}')">💸 出售</button>
-              <button class="btn btn-warning" style="padding:4px 8px; font-size:0.8rem;" onclick="openEditInventoryModal('${item}', '${q}', '${city}')">✏️ 編輯</button>
+              <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" data-action="sell-crafted" data-item="${item}" data-q="${q}" data-city="${city}">💸 出售</button>
+              <button class="btn btn-warning" style="padding:4px 8px; font-size:0.8rem;" data-action="edit-inv" data-item="${item}" data-q="${q}" data-city="${city}">✏️ 編輯</button>
             </div>
           </td>
         </tr>`;
@@ -124,8 +124,8 @@ export function openManageLocationsModal() {
       const div = document.createElement('div'); div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.alignItems = 'center'; div.style.padding = '10px'; div.style.background = 'rgba(255,255,255,0.05)'; div.style.borderRadius = '5px';
       const span = document.createElement('span'); span.style.fontWeight = 'bold'; span.style.color = 'var(--accent-cyan)'; span.textContent = loc;
       const btnDiv = document.createElement('div'); btnDiv.style.display = 'flex'; btnDiv.style.gap = '5px';
-      const btnRename = document.createElement('button'); btnRename.className = 'btn btn-warning'; btnRename.style.padding = '4px 8px'; btnRename.style.fontSize = '0.8rem'; btnRename.innerHTML = '✏️ 更名'; btnRename.onclick = () => renameLocation(loc);
-      const btnDelete = document.createElement('button'); btnDelete.className = 'btn btn-danger'; btnDelete.style.padding = '4px 8px'; btnDelete.style.fontSize = '0.8rem'; btnDelete.innerHTML = '🗑️ 刪除'; btnDelete.onclick = () => deleteLocation(loc);
+      const btnRename = document.createElement('button'); btnRename.className = 'btn btn-warning'; btnRename.style.padding = '4px 8px'; btnRename.style.fontSize = '0.8rem'; btnRename.innerHTML = '✏️ 更名'; btnRename.setAttribute('data-action', 'rename-loc'); btnRename.setAttribute('data-loc', loc);
+      const btnDelete = document.createElement('button'); btnDelete.className = 'btn btn-danger'; btnDelete.style.padding = '4px 8px'; btnDelete.style.fontSize = '0.8rem'; btnDelete.innerHTML = '🗑️ 刪除'; btnDelete.setAttribute('data-action', 'delete-loc'); btnDelete.setAttribute('data-loc', loc);
       btnDiv.appendChild(btnRename); btnDiv.appendChild(btnDelete); div.appendChild(span); div.appendChild(btnDiv); list.appendChild(div);
     });
   }
@@ -179,4 +179,149 @@ export function deleteEditInventory() {
   state.inventory[aEditK].qtyByCity[c]=0;
   state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type: '庫存刪除', item: i, quality: q, qty: -oq, total: 0, unitPrice: 0, location: c });
   saveState(); closeEditInventoryModal(); window.showToast('已刪除', 'success'); window.updateDashboardUI();
+}
+
+
+let aSellItem = '', aSellQual = '', aSellCity = '';
+
+export function openSellCraftedModal(item, q, city) {
+  aSellItem = item; aSellQual = q; aSellCity = city;
+  const maxQty = state.inventory[`${item}_${q}`].qtyByCity[city];
+  document.getElementById('sell-crafted-name').innerText = `${item} (${q})`;
+  
+  const qtyInput = document.getElementById('sell-crafted-qty');
+  if (qtyInput) { qtyInput.max = maxQty; qtyInput.value = maxQty; }
+  
+  const priceInput = document.getElementById('sell-crafted-price');
+  if (priceInput) priceInput.value = '';
+  
+  const totalInput = document.getElementById('sell-crafted-total');
+  if (totalInput) totalInput.value = '';
+  
+  document.getElementById('sell-crafted-modal').style.display = 'block';
+}
+
+export function closeSellCraftedModal() { document.getElementById('sell-crafted-modal').style.display = 'none'; }
+
+export function adjustSellCraftedQty(d) {
+  const el = document.getElementById('sell-crafted-qty');
+  if (!el) return;
+  let v = parseInt(el.value) + d;
+  if (v < 1) v = 1; 
+  if (v > parseInt(el.max)) v = parseInt(el.max); 
+  el.value = v;
+  runEstimator();
+}
+
+export function runEstimator() {
+  const tEl = document.getElementById('sell-crafted-total');
+  const est = document.getElementById('sell-estimator-result');
+  if (tEl && est) {
+     const t = parseNum(tEl.value);
+     est.innerText = `扣除稅額預估: ${(t * 0.935).toLocaleString()}`;
+  }
+}
+
+export function onSellPriceChange(type) {
+  const q = parseInt(document.getElementById('sell-crafted-qty').value) || 0;
+  const pEl = document.getElementById('sell-crafted-price');
+  const tEl = document.getElementById('sell-crafted-total');
+  if (type === 'unit') {
+    const p = parseNum(pEl.value);
+    tEl.value = (p * q).toLocaleString();
+  } else {
+    const t = parseNum(tEl.value);
+    pEl.value = q > 0 ? (t / q).toLocaleString() : '0';
+  }
+  runEstimator();
+}
+
+export function submitSellCrafted() {
+  const q = parseInt(document.getElementById('sell-crafted-qty').value);
+  const p = parseNum(document.getElementById('sell-crafted-total').value);
+  if (q <= 0 || p <= 0) return window.showToast('數量與總價不可為 0', 'error');
+  
+  const key = `${aSellItem}_${aSellQual}`;
+  if (state.inventory[key].qtyByCity[aSellCity] < q) return window.showToast('庫存不足', 'error');
+  
+  state.inventory[key].qtyByCity[aSellCity] -= q;
+  state.assets.cash += p;
+  state.transactions.unshift({ 
+    date: new Date().toISOString().split('T')[0], 
+    type: '賣成品', 
+    item: aSellItem, 
+    quality: aSellQual, 
+    qty: q, 
+    total: p, 
+    unitPrice: Math.round(p/q), 
+    location: aSellCity 
+  });
+  
+  saveState(); window.updateDashboardUI(); closeSellCraftedModal(); window.showToast('出售成功', 'success');
+}
+export function initInventoryEvents() {
+    // 成品出售 Modal 事件綁定
+  document.getElementById('buy-item')?.addEventListener('change', onBuyItemChange);
+  document.getElementById('btn-close-sell-crafted-modal')?.addEventListener('click', closeSellCraftedModal);
+  document.getElementById('btn-submit-sell-crafted')?.addEventListener('click', submitSellCrafted);
+  document.getElementById('btn-sell-qty-sub-10')?.addEventListener('click', () => adjustSellCraftedQty(-10));
+  document.getElementById('btn-sell-qty-sub-1')?.addEventListener('click', () => adjustSellCraftedQty(-1));
+  document.getElementById('btn-sell-qty-add-1')?.addEventListener('click', () => adjustSellCraftedQty(1));
+  document.getElementById('btn-sell-qty-add-10')?.addEventListener('click', () => adjustSellCraftedQty(10));
+  document.getElementById('sell-crafted-price')?.addEventListener('input', () => onSellPriceChange('unit'));
+  document.getElementById('sell-crafted-total')?.addEventListener('input', () => onSellPriceChange('total'));
+  document.getElementById('btn-buy-qty-sub-10')?.addEventListener('click', () => adjBuyQty(-10));
+  document.getElementById('btn-buy-qty-sub-1')?.addEventListener('click', () => adjBuyQty(-1));
+  document.getElementById('btn-buy-qty-add-1')?.addEventListener('click', () => adjBuyQty(1));
+  document.getElementById('btn-buy-qty-add-10')?.addEventListener('click', () => adjBuyQty(10));
+  document.getElementById('btn-submit-purchase')?.addEventListener('click', submitPurchase);
+  
+  document.getElementById('btn-trans-qty-sub-10')?.addEventListener('click', () => adjustTransQty(-10));
+  document.getElementById('btn-trans-qty-sub-1')?.addEventListener('click', () => adjustTransQty(-1));
+  document.getElementById('btn-trans-qty-add-1')?.addEventListener('click', () => adjustTransQty(1));
+  document.getElementById('btn-trans-qty-add-10')?.addEventListener('click', () => adjustTransQty(10));
+  document.getElementById('btn-trans-qty-max')?.addEventListener('click', setTransQtyMax);
+  document.getElementById('btn-submit-transport')?.addEventListener('click', submitTransport);
+  
+  document.getElementById('btn-manage-locations')?.addEventListener('click', openManageLocationsModal);
+  document.getElementById('inventory-search')?.addEventListener('input', renderInventoryTable);
+  
+  document.getElementById('btn-close-edit-inv-modal')?.addEventListener('click', closeEditInventoryModal);
+  document.getElementById('edit-inv-city')?.addEventListener('change', onEditCityChange);
+  document.getElementById('btn-submit-edit-inv')?.addEventListener('click', submitEditInventory);
+  document.getElementById('btn-delete-edit-inv')?.addEventListener('click', deleteEditInventory);
+  
+  document.getElementById('btn-close-manage-locations-modal')?.addEventListener('click', closeManageLocationsModal);
+  
+  const cityCards = document.getElementById('inventory-city-cards');
+  if (cityCards) {
+    cityCards.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (btn) {
+        const action = btn.getAttribute('data-action');
+        const item = btn.getAttribute('data-item');
+        const q = btn.getAttribute('data-q');
+        const city = btn.getAttribute('data-city');
+        if (action === 'sell-crafted') {
+           // 直接呼叫同檔案內的函式，完美解耦且直觀！
+           openSellCraftedModal(item, q, city);
+        } else if (action === 'edit-inv') {
+           openEditInventoryModal(item, q, city);
+        }
+      }
+    });
+  }
+
+  const manageList = document.getElementById('manage-locations-list');
+  if (manageList) {
+    manageList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (btn) {
+        const action = btn.getAttribute('data-action');
+        const loc = btn.getAttribute('data-loc');
+        if (action === 'rename-loc') renameLocation(loc);
+        else if (action === 'delete-loc') deleteLocation(loc);
+      }
+    });
+  }
 }

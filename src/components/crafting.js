@@ -84,6 +84,18 @@ export function onRecipeChange() {
       document.getElementById('sub-material-label').innerHTML = `副料需求: 無<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: None</span>`; 
       document.getElementById('sub-material-group').style.display = 'block'; 
   }
+  // === 自動連動最高加成城市 ===
+  if (BONUSES[r.category]) {
+      const craftCityEl = document.getElementById('craft-city');
+      if (craftCityEl) {
+          craftCityEl.value = BONUSES[r.category];
+          // 如果切換到了黑區地堡，隱藏的加成選單要跟著顯示
+          const hideoutGroup = document.getElementById('hideout-group');
+          if (hideoutGroup) hideoutGroup.style.display = state.customLocations.includes(craftCityEl.value) ? 'flex' : 'none';
+      }
+  }
+  // =====================================
+
   runCraftingCalculator();
 }
 
@@ -137,7 +149,7 @@ export function renderCraftingQueue() {
   craftingQueue.forEach(q => {
     const tr = document.createElement('tr'); const bc = `quality-badge quality-${parseInt(q.quality.split('.')[0])||4}`;
     tr.innerHTML = `
-    <td><input type="checkbox" ${q.checked ? 'checked' : ''} onchange="toggleQueueItem(${q.id}, this.checked)"></td>
+    <td><input type="checkbox" ${q.checked ? 'checked' : ''} class="queue-check" data-id="${q.id}"></td>
     <td style="white-space:nowrap;"><strong>T${parseInt(q.quality.split(".")[0])||4} ${q.recipe.name}</strong> ${q.focus?"✨":""}<br><span style="font-size:0.8em; opacity:0.7; color:var(--text-secondary);">${q.recipe.id}</span></td>
     <td><span class="${bc}">${q.quality}</span></td>
     <td style="color:var(--accent-cyan); font-weight:bold;">${q.qty}</td>
@@ -145,11 +157,11 @@ export function renderCraftingQueue() {
     <td style="white-space:nowrap; font-size:0.8rem; line-height:1.4;">${q.recipe.main}: ${q.mainQty}<br>${q.recipe.subBaseQty>0?`${q.recipe.sub}: ${q.subQty}`:''}</td>
     <td style="display:flex; flex-direction:column; gap:8px;">
       <div style="display:flex; gap:5px; align-items:center;">
-        <button class="btn btn-warning" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" onclick="editQueueQty(${q.id})">✏️ 編輯<br><span style="font-size:0.8em;opacity:0.7;">Edit</span></button>
-        <button class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" onclick="removeFromQueue(${q.id})">🗑️ 刪除<br><span style="font-size:0.8em;opacity:0.7;">Delete</span></button>
+        <button class="btn btn-warning" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" data-action="edit-queue" data-id="${q.id}">✏️ 編輯<br><span style="font-size:0.8em;opacity:0.7;">Edit</span></button>
+        <button class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" data-action="delete-queue" data-id="${q.id}">🗑️ 刪除<br><span style="font-size:0.8em;opacity:0.7;">Delete</span></button>
       </div>
-      ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.artifactName}${q.artifactQty > 1 ? ` (需: ${q.artifactQty})` : ''}</div><input type="text" class="format-num" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" oninput="updateQueueArtPrice(${q.id}, this.value)"></div>` : ''}
-      ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">${q.alchemyTier} ${q.alchemyName} (需: ${q.alchemyBaseQty})</div><input type="text" class="format-num" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" oninput="updateQueueAlcPrice(${q.id}, this.value)"></div>` : ''}
+      ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.artifactName}${q.artifactQty > 1 ? ` (需: ${q.artifactQty})` : ''}</div><input type="text" class="format-num" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" class="queue-art-price" data-id="${q.id}"></div>` : ''}
+      ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">${q.alchemyTier} ${q.alchemyName} (需: ${q.alchemyBaseQty})</div><input type="text" class="format-num" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" class="queue-alc-price" data-id="${q.id}"></div>` : ''}
     </td>`;
     tb.appendChild(tr);
   });
@@ -259,13 +271,10 @@ export function renderItemSelectorTabs() {
     btn.style.padding = '10px 15px'; btn.style.cursor = 'pointer'; btn.style.borderBottom = '1px solid var(--border-glass)';
     btn.style.color = cat === currentSelectorTab ? 'var(--accent-cyan)' : 'var(--text-secondary)';
     btn.style.fontWeight = cat === currentSelectorTab ? 'bold' : 'normal'; btn.style.lineHeight = '1.3'; btn.style.textAlign = 'center';
-    btn.onclick = () => {
-      currentSelectorTab = cat; document.getElementById('item-search').value = '';
-      renderItemSelectorTabs(); renderItemSelectorGrid(cat);
-    };
-    tabs.appendChild(btn);
-  }
-}
+    btn.setAttribute('data-action', 'select-tab'); btn.setAttribute('data-tab', cat);
+        tabs.appendChild(btn);
+      }
+    }
 export function renderItemSelectorGrid(catOrItems) {
   const grid = document.getElementById('item-selector-grid'); grid.innerHTML = '';
   if (Array.isArray(catOrItems)) {
@@ -274,7 +283,7 @@ export function renderItemSelectorGrid(catOrItems) {
       const btn = document.createElement('button'); btn.className = 'btn btn-secondary';
       btn.style.padding = '10px'; btn.style.display = 'flex'; btn.style.flexDirection = 'column'; btn.style.alignItems = 'center'; btn.style.gap = '5px';
       btn.innerHTML = `<span style="color:var(--accent-cyan); font-weight:bold;">${item.name}</span><br><span style="font-size:0.8em; opacity:0.7; color:var(--text-secondary);">${item.id}</span>`;
-      btn.onclick = () => selectCraftingRecipe(item); div.appendChild(btn);
+      btn.setAttribute('data-action', 'select-recipe'); btn.setAttribute('data-item', item.name); div.appendChild(btn);
     });
     grid.appendChild(div);
   } else {
@@ -289,7 +298,7 @@ export function renderItemSelectorGrid(catOrItems) {
       catObj[branch].items.forEach(item => {
         const btn = document.createElement('button'); btn.className = 'btn btn-secondary'; btn.style.padding = '10px'; btn.style.display = 'flex'; btn.style.flexDirection = 'column'; btn.style.alignItems = 'center'; btn.style.gap = '5px';
         btn.innerHTML = `<span style="color:var(--accent-cyan); font-weight:bold;">${item.name}</span><br><span style="font-size:0.8em; opacity:0.7; color:var(--text-secondary);">${item.id}</span>`;
-        btn.onclick = () => selectCraftingRecipe(item); div.appendChild(btn);
+        btn.setAttribute('data-action', 'select-recipe'); btn.setAttribute('data-item', item.name); div.appendChild(btn);
       });
       grid.appendChild(div);
     }
@@ -352,3 +361,96 @@ export function toggleQueueItem(id, checked) { const q = craftingQueue.find(x =>
 export function updateQueueArtPrice(id, val) { const q = craftingQueue.find(x => x.id === id); if(!q) return; q.artifactPrice = parseNum(val); updateShoppingListTotal(); }
 export function updateQueueAlcPrice(id, val) { const q = craftingQueue.find(x => x.id === id); if(!q) return; q.alchemyPrice = parseNum(val); updateShoppingListTotal(); }
 export function adjustEditModalQty(amt) { const inp = document.getElementById('edit-queue-qty-input'); let val = parseInt(inp.value) || 0; val += amt; if (val < 1) val = 1; inp.value = val; }
+
+
+
+export function initCraftingEvents() {
+  document.getElementById('btn-open-item-selector')?.addEventListener('click', openItemSelector);
+  document.getElementById('btn-close-item-selector')?.addEventListener('click', closeItemSelector);
+  
+  document.getElementById('craft-qty')?.addEventListener('input', runCraftingCalculator);
+  document.getElementById('btn-craft-qty-sub-10')?.addEventListener('click', () => adjCraftQty(-10));
+  document.getElementById('btn-craft-qty-sub-5')?.addEventListener('click', () => adjCraftQty(-5));
+  document.getElementById('btn-craft-qty-add-5')?.addEventListener('click', () => adjCraftQty(5));
+  document.getElementById('btn-craft-qty-add-10')?.addEventListener('click', () => adjCraftQty(10));
+  
+  document.getElementById('hideout-map-bonus')?.addEventListener('input', onMapBonusInput);
+  document.getElementById('hideout-focus-rrr')?.addEventListener('input', runCraftingCalculator);
+  document.getElementById('craft-focus')?.addEventListener('change', runCraftingCalculator);
+  document.getElementById('craft-alchemy-cost')?.addEventListener('input', runCraftingCalculator);
+  
+  document.getElementById('btn-add-to-queue')?.addEventListener('click', addToCraftingQueue);
+  document.getElementById('queue-check-all')?.addEventListener('change', toggleQueueAll);
+  document.getElementById('global-shopfee')?.addEventListener('input', updateShoppingListTotal);
+  document.getElementById('btn-submit-craft-all')?.addEventListener('click', submitCraftAll);
+  
+  document.getElementById('item-search')?.addEventListener('input', (e) => searchItems(e.target.value));
+
+  document.getElementById('btn-close-edit-queue-qty-modal')?.addEventListener('click', closeEditQueueQtyModal);
+  document.getElementById('btn-close-edit-queue-qty-cancel')?.addEventListener('click', closeEditQueueQtyModal);
+  document.getElementById('btn-edit-queue-qty-sub-1')?.addEventListener('click', () => adjustEditModalQty(-1));
+  document.getElementById('btn-edit-queue-qty-add-1')?.addEventListener('click', () => adjustEditModalQty(1));
+  document.getElementById('btn-confirm-edit-queue-qty')?.addEventListener('click', submitEditQueueQty);
+  
+  document.getElementById('btn-close-delete-confirm-modal')?.addEventListener('click', closeDeleteConfirmModal);
+  document.getElementById('btn-cancel-delete-queue')?.addEventListener('click', closeDeleteConfirmModal);
+  document.getElementById('btn-confirm-delete-queue')?.addEventListener('click', submitDeleteQueue);
+
+  const queueTbody = document.getElementById('crafting-queue-tbody');
+  if (queueTbody) {
+    queueTbody.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (btn) {
+        const action = btn.getAttribute('data-action');
+        const id = parseInt(btn.getAttribute('data-id'));
+        if (action === 'edit-queue') editQueueQty(id);
+        else if (action === 'delete-queue') removeFromQueue(id);
+      }
+    });
+    queueTbody.addEventListener('change', (e) => {
+      if (e.target.classList.contains('queue-check')) {
+        const id = parseInt(e.target.getAttribute('data-id'));
+        toggleQueueItem(id, e.target.checked);
+      }
+    });
+    queueTbody.addEventListener('input', (e) => {
+      if (e.target.classList.contains('queue-art-price')) {
+        const id = parseInt(e.target.getAttribute('data-id'));
+        updateQueueArtPrice(id, e.target.value);
+      } else if (e.target.classList.contains('queue-alc-price')) {
+        const id = parseInt(e.target.getAttribute('data-id'));
+        updateQueueAlcPrice(id, e.target.value);
+      }
+    });
+  }
+
+  const tabs = document.getElementById('item-selector-tabs');
+  if (tabs) {
+    tabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="select-tab"]');
+      if (btn) {
+        // currentSelectorTab is handled by redefining how tabs switch. 
+        // Wait, the original code had an onclick which we commented out.
+        // It's better to just emit an event or call the internal logic.
+       const cat = btn.getAttribute('data-tab');
+        currentSelectorTab = cat;
+        document.getElementById('item-search').value = '';
+        renderItemSelectorTabs(); 
+        renderItemSelectorGrid(cat);
+      }
+    });
+  }
+  
+  const grid = document.getElementById('item-selector-grid');
+  if (grid) {
+    grid.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="select-recipe"]');
+      if (btn) {
+        const itemName = btn.getAttribute('data-item');
+        const allRecipes = getAllRecipes();
+        const item = allRecipes.find(x => x.name === itemName);
+        if (item) selectCraftingRecipe(item);
+      }
+    });
+  }
+}

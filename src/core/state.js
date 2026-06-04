@@ -17,10 +17,9 @@ export let currentBuyQuality = '4.0';
 export function setCurrentCraftQuality(val) { currentCraftQuality = val; }
 export function setCurrentBuyQuality(val) { currentBuyQuality = val; }
 
-// 暫時依賴 window 全域函式來更新 UI (Phase 2 將解耦)
+// 不再依賴 window 全域變數，改用 CustomEvent 發送廣播
 function callUIUpdate() {
-  if (window.updateDashboardUI) window.updateDashboardUI();
-  if (window.renderCityDropdowns) window.renderCityDropdowns();
+  document.dispatchEvent(new Event('stateUpdated'));
 }
 
 export function initDefaultState() {
