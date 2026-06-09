@@ -162,6 +162,7 @@ export function openEditInventoryModal(i, q, defCity) {
 }
 export function onEditCityChange() { const c = document.getElementById('edit-inv-city').value; document.getElementById('edit-inv-qty').value = formatSilver(state.inventory[aEditK].qtyByCity[c]||0); }
 export function closeEditInventoryModal() { document.getElementById('edit-inventory-modal').style.display='none'; }
+export function adjEditInvQty(d) { const el = document.getElementById('edit-inv-qty'); if(!el) return; let v = parseInt(el.value.replace(/[^\d-]/g, '')) + d; if(v<0) v=0; el.value = v; }
 export function submitEditInventory() {
   const c = document.getElementById('edit-inv-city').value; const nq = parseNum(document.getElementById('edit-inv-qty').value); const nc = parseNum(document.getElementById('edit-inv-cost').value);
   if(nq<0||nc<0) return window.showToast('不可為負', 'error'); const [i,q]=aEditK.split('_'); const obj=state.inventory[aEditK]; const oq=obj.qtyByCity[c];
@@ -261,6 +262,28 @@ export function submitSellCrafted() {
 }
 export function initInventoryEvents() {
     // 成品出售 Modal 事件綁定
+    const tSlider = document.getElementById('trans-qty-slider');
+  const tQty = document.getElementById('trans-qty');
+  if (tSlider && tQty) {
+    tSlider.addEventListener('input', (e) => {
+      tQty.value = parseInt(e.target.value).toLocaleString();
+    });
+    tQty.addEventListener('input', (e) => {
+      let v = parseInt(e.target.value.replace(/[^\d]/g, '')) || 0;
+      const max = parseInt(tSlider.max) || 0;
+      if (v > max) v = max;
+      if (v < 1) v = 1;
+      tSlider.value = v;
+    });
+    tQty.addEventListener('blur', (e) => {
+      let v = parseInt(e.target.value.replace(/[^\d]/g, '')) || 0;
+      const max = parseInt(tSlider.max) || 0;
+      if (v > max) v = max;
+      if (v < 1) v = 1;
+      e.target.value = v.toLocaleString();
+    });
+  }
+  
   document.getElementById('buy-item')?.addEventListener('change', onBuyItemChange);
   document.getElementById('btn-close-sell-crafted-modal')?.addEventListener('click', closeSellCraftedModal);
   document.getElementById('btn-submit-sell-crafted')?.addEventListener('click', submitSellCrafted);
@@ -289,6 +312,8 @@ export function initInventoryEvents() {
   document.getElementById('btn-close-edit-inv-modal')?.addEventListener('click', closeEditInventoryModal);
   document.getElementById('edit-inv-city')?.addEventListener('change', onEditCityChange);
   document.getElementById('btn-submit-edit-inv')?.addEventListener('click', submitEditInventory);
+  document.getElementById('btn-edit-inv-qty-sub-1')?.addEventListener('click', () => adjEditInvQty(-1));
+  document.getElementById('btn-edit-inv-qty-add-1')?.addEventListener('click', () => adjEditInvQty(1));
   document.getElementById('btn-delete-edit-inv')?.addEventListener('click', deleteEditInventory);
   
   document.getElementById('btn-close-manage-locations-modal')?.addEventListener('click', closeManageLocationsModal);

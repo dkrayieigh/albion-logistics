@@ -6,6 +6,7 @@ import * as Crafting from './components/crafting.js';
 import * as Inventory from './components/inventory.js';
 import * as Laborer from './components/laborer.js';
 import * as Ledger from './components/ledger.js';
+import * as WindowControls from './components/window-controls.js';
 
 // ==========================================
 // 全域共用 UI 函式
@@ -109,8 +110,10 @@ function handleCityDropdownChange(event) {
 
 // 資料匯出匯入
 function exportData() {
+  if (!confirm('確定要匯出目前的系統資料嗎？')) return;
   const data = { inventory: localStorage.getItem('albion_crafting_stocks'), assets: localStorage.getItem('albion_crafting_assets'), transactions: localStorage.getItem('albion_crafting_transactions'), laborerInventory: localStorage.getItem('albion_crafting_laborer_stocks'), laborerLogs: localStorage.getItem('albion_crafting_laborer_logs') };
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); a.download = `albion_data_backup_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}.json`; a.click(); URL.revokeObjectURL(url);
+  window.showToast('資料匯出成功！', 'success');
 }
 function importData(e) {
   const file = e.target.files[0]; if (!file) return;
@@ -223,6 +226,7 @@ export function initGlobalEvents() {
 }
 
 window.onload = () => {
+  WindowControls.initWindowControls();
   initGlobalEvents();
   Crafting.initCraftingEvents();
   Inventory.initInventoryEvents();

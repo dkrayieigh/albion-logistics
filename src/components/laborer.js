@@ -10,7 +10,8 @@ let filteredLaborLogs = [];
 export function addLaborItemRow() {
   const list = document.getElementById('labor-dynamic-list'); const rId = 'lr-'+Date.now();
   const d = document.createElement('div'); d.className='form-row'; d.id=rId; d.style.marginBottom='10px';
-  d.innerHTML = `<div class="form-group" style="flex:2;"><select class="li-type"><option value="鋼條">鋼條</option><option value="布料">布料</option><option value="板材">板材</option></select></div><div class="form-group" style="flex:2;"><select class="li-qual"><option value="6.0">6.0</option><option value="6.1">6.1</option><option value="6.2">6.2</option><option value="6.3">6.3</option></select></div><div class="form-group" style="flex:2;"><input type="text" class="format-num li-qty" placeholder="數量" value="0"></div><div class="form-group" style="flex:1;"><button class="btn btn-danger" onclick="document.getElementById('${rId}').remove()">✕</button></div>`;
+  const tier = currentLaborHarvestQual.split('.')[0];
+  d.innerHTML = `<div class="form-group" style="flex:2;"><select class="li-type"><option value="鋼條">鋼條</option><option value="布料">布料</option><option value="板材">板材</option><option value="皮革">皮革</option></select></div><div class="form-group" style="flex:2;"><select class="li-qual"><option value="${tier}.0">${tier}.0</option><option value="${tier}.1">${tier}.1</option><option value="${tier}.2">${tier}.2</option><option value="${tier}.3">${tier}.3</option></select></div><div class="form-group" style="flex:2;"><div style="display:flex; gap:5px;"><button class="btn btn-secondary" data-action="adj-li-qty" data-val="-1" style="padding:2px 8px;">-</button><input type="text" class="format-num li-qty" placeholder="數量" value="0" style="flex:1; min-width:40px; text-align:center;"><button class="btn btn-secondary" data-action="adj-li-qty" data-val="1" style="padding:2px 8px;">+</button></div></div><div class="form-group" style="flex:1;"><button class="btn btn-danger" data-action="remove-labor-row" data-id="${rId}">✕</button></div>`;
   list.appendChild(d);
 }
 
@@ -19,12 +20,12 @@ export function renderLaborerTable() {
   const tbj = document.getElementById('labor-journal-tbody'); tbj.innerHTML='';
   
   // Render Journals
-  ['4.0', '5.0', '6.0', '7.0', '8.0'].forEach(q => {
+  ['6.0', '7.0', '8.0'].forEach(q => {
     const qty = state.laborerInventory['滿日記本']?.[q] || 0;
     if(qty > 0) {
       const bc = `quality-badge quality-${parseInt(q.split('.')[0])||4}`;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td><span class="${bc}">T${q.split('.')[0]} 日記本 (${q})</span></td><td style="font-weight:600; color:var(--accent-cyan); font-size:1.1rem;">${qty}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" data-action="edit-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">✏️ 編輯</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" data-action="sell-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">套現</button></td>`;
+      tr.innerHTML = `<td><span class="${bc}">T${q.split('.')[0]} 日記本</span></td><td style="font-weight:600; color:var(--accent-cyan); font-size:1.1rem;">${qty}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" data-action="edit-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">✏️ 編輯</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" data-action="sell-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">套現</button></td>`;
       tbj.appendChild(tr);
     }
   });
@@ -107,7 +108,7 @@ export function renderLaborQualityPillsGroup(containerId, activeQuality, callbac
   const ctn = document.getElementById(containerId); if(!ctn) return;
   ctn.innerHTML = '';
   const pg = document.createElement('div'); pg.className = 'pill-group';
-  ['4.0', '5.0', '6.0', '7.0', '8.0'].forEach(q => {
+  ['6.0', '7.0', '8.0'].forEach(q => {
     const btn = document.createElement('button');
     btn.className = `pill-btn ${q === activeQuality ? 'active' : ''}`;
     btn.innerHTML = `T${q.split('.')[0]}`;
@@ -175,7 +176,10 @@ export function initLaborerEvents() {
   document.getElementById('btn-labor-next-page')?.addEventListener('click', nextLaborLogsPage);
 
   document.getElementById('btn-close-edit-labor-modal')?.addEventListener('click', closeEditLaborModal);
+  document.getElementById('btn-cancel-edit-labor')?.addEventListener('click', closeEditLaborModal);
   document.getElementById('btn-submit-edit-labor')?.addEventListener('click', submitEditLabor);
+  document.getElementById('btn-edit-labor-qty-sub-1')?.addEventListener('click', () => adjEditLaborQty(-1));
+  document.getElementById('btn-edit-labor-qty-add-1')?.addEventListener('click', () => adjEditLaborQty(1));
   
   document.getElementById('btn-close-import-modal')?.addEventListener('click', closeImportModal);
   document.getElementById('btn-submit-import')?.addEventListener('click', submitImportLaborStock);
@@ -200,4 +204,26 @@ export function initLaborerEvents() {
   const tbg = document.getElementById('labor-tbody');
   if (tbj) tbj.addEventListener('click', handleLaborClick);
   if (tbg) tbg.addEventListener('click', handleLaborClick);
+
+  const dynList = document.getElementById('labor-dynamic-list');
+  if (dynList) {
+    dynList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (btn) {
+        const action = btn.getAttribute('data-action');
+        if (action === 'remove-labor-row') {
+           e.target.closest('.form-row').remove();
+        } else if (action === 'adj-li-qty') {
+           const diff = parseInt(btn.getAttribute('data-val'));
+           const input = btn.parentElement.querySelector('.li-qty');
+           if (input) {
+             let v = parseInt(input.value.replace(/[^\d-]/g, '')) || 0;
+             v += diff;
+             if (v < 0) v = 0;
+             input.value = v;
+           }
+        }
+      }
+    });
+  }
 }

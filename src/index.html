@@ -8,6 +8,15 @@
 </head>
 <body>
 
+  <div data-tauri-drag-region class="titlebar">
+    <div class="titlebar-title">Albion Logistics</div>
+    <div class="titlebar-controls" id="titlebar-controls">
+      <div class="titlebar-button" data-action="minimize">&#x2014;</div>
+      <div class="titlebar-button" data-action="maximize">&#x25A1;</div>
+      <div class="titlebar-button close-btn" data-action="close">&#x2715;</div>
+    </div>
+  </div>
+
   <div class="app-container">
     <aside class="sidebar">
       <div class="logo-container"><div class="logo-icon">A</div><span class="logo-text">Albion Logistics</span></div>
@@ -256,10 +265,10 @@
         <div class="panel-grid">
           <div class="left-col">
             <div class="card laborer-inventory-card" style="margin-bottom:20px;">
-              <div class="card-header"><h3 class="card-title" style="color:var(--accent-purple);">🏡 勞工收成紀錄 Harvest Logs</h3></div>
+              <div class="card-header"><h3 class="card-title" style="color:var(--accent-purple);">🏡 工人收成紀錄 Harvest Logs</h3></div>
               <div class="form-row">
                 <div class="form-group" style="flex:1;">
-                  <label class="form-label">日記本階級 (T4~T8)</label>
+                  <label class="form-label">日記本階級</label>
                   <div id="labor-harvest-pill-group"></div>
                 </div>
                 <div class="form-group" style="flex:1;">
@@ -285,9 +294,18 @@
                   <label class="form-label">日記本階級</label>
                   <div id="labor-add-filled-pill-group"></div>
                 </div>
-                <div class="form-group" style="flex:1;"><label class="form-label">輸入數量</label><input type="text" class="format-num" id="labor-add-filled-qty" value="10"></div>
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">輸入數量</label>
+                  <div style="display:flex; gap:5px; align-items:center;">
+                    <input type="text" class="format-num" id="labor-add-filled-qty" value="10" style="flex:1;">
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-labor-add-qty-sub-10" data-val="-10">-10</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-labor-add-qty-sub-1" data-val="-1">-1</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-labor-add-qty-add-1" data-val="1">+1</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-labor-add-qty-add-10" data-val="10">+10</button>
+                  </div>
+                </div>
               </div>
-              <button class="btn btn-primary" style="width:100%; margin-top:10px;" id="btn-submit-add-journals">確認入庫 (不記帳)</button>
+              <button class="btn btn-primary" style="width:100%; margin-top:10px;" id="btn-submit-add-journals">確認入庫</button>
             </div>
           </div>
           
@@ -402,7 +420,7 @@
       <div class="card-header"><h3 class="card-title">✏️ 庫存校正</h3><button class="btn btn-secondary" style="padding:4px 8px;" id="btn-close-edit-inv-modal">✕</button></div>
       <div class="form-group"><label class="form-label">修改物品</label><div id="edit-inv-name" style="font-size:1.1rem; font-weight:bold; color:var(--text-primary); margin-bottom:10px;"></div></div>
       <div class="form-group"><label class="form-label">選擇需校正之倉庫</label><select id="edit-inv-city" ></select></div>
-      <div class="form-group"><label class="form-label">該城市正確數量</label><input type="text" class="format-num" id="edit-inv-qty"></div>
+      <div class="form-group"><label class="form-label">該城市正確數量</label><div style="display:flex; gap:5px; align-items:center;"><button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-edit-inv-qty-sub-1" data-val="-1">-1</button><input type="text" class="format-num" id="edit-inv-qty" style="flex:1;"><button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-edit-inv-qty-add-1" data-val="1">+1</button></div></div>
       <div class="form-group">
         <label class="form-label">全局正確加權均價</label>
         <div class="input-with-suffix"><input type="text" class="format-num" id="edit-inv-cost"><span class="input-suffix">銀幣</span></div>
@@ -446,7 +464,7 @@
   <!-- Custom Location Modal -->
   <div id="custom-location-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:600;">
     <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-purple);">
-      <div class="card-header"><h3 class="card-title">新增/編輯倉庫 Location</h3></div>
+      <div class="card-header"><h3 class="card-title">新增/編輯倉庫 Location</h3><button class="btn btn-secondary" style="padding:4px 8px;" id="btn-close-custom-location-modal-top">✕</button></div>
       <div class="form-group">
         <input type="text" id="custom-location-input" placeholder="輸入倉庫名稱..." style="font-size:1.1rem; padding:10px;">
       </div>
@@ -460,12 +478,13 @@
   <!-- Edit Labor Inventory Modal -->
   <div id="edit-labor-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:350;">
     <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-purple);">
-      <div class="card-header"><h3 class="card-title">✏️ 工人島庫存校正</h3><button class="btn btn-secondary" style="padding:4px 8px;" id="btn-close-edit-labor-modal">✕</button></div>
+      <div class="card-header"><h3 class="card-title">✏️ 工人島庫存校正</h3><button class="btn btn-secondary" style="padding:4px 8px; flex-shrink:0;" id="btn-close-edit-labor-modal">✕</button></div>
       <div class="form-group"><label class="form-label">修改物品</label><div id="edit-labor-name" style="font-size:1.1rem; font-weight:bold; color:var(--text-primary); margin-bottom:10px;"></div></div>
-      <div class="form-group"><label class="form-label">正確數量</label><input type="text" class="format-num" id="edit-labor-qty"></div>
+      <div class="form-group"><label class="form-label">正確數量</label><div style="display:flex; gap:5px; align-items:center;"><button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-edit-labor-qty-sub-1" data-val="-1">-1</button><input type="text" class="format-num" id="edit-labor-qty" style="flex:1;"><button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-edit-labor-qty-add-1" data-val="1">+1</button></div></div>
       <div class="info-tip" style="margin-top:10px; color:var(--accent-yellow);">⚠️ 此修改為靜默操作，僅覆寫工人島狀態，絕不影響任何流水帳或資金！</div>
       <div style="display:flex; gap:10px; margin-top:20px;">
-        <button class="btn btn-success" style="width:100%;" id="btn-submit-edit-labor">儲存修改</button>
+        <button class="btn btn-success" style="flex:2;" id="btn-submit-edit-labor">儲存修改</button>
+        <button class="btn btn-secondary" style="flex:1;" id="btn-cancel-edit-labor">取消操作</button>
       </div>
     </div>
   </div>
