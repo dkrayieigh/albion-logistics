@@ -4,7 +4,29 @@
 
 ## 🟢 第一層：庫存儲存鍵值 (Location ID)
 庫存系統 (`state.inventory.qtyByLocation`) 僅記錄物品的實體存放點。
+所有事件 payload 與 state 寫入必須使用 Location ID，不得使用 UI 顯示名稱。
 
+合法欄位命名：
+
+- `locationId`
+- `fromLocationId`
+- `toLocationId`
+- `targetLocationId`
+
+禁止欄位命名：
+
+- `location`
+- `fromLocation`
+- `toLocation`
+- `targetLocation`
+
+範例：
+
+```js
+{
+  locationId: "thetford"
+}
+```
 - **鍵值規範：** 強制使用小寫與底線的純 ID 格式。
 - **合法範例：** `thetford`, `fort_sterling`, `bridgewatch`, `martlock`, `lymhurst`, `hideout_001`, `laborer_island`。
 - **⛔ 絕對禁止：** 使用顯示名稱（如 `"紫城"`, `"公會T8地堡"`）或夾帶加成屬性作為 Key。
@@ -55,7 +77,7 @@ REGIONS = {
 
 **傳入參數擴充：**
 
-- `focusMode`: 是否使用專注點 (Boolean)
+- `focusEnabled`: 是否使用專注點 (Boolean)
 - `dailyBonus`: 今日活動加成 (Number: `0`, `0.1`, 或 `0.2`)
 - `hideoutPower`: 當下的地堡能量等級加成 (Number: 無能量=`0`, Lv1=`0.13`, Lv2=`0.26` 等，若在皇家城市製作則強制為 `0`)
 
@@ -72,7 +94,7 @@ Total LPB =
   Region_Bonus +              // 地區對該裝備的特化加成 (有對中 Region 才有)
   Region_Quality_Bonus +      // 地圖品質加成 (1~6級對應的趴數，皇家大陸城市為+15%)
   Hideout_Power_Bonus +       // 面板輸入：地堡能量 (0, 0.13, 0.26...)
-  Focus_Bonus +               // 面板輸入：有開專注就有，沒開就是 0
+  Focus_Bonus +               // 由 focusEnabled 決定；true 時套用專注加成，false 時為 0
   Daily_Bonus                 // 面板輸入：今日活動 (0, 0.1, 0.2)
 ```
 

@@ -27,21 +27,27 @@
 **業務目的：** 將暫存區的物資正式跨越邊界，注入總庫存系統中，並完成數量轉移。
 
 **📥 [輸入參數]**
-* `itemKey`: `${StableId}_${itemLevel}` (例：METALBAR_6.0)
-* `targetLocation`: 匯入的目的地城市 (例：Thetford)
-* `quantity`: 匯入數量 (例：300)
+* `stableId`: 產出物 Stable ID，例如 `METALBAR`
+* `itemLevel`: 顯示與索引用鍵值，例如 `"6.0"`
+* `itemKey`: `${stableId}_${itemLevel}`，例如 `METALBAR_6.0`
+* `targetLocationId`: 匯入的目的地 Location ID，例如 `thetford`
+* `quantity`: 匯入數量，例如 `300`
 
 **內部處理規則**
 * 執行前必須檢查 `state.inventory[itemKey].globalAvgCost` 是否為 `null`。
+* 系統不得透過拆解 `itemKey` 來反推出 `stableId` 或 `itemLevel`。
+* `stableId` 與 `itemLevel` 必須由事件 payload 明確提供。
+* `itemKey` 必須等於 `${stableId}_${itemLevel}`。
+* 若 `itemKey` 與 `${stableId}_${itemLevel}` 不一致，必須阻擋 `LABORER_IMPORT`。
 * 若 `globalAvgCost === null`：中斷 `LABORER_IMPORT`，並回報錯誤「缺乏真實交易定錨。請先透過採購入庫（PURCHASE_ITEM）建立該物品的首次成本基準。」。
 * 若 `globalAvgCost !== null`：允許匯入，`LABORER_IMPORT` 只具有 `qtyByLocation` 的寫入權限，絕對禁止重新計算 `globalAvgCost`。
 * ⛔ `LABORER_IMPORT` 禁止直接沖銷；若需要修正庫存/成本，必須使用 `INVENTORY_ADJUSTMENT`。
 
 **📤 [狀態變更結果]**
 1. **Yield Inventory (暫存區扣除)**
-   * `state.laborerInventory[itemType][itemLevel]` 減少 `quantity`。*(若不足則阻擋)*
+   * `state.laborerInventory[stableId][itemLevel]` 減少 `quantity`。
 2. **Inventory (總庫存增加)**
-   * 找到 `targetLocation` 下的 `itemKey`，數量增加 `quantity`。
+   * `state.inventory[itemKey].qtyByLocation[targetLocationId]` 增加 `quantity`。
    * `globalAvgCost` 維持不變，且不觸發加權重算公式。
 3. **Cash (現金不變)**
    * `state.assets.cash` 維持不變。
@@ -60,9 +66,9 @@
 **📥 [輸入參數]**
 * `recipeId`: 配方識別碼 (例：`WILDFIRE_STAFF`)，強制使用 `albion_db` 中的索引鍵。
 * `itemLevel`: 裝備階級索引字串 (例：`"4.0"`, `"6.2"`)，唯一合法的品質/階級傳遞。
-* `location`: 製作地點 (例：Thetford 或 舊黑區地堡)
+* `locationId`: 製作地點 locationId ID，例如 `thetford` 或 `hideout_001`
 * `quantity`: 製作批次數量 (例：10)
-* `focusEnabled`: 是否使用專注點 (Boolean)
+* `focusEnabled`: 是否使用專注點 (Boolean)。此欄位為唯一合法命名，禁止使用 `focusMode`。
 * `artifactTotalCost`: 該批次神器總成本 (Number，若無則為 0)
 * `alchemyTotalCost`: 該批次鍊金總成本 (Number，若無則為 0)
 * `usageFee`: 店鋪使用費總額 (Number，即 Albion 系統的預估費用 ((ItemValue * 0.1125) * Fee) / 100)
@@ -75,11 +81,11 @@
 
 **📤 [狀態變更結果]**
 1. **Inventory (材料扣除)**
-   * 找到對應 `location` 的 `mainMaterial`，數量減少預估消耗量（考量 RRR 後）。
-   * 若配方有 `subMaterial`，找到對應 `location` 的 `subMaterial`，數量減少預估消耗量（考量 RRR 後）。
+   * 找到對應 `locationId` 的 `mainMaterial`，數量減少預估消耗量（考量 RRR 後）。
+   * 若配方有 `subMaterial`，找到對應 `locationId` 的 `subMaterial`，數量減少預估消耗量（考量 RRR 後）。
    * 約束：材料扣除後不得低於 0，若不足必須在事件觸發前阻擋。
 2. **Inventory (成品增加與均價重算)**
-   * 找到對應 `location` 的 `recipeId_itemLevel`，數量增加 `quantity`。
+   * 找到對應 `locationId` 的 `recipeId_itemLevel`，數量增加 `quantity`。
    * 觸發 `globalAvgCost` 重算：`(本次總成本 + 歷史總庫存總價值) / (本次數量 + 歷史全局總數量)`。
    * 本次總成本 = (`主料消耗量 × 主料全域均價`) + (`副料消耗量 × 副料全域均價`) + `usageFee` + `artifactTotalCost` + `alchemyTotalCost`。
 3. **Cash (扣除現金)**
@@ -99,17 +105,17 @@
 **📥 [輸入參數]**
 * `itemKey`: `${StableId}_${itemLevel}` (例：METALBAR_4.0)
 * `itemLevel`: 顯示與索引用鍵值 (例：4.0)
-* `fromLocation`: 來源地點 (例：Fort Sterling)
-* `toLocation`: 目的地點 (例：自訂黑區地堡)
+* `fromLocationId`: 來源地點 Location ID，例如 `fort_sterling`
+* `toLocationId`: 目的地點 Location ID，例如 `hideout_001`
 * `quantity`: 轉移數量 (例：500)
 
 **📤 [狀態變更結果]**
 1. **Inventory (來源地扣除)**
-   * 找到 `itemKey` 的物品，在 `fromLocation` 的數量減少 `quantity`。
+   * 找到 `itemKey` 的物品，在 `fromLocationId` 的數量減少 `quantity`。
    * 約束：轉移數量不得大於來源地現有數量，否則阻擋。
-   * 約束：`fromLocation` 與 `toLocation` 不得相同。
+   * 約束：`fromLocationId` 與 `toLocationId` 不得相同
 2. **Inventory (目的地增加)**
-   * 找到相同物品，在 `toLocation` 的數量增加 `quantity`。
+   * 找到相同物品，在 `toLocationId` 的數量增加 `quantity`。
 3. **Global Average Cost (均價不變)**
    * ⛔ 絕對不觸發 `globalAvgCost` 重新計算。
 4. **Cash & Operation Log (財務不變)**
@@ -125,7 +131,7 @@
 **📥 [輸入參數]**
 * `itemKey`: `${StableId}_${itemLevel}` (例：METALBAR_6.2)
 * `itemLevel`: 顯示與索引用鍵值 (例：6.2)
-* `location`: 採購與入庫地點 (例：Thetford)
+* `locationId`: 採購與入庫地點 (例：thetford)
 * `quantity`: 採購數量 (例：100)
 * `totalCost`: 該批次總花費銀幣 (例：2,850,000)
 
@@ -134,7 +140,7 @@
    * `state.assets.cash` 減少 `totalCost`。
    * *(約束：即使現金變為負數，系統仍允許執行，視為透支/應付帳款，不阻擋採購)*
 2. **Inventory (庫存增加與均價重算)**
-   * 找到 `location` 下的 `itemKey`，數量增加 `quantity`。
+   * 找到 `locationId` 下的 `itemKey`，數量增加 `quantity`。
    * **觸發均價重算 (`globalAvgCost`)：**
      * 【條件 A：若原全域總數量 = 0】：`globalAvgCost = totalCost / quantity`。
      * 【條件 B：若原全域總數量 > 0】：`globalAvgCost = (歷史全域總價值 + totalCost) / (歷史全域總數量 + quantity)`。
@@ -147,18 +153,42 @@
    * `assetValue`: `totalCost`。
    * `details`: `"購買材料 ${itemKey} x ${quantity}"`。
 
-#### 事件名稱：INVENTORY_ADJUSTMENT (庫存盤點校正)
-**業務目的：** 透過新增一筆校正紀錄修正錯誤庫存與作業日誌差異，保持資料流向單向且不可撤銷。
-
+#### 事件名稱：`INVENTORY_ADJUSTMENT` (庫存盤點校正 / 歷史紀錄調整)
+**業務目的：** 透過新增一筆調整紀錄修正錯誤庫存、現金或作業日誌差異，保持資料流向單向且不可撤銷。
 **適用範圍**
-* 適用於修正採購入庫、製作入庫、工人島匯入、城市庫存轉移等事件錯誤。
-* 不得用於「時光倒流」式的沖銷操作；系統只允許以新增調整紀錄方式平衡數值。
+* 修正採購入庫、製作入庫、工人島匯入、城市庫存轉移等事件造成的錯誤。
+* UI 上的「刪除歷史紀錄」不得物理刪除原始紀錄，必須轉換為新增 `INVENTORY_ADJUSTMENT`。
+* 不得用於時光倒流式沖銷。
+* 不得回溯重算或還原歷史 `globalAvgCost`。
+
+**📥 [輸入參數]**
+* `sourceTransactionId`: 被修正的原始作業日誌 ID，若為純盤點校正可為 `null`
+* `itemKey`: `${stableId}_${itemLevel}`，例如 `METALBAR_6.2`
+* `locationId`: 發生校正的 Location ID，例如 `thetford`；若為全局現金校正可填 `"-"`
+* `quantityDelta`: 庫存修正差異，可為正數或負數
+* `cashDelta`: 現金修正差異，可為正數、負數或 `0`
+* `assetValue`: 本次調整涉及的資產價值紀錄，可為 `0`
+* `reason`: 調整原因描述
 
 **📤 [狀態變更結果]**
+1. **Operation Log**
+   * 在 `state.transactions` 頂部新增一筆紀錄。
+   * `action`: `"INVENTORY_ADJUSTMENT"`。
+   * `target`: `itemKey`。
+   * `qty`: `quantityDelta`。
+   * `cashChange`: `cashDelta`。
+   * `assetValue`: `assetValue`。
+   * `locationId`: `locationId`。
+   * `details`: 必須包含 `sourceTransactionId` 與 `reason`。
+2. **Inventory**
+   * 若 `itemKey` 與 `locationId` 有效，則調整 `state.inventory[itemKey].qtyByLocation[locationId] += quantityDelta`。
+   * 調整後數量不得小於 `0`。
+   * 若調整會導致負庫存，必須阻擋，且現金與作業日誌不得變動。
+3. **Cash**
+   * `state.assets.cash += cashDelta`。
+4. **Global Average Cost**
+   * `INVENTORY_ADJUSTMENT` 不得回溯重算歷史均價。
+   * 預設不得修改 `globalAvgCost`。
+   * 若未來需要校正成本基準，必須在文件中另行定義明確的成本校正事件，不得混入一般庫存調整。
 
-1. **作業日誌新增**
-   * 在 `state.transactions` 頂部新增一筆紀錄，`action` 為 "INVENTORY_ADJUSTMENT"。
-2. **庫存調整**
-   * 根據校正差異調整對應 `state.inventory[itemKey].qtyByLocation` 的值，並保持各地點數量不可為負。
-3. **成本紀錄**
-   * 若校正涉及成本基準或現金差異，則此紀錄可同時保留 `cashChange`、`assetValue` 與 `unitPrice`，但不得作為歷史事件的撤銷操作。
+若目前交易紀錄尚未具備唯一 ID，`sourceTransactionId` 可暫以原始紀錄索引或快照資訊表示；是否導入正式 transaction id，待程式碼審查後決定。

@@ -31,8 +31,12 @@
 - 繼承均價機制：產出物庫存匯入總庫存時，自動繼承該資源當前的「全域均價」。不產生任何價值變化（不稀釋均價）。
 
 ## 5. ❌ 歷史紀錄不可逆原則 (No Time-Travel for Averages)
-- 編輯與刪除 (Operation Log)：當在日誌刪除或編輯歷史紀錄時，系統只負責將「數量」與「現金」以當下的狀態加回/扣除。
-- 禁止回溯均價：系統絕對不允許去還原或重算歷史的全域均價。發生錯誤的均價，只能透過未來的「手動庫存校正」功能來拉平。
+- `state.transactions` 中的原始歷史紀錄不得物理刪除。
+- UI 上的「刪除」或「修正」操作，必須被視為新增一筆調整紀錄，而不是移除原始紀錄。
+- 系統不得回溯還原或重算歷史 `globalAvgCost`。
+- 發生錯誤紀錄時，只能透過 `INVENTORY_ADJUSTMENT` 以當前狀態修正庫存、現金與說明。
+- 若調整會導致任一 `qtyByLocation` 小於 0，必須阻擋整個調整。
+- 發生錯誤的均價，不得透過刪除歷史紀錄修復，只能透過未來合法事件或手動庫存校正拉平。
 
 ## 6. 🧮 庫存成本計價方式 (Inventory Costing Method)
 **本系統嚴格採用：加權平均成本法 (Weighted Average Cost)。**
@@ -56,3 +60,87 @@
 - 若此時發生 `LABORER_IMPORT`：只喚醒該定錨，`globalAvgCost` 維持不變。
 - 若此時發生 `PURCHASE_ITEM`：徹底捨棄該休眠定錨，並以本次 `總花費 / 數量` 直接覆寫成為新的 `globalAvgCost`，完成成本斷點重啟。
 - 系統必須直接將該次採購的 `單價 (總花費 / 數量)` 賦予為全新的 `globalAvgCost`，完成成本斷點重啟。
+
+## Cost Basis 成本基準總則
+
+本系統採用 WAC（Weighted Average Cost，加權平均成本法），所有物品在 `state.inventory[itemKey].globalAvgCost` 中只維護唯一一個全域成本基準。
+
+### 成本基準建立與更新權限
+
+#### 1. `PURCHASE_ITEM`
+
+`PURCHASE_ITEM` 是唯一可以透過「外部真實現金交易」建立或更新成本基準的事件。
+
+適用對象：
+
+* 市場採購材料
+* 市場採購可入庫物品
+* 任何直接用現金購買並進入總庫存的物品
+
+規則：
+
+* 若該物品全域總庫存為 `0`，本次採購單價直接成為新的 `globalAvgCost`。
+* 若該物品全域總庫存大於 `0`，使用 WAC 公式稀釋既有 `globalAvgCost`。
+* 此事件會扣除 `state.assets.cash`。
+* 此事件會新增 `PURCHASE_ITEM` 作業日誌。
+
+#### 2. `CRAFT_COMPLETE`
+
+`CRAFT_COMPLETE` 可以為「製造成品」建立或更新成本基準。
+
+適用對象：
+
+* 透過配方製作完成並入庫的成品
+
+規則：
+
+* `CRAFT_COMPLETE` 不得修改被消耗材料的 `globalAvgCost`。
+* `CRAFT_COMPLETE` 必須引用材料當下既有的 `globalAvgCost` 計算材料成本。
+* 成品的本次製造成本為：
+
+```js
+mainMaterialCost
++ subMaterialCost
++ usageFee
++ artifactTotalCost
++ alchemyTotalCost
+```
+
+* 若成品全域總庫存為 `0`，本次單位製造成本直接成為成品新的 `globalAvgCost`。
+* 若成品全域總庫存大於 `0`，使用 WAC 公式更新成品的 `globalAvgCost`。
+* 此事件只扣除 `usageFee + artifactTotalCost + alchemyTotalCost` 對應的現金。
+* 材料成本屬於資產轉換，不得再次扣除現金。
+
+#### 3. `LABORER_IMPORT`
+
+`LABORER_IMPORT` 不得建立或修改成本基準。
+
+規則：
+
+* 若目標物品 `globalAvgCost === null`，必須阻擋匯入。
+* 若目標物品 `globalAvgCost !== null`，允許匯入。
+* 匯入只增加 `qtyByLocation` 數量。
+* `globalAvgCost` 維持不變。
+* 現金維持不變。
+
+#### 4. `TRANSFER_ITEM`
+
+`TRANSFER_ITEM` 不得建立、修改或重算成本基準。
+
+規則：
+
+* 只移動不同 `locationId` 之間的數量。
+* 不改變 `globalAvgCost`。
+* 不改變現金。
+* 不新增財務型作業日誌。
+
+#### 5. 未來 `SELL_ITEM`
+
+若未來加入成品販售事件，`SELL_ITEM` 只能處理：
+
+* 成品庫存扣除
+* 現金收入增加
+* 銷售收入紀錄
+* 以當下 `globalAvgCost` 計算銷貨成本或損益
+
+`SELL_ITEM` 不得回頭修改該物品的 `globalAvgCost`。

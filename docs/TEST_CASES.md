@@ -7,17 +7,17 @@
 #### TEST-A01：採購入庫 (測試全域均價與現金稀釋)
 **📥 [前置狀態]**
 * 系統現金餘額：0
-* T6.2 鋼條（Thetford）：庫存 0，全域均價 0
+* T6.2 鋼條（locationId: `thetford`）：庫存 0，globalAvgCost: null
 
 **🧪 [使用者操作]**
 * 在採購模組，買入 200 個 T6.2 鋼條。
-* 選擇城市：Thetford。
+* 選擇城市：Thetford（locationId: `thetford`）。
 * 總花費輸入：5,800,000。
 
 **📤 [預期結果]**
 * ✅ 現金變化：0 變成 -5,800,000。
-* ✅ 庫存變化：Thetford 的 T6.2 鋼條數量從 0 變成 200。
-* ✅ 全域均價：T6.2 鋼條的均價從 0 變成 29,000。
+* ✅ 庫存變化：Thetford（locationId: `thetford`） 的 T6.2 鋼條數量從 0 變成 200。
+* ✅ 全域均價：T6.2 鋼條的 globalAvgCost 從 null 建立為 29,000。
 * ✅ 作業日誌：新增一筆「購買材料」的支出紀錄。
 
 ---
@@ -29,10 +29,10 @@
 
 **🧪 [使用者操作]**
 * 在物流模組，選擇轉移 100 個 T6.2 鋼條。
-* 起點：Thetford ➡️ 終點：Bridgewatch。
+* 起點：Thetford（fromLocationId: `thetford`）➡️ 終點：Bridgewatch（toLocationId: `bridgewatch`）。
 
 **📤 [預期結果]**
-* ✅ 庫存變化（來源地）：Thetford 數量 200 變成 100。
+* ✅ 庫存變化（來源地）：Thetford（locationId: `thetford`） 數量 200 變成 100。
 * ✅ 庫存變化（目的地）：Bridgewatch 數量 0 變成 100。
 * ✅ 全域均價（防呆）：T6.2 鋼條均價必須維持 29,000 不變。
 * ✅ 財務變化（防呆）：現金必須維持 -5,800,000 不變，作業日誌不新增任何紀錄。
@@ -46,13 +46,13 @@
 
 **🧪 [使用者操作]**
 * 在製作模組，選擇製作 10 把需要鋼條（主料）與布料（副料）的武器。
-* 選擇城市：Thetford。
+* 選擇城市：Thetford（locationId: `thetford`）。
 * 系統預估稅金/使用費：5,000。
 * 點擊「開始製作」。
 
 **📤 [預期結果]**
 * ✅ 材料庫存：T6.1 鋼條與 T6.1 布料庫存正確減少（需符合扣除 RRR 後的預估消耗量）。
-* ✅ 成品庫存：Thetford 的該武器庫存增加 10。
+* ✅ 成品庫存：Thetford（locationId: `thetford`） 的該武器庫存增加 10。
 * ✅ 現金變化：現金只扣除 5,000（稅金），絕對不扣材料的錢，現金變成 9,995,000。
 * ✅ 成品均價：該武器的全域均價被正確計算（計算公式包含消耗的材料均價總和 + 稅金）。
 * ✅ 作業日誌：新增一筆「製作入庫」紀錄，且紀錄的總價值為正確的製造成本總和。
@@ -92,7 +92,7 @@
 ---
 #### TEST-A06：零庫存重新建立均價 (破除幽靈成本)
 **📥 [前置狀態]**
-* T6.2 鋼條：全域總庫存 `0`，全域均價 `29,000` (歷史殘留顯示用)
+* T6.2 鋼條：全域總庫存 `0`，globalAvgCost 仍為 `29,000`（Dormant Anchor，休眠定錨狀態）
 * 系統現金餘額：`5,000,000`
 
 **🧪 [使用者操作]**
@@ -115,28 +115,40 @@
 * 總庫存 (Thetford)：T6.2 鋼條 100 個，全域均價 29,000。
 
 **🧪 [使用者操作]**
-* 在工人島模組點擊「匯入」，數量 5，目標 Thetford。
+* 在工人島模組點擊「匯入」：
+  * stableId: `METALBAR`
+  * itemLevel: `"6.2"`
+  * itemKey: `METALBAR_6.2`
+  * quantity: `5`
+  * targetLocationId: `thetford`
 
 **📤 [預期結果]**
 * ✅ 暫存區 T6.2 鋼條扣除 5。
 * ✅ 總庫存 Thetford 增加 5（變成 105）。
 * ✅ 最重要防呆：T6.2 鋼條全域均價必須維持 29,000 不變（不可稀釋）。
+* ✅ 系統使用 `stableId` 與 `itemLevel` 扣除暫存區，不得透過拆解 `itemKey` 反推。
 
 ---
-#### TEST-B02：歷史作業日誌刪除與平帳
+#### TEST-B02：歷史作業日誌刪除轉調整紀錄
 **📥 [前置狀態]**
-* 有一筆錯誤的「採購紀錄」：花費 3,000,000 買了 500 個 T6.1 布料。
+* 有一筆錯誤的 `PURCHASE_ITEM` 紀錄：花費 3,000,000 買了 500 個 T6.1 布料。
+* 該筆紀錄仍存在於 `state.transactions`。
+* T6.1 布料目前庫存至少 500。
 
 **🧪 [使用者操作]**
 * 在作業日誌模組，點擊該筆紀錄的「🗑️ 刪除」。
 
 **📤 [預期結果]**
+* ✅ 原始 `PURCHASE_ITEM` 紀錄不得從 `state.transactions` 移除。
+* ✅ 系統新增一筆 `INVENTORY_ADJUSTMENT`。
 * ✅ 系統現金加回 3,000,000。
 * ✅ T6.1 布料的庫存扣除 500。
-* ✅ 新增一筆沖銷紀錄，保留原始紀錄。
+* ✅ `globalAvgCost` 不得回溯重算。
+* ✅ 新增調整紀錄的 `details` 必須記錄原始交易來源。
 
 ---
-#### TEST-B03：歷史作業日誌沖銷與負庫存防禦
+#### TEST-B03：歷史作業日誌調整與負庫存防禦
+
 **📥 [前置狀態]**
 * 歷史紀錄：花費 3,000,000 買了 500 個 T6.1 布料。
 * 當前庫存：T6.1 布料僅剩 200 個（已有 300 個被做成裝備）。
@@ -145,8 +157,11 @@
 * 在作業日誌模組，對該筆採購紀錄點擊「🗑️ 刪除」。
 
 **📤 [預期結果]**
-* ✅ 系統阻擋： 彈出錯誤提示「庫存不足 500，已被消耗無法沖銷」。
-* ✅ 狀態不變： 現金、庫存、作業日誌皆不發生變動，完美防禦負庫存崩潰。
+* ✅ 系統阻擋：彈出錯誤提示「庫存不足 500，已被消耗無法調整」。
+* ✅ 原始歷史紀錄不移除。
+* ✅ 不新增 `INVENTORY_ADJUSTMENT`。
+* ✅ 現金、庫存、作業日誌皆不發生變動。
+* ✅ `globalAvgCost` 不得重算。
 
 ---
 #### TEST-B04：資料匯出與匯入 (生存確認)
@@ -169,6 +184,27 @@
 **📤 [預期結果]：**
 * 所有庫存與歷史作業日誌的 quality 欄位徹底消失，並正確轉移為 itemLevel: "6.2"。資料讀取與均價計算無任何錯誤。
 
+---
+#### TEST-B06：LABORER_IMPORT 禁止拆解 itemKey
+
+**📥 [前置狀態]**
+* 暫存區：`state.laborerInventory["FULL_JOURNAL"]["6.2"] = 5`
+* 總庫存：`state.inventory["FULL_JOURNAL_6.2"].globalAvgCost = 29000`
+* 目標地點：`targetLocationId = "thetford"`
+
+**🧪 [使用者操作]**
+* 執行 `LABORER_IMPORT`：
+  * stableId: `FULL_JOURNAL`
+  * itemLevel: `"6.2"`
+  * itemKey: `FULL_JOURNAL_6.2`
+  * quantity: `5`
+  * targetLocationId: `thetford`
+
+**📤 [預期結果]**
+* ✅ 暫存區 `state.laborerInventory["FULL_JOURNAL"]["6.2"]` 從 5 變成 0。
+* ✅ 總庫存 `state.inventory["FULL_JOURNAL_6.2"].qtyByLocation["thetford"]` 增加 5。
+* ✅ `globalAvgCost` 維持 29,000 不變。
+* ✅ 系統不得使用 `itemKey.split("_")` 反推 `stableId` 或 `itemLevel`。
 
 ## 🟢 Level C：UI 與體驗 (有空再測)
 影響操作體驗，但不會毀滅資料。
@@ -178,3 +214,20 @@
 #### TEST-C02：自訂黑區地堡新增後，各大下拉式選單是否即時更新。
 
 #### TEST-C03：輸入數字時，千分位逗號不會讓游標亂跳。
+
+#### TEST-C04：專注點參數命名與 RRR 計算
+
+**📥 [前置狀態]**
+* 選擇任一可製作配方。
+* 製作地點、日加成、地堡能量皆固定不變。
+* 材料庫存充足。
+
+**🧪 [使用者操作]**
+* 第一次製作預估：`focusEnabled = false`。
+* 第二次製作預估：`focusEnabled = true`。
+
+**📤 [預期結果]**
+* ✅ 系統只讀取 `focusEnabled` 作為專注點判斷欄位。
+* ✅ `focusEnabled = true` 時，RRR 高於 `focusEnabled = false`。
+* ✅ 材料預估消耗量不得出現小數，必須符合 `Math.ceil(baseConsume * (1 - RRR))`。
+* ❌ 系統不得依賴或讀取 `focusMode`。
