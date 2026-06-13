@@ -60,6 +60,12 @@ export const CITY_BONUSES = {
   }
 };
 
+export const BONUSES = { 
+  '錘矛': 'Thetford', '金屬長靴': 'Martlock', '副手武器': 'Martlock', 
+  '金屬護甲': 'Bridgewatch', '鋼條': 'Thetford', '布料': 'Lymhurst', 
+  '板材': 'Fort Sterling', '金屬頭盔': 'Fort Sterling', '鎚子': 'Fort Sterling' 
+};
+
 export const EN_MAT = {
   '鋼條': 'Bars', '板材': 'Planks', '布料': 'Cloth', '皮革': 'Leather'
 };
