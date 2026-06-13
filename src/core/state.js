@@ -44,7 +44,7 @@ export function initDefaultState() {
       if (!state.inventory[key]) {
          let initialQty = { 'LaborerIsland': 0, 'Fort Sterling': 0, 'Bridgewatch': 0, 'Lymhurst': 0, 'Martlock': 0, 'Thetford': 0 };
          state.customLocations.forEach(c => initialQty[c] = 0);
-         state.inventory[key] = { qtyByCity: initialQty, globalAvgCost: 0 };
+         state.inventory[key] = { qtyByCity: initialQty, globalAvgCost: null };
       } else {
          state.customLocations.forEach(c => {
              if(state.inventory[key].qtyByCity[c] === undefined) state.inventory[key].qtyByCity[c] = 0;
