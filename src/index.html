@@ -388,6 +388,7 @@
   <div id="sell-crafted-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:200;">
     <div class="card" style="width:450px; margin:15vh auto; border-color:var(--accent-purple);">
       <div class="card-header"><h3 id="sell-crafted-title" class="card-title">估價計算機與銷售</h3><button class="btn btn-secondary" id="btn-close-sell-crafted-modal">✕</button></div>
+      <div id="sell-crafted-name" style="text-align:center; font-size:1.2rem; font-weight:bold; color:var(--accent-cyan); margin-bottom:15px;"></div>
       <div class="form-group"><label class="form-label">出售倉庫位置</label><select id="sell-crafted-city" ></select></div>
       <div class="form-group">
         <label class="form-label">出售數量 Sell Amount (剩餘:<span id="sell-crafted-max"></span>)</label>
@@ -406,10 +407,10 @@
         <div class="benchmark-card pct85"><div class="benchmark-percent">85% 參考</div><div class="benchmark-val" id="sell-bench-85">0</div></div>
       </div>
       <div class="form-row" style="border-top:1px dashed var(--border-glass); padding-top:15px;">
-        <div class="form-group"><label class="form-label">實際售出單價 Unit Price</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-actual" ><span class="input-suffix">銀幣</span></div></div>
-        <div class="form-group"><label class="form-label">實際售出總價 Total Price</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-actual-total" ><span class="input-suffix">銀幣</span></div></div>
+        <div class="form-group"><label class="form-label">實際售出單價 Unit Price</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-price" ><span class="input-suffix">銀幣</span></div></div>
+        <div class="form-group"><label class="form-label">實際售出總價 Total Price</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-total" ><span class="input-suffix">銀幣</span></div></div>
       </div>
-      <div class="form-group"><div style="font-size:0.9rem; color:var(--text-secondary);">這筆訂單預期總利潤: <span id="sell-crafted-profit" style="font-weight:bold; font-size:1.2rem;">0</span></div></div>
+      <div class="form-group"><div style="font-size:0.9rem; color:var(--text-secondary);"><span id="sell-estimator-result" style="font-weight:bold; font-size:1.2rem;"></span></div></div>
       <button class="btn btn-success" style="width:100%; height:45px;" id="btn-submit-sell-crafted">確認完成交易 (更新庫存與錢包)</button>
     </div>
   </div>

@@ -187,11 +187,20 @@ let aSellItem = '', aSellQual = '', aSellCity = '';
 
 export function openSellCraftedModal(item, q, city) {
   aSellItem = item; aSellQual = q; aSellCity = city;
-  const maxQty = state.inventory[`${item}_${q}`].qtyByCity[city];
-  document.getElementById('sell-crafted-name').innerText = `${item} (${q})`;
+  const key = `${item}_${q}`;
+  const maxQty = state.inventory[key].qtyByCity[city];
+  
+  const cityName = SYSTEM_CITIES[city]?.name || city;
+  document.getElementById('sell-crafted-name').innerText = `${item} (${q}) - ${cityName}倉庫`;
+  
+  const maxEl = document.getElementById('sell-crafted-max');
+  if (maxEl) maxEl.innerText = maxQty;
   
   const qtyInput = document.getElementById('sell-crafted-qty');
   if (qtyInput) { qtyInput.max = maxQty; qtyInput.value = maxQty; }
+  
+  const costEl = document.getElementById('sell-crafted-cost');
+  if (costEl) costEl.innerText = formatSilver(state.inventory[key].globalAvgCost || 0);
   
   const priceInput = document.getElementById('sell-crafted-price');
   if (priceInput) priceInput.value = '';
@@ -199,7 +208,26 @@ export function openSellCraftedModal(item, q, city) {
   const totalInput = document.getElementById('sell-crafted-total');
   if (totalInput) totalInput.value = '';
   
+  const estInput = document.getElementById('sell-crafted-estimate');
+  if (estInput) estInput.value = '';
+  
+  const bench90 = document.getElementById('sell-bench-90');
+  if (bench90) bench90.innerText = '0';
+  
+  const bench85 = document.getElementById('sell-bench-85');
+  if (bench85) bench85.innerText = '0';
+  
+  const citySelect = document.getElementById('sell-crafted-city');
+  if (citySelect) citySelect.parentElement.style.display = 'none';
+  
+  runEstimator();
   document.getElementById('sell-crafted-modal').style.display = 'block';
+}
+
+export function onSellEstimateChange() {
+  const est = parseNum(document.getElementById('sell-crafted-estimate').value) || 0;
+  document.getElementById('sell-bench-90').innerText = formatSilver(est * 0.9);
+  document.getElementById('sell-bench-85').innerText = formatSilver(est * 0.85);
 }
 
 export function closeSellCraftedModal() { document.getElementById('sell-crafted-modal').style.display = 'none'; }
@@ -293,6 +321,7 @@ export function initInventoryEvents() {
   document.getElementById('btn-sell-qty-add-10')?.addEventListener('click', () => adjustSellCraftedQty(10));
   document.getElementById('sell-crafted-price')?.addEventListener('input', () => onSellPriceChange('unit'));
   document.getElementById('sell-crafted-total')?.addEventListener('input', () => onSellPriceChange('total'));
+  document.getElementById('sell-crafted-estimate')?.addEventListener('input', onSellEstimateChange);
   document.getElementById('btn-buy-qty-sub-10')?.addEventListener('click', () => adjBuyQty(-10));
   document.getElementById('btn-buy-qty-sub-1')?.addEventListener('click', () => adjBuyQty(-1));
   document.getElementById('btn-buy-qty-add-1')?.addEventListener('click', () => adjBuyQty(1));
