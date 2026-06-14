@@ -49,10 +49,11 @@ export function renderLedgerTable() {
 
   pageItems.forEach(t => {
     const tr=document.createElement('tr');
+    const displayType = t.type === 'INVENTORY_ADJUSTMENT' ? '調整紀錄' : t.type;
     const actionButton = t.type === '買材料'
       ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" data-action="delete-purchase-adjustment" data-id="${t.originalIndex}">刪除</button>`
       : '';
-    tr.innerHTML=`<td>${t.date}</td><td><span style="color:var(--accent-cyan); font-weight:bold;">${t.type}</span></td><td>${t.item} ${t.quality !== '-' ? '('+t.quality+')':''}</td><td>${t.qty}</td><td>${formatSilver(t.unitPrice)}</td><td style="font-weight:bold; color:${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'var(--accent-red)':'var(--accent-green)'};">${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'-':'+'}${formatSilver(t.total)}</td><td>${actionButton}</td>`;
+    tr.innerHTML=`<td>${t.date}</td><td><span style="color:var(--accent-cyan); font-weight:bold;">${displayType}</span></td><td>${t.item} ${t.quality !== '-' ? '('+t.quality+')':''}</td><td>${t.qty}</td><td>${formatSilver(t.unitPrice)}</td><td style="font-weight:bold; color:${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'var(--accent-red)':'var(--accent-green)'};">${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'-':'+'}${formatSilver(t.total)}</td><td>${actionButton}</td>`;
     tb.appendChild(tr);
   });
 }
