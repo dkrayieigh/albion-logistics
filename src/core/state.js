@@ -92,7 +92,6 @@ export function loadState() {
 }
 
 export function saveState() {
-  if (state.transactions.length > 100) state.transactions.splice(100);
   if (state.laborerLogs.length > 100) state.laborerLogs.splice(100);
   
   localStorage.setItem('albion_crafting_stocks', JSON.stringify(state.inventory));
