@@ -154,7 +154,7 @@ export function submitImportLaborStock() {
   if (availableQty < q) return window.showToast('工人島暫存庫存不足', 'error');
   state.laborerInventory[aImpI][aImpQ]-=q; targetInventory.qtyByCity[c]+=q;
   state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type: '工人島匯入', item: aImpI, quality: aImpQ, qty: q, total: 0, unitPrice: 0, location: c });
-  saveState(); window.updateDashboardUI(); closeImportModal(); window.showToast('匯入成功','success');
+  saveState(); closeImportModal(); window.showToast('工人島庫存已匯入','success');
 }
 
 let aSelI='', aSelQ='';
