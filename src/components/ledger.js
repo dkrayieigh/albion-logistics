@@ -98,14 +98,16 @@ export function submitEditLedger() {
 }
 
 export function deleteEditLedger() {
-  if (!confirm('確定要刪除此筆紀錄嗎？這將會同步回推並影響您的錢包餘額與庫存數量/均價。')) return;
   const t = state.transactions[aLedgerIdx];
-  applyInventoryDiff(t, -t.qty);
-  state.assets.cash -= getLedgerCashImpact(t.type, t.total);
-  if (t.type === '注資本金') state.assets.debt -= t.total;
-  if (t.type === '提領利潤') state.assets.debt += t.total;
-  state.transactions.splice(aLedgerIdx, 1);
-  saveState(); closeEditLedgerModal(); window.showToast('已刪除該紀錄，全局資產與庫存已重算', 'success');
+  if (t.type !== '買材料') return window.showToast('目前僅支援採購紀錄刪除轉調整', 'error');
+  if (!confirm('確定要將此採購紀錄轉為調整紀錄嗎？')) return;
+  const itemKey = `${t.item}_${t.quality}`; const targetInventory = state.inventory[itemKey];
+  const currentQty = targetInventory?.qtyByCity?.[t.location] || 0;
+  if (currentQty < t.qty) return window.showToast('庫存不足，已被消耗無法調整', 'error');
+  targetInventory.qtyByCity[t.location] -= t.qty;
+  state.assets.cash += t.total;
+  state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type: 'INVENTORY_ADJUSTMENT', item: t.item, quality: t.quality, qty: -t.qty, total: -t.total, unitPrice: t.unitPrice, location: t.location, details: `刪除轉調整；原始索引: ${aLedgerIdx}` });
+  saveState(); closeEditLedgerModal(); window.showToast('已新增調整紀錄，原始紀錄已保留', 'success');
 }
 
 export function adjustWallet(a) {
