@@ -84,17 +84,7 @@ export function applyInventoryDiff(t, qtyDiff) {
 }
 
 export function submitEditLedger() {
-  const nq = parseNum(document.getElementById('edit-ledger-qty').value); const nt = parseNum(document.getElementById('edit-ledger-total').value);
-  if(nq < 0 || nt < 0) return window.showToast('不可為負', 'error');
-  const t = state.transactions[aLedgerIdx]; const oldTotal = t.total;
-  
-  applyInventoryDiff(t, nq - t.qty);
-  
-  state.assets.cash += (getLedgerCashImpact(t.type, nt) - getLedgerCashImpact(t.type, oldTotal));
-  if (t.type === '注資本金') state.assets.debt += (nt - oldTotal);
-  if (t.type === '提領利潤') state.assets.debt -= (nt - oldTotal);
-  t.qty = nq; t.total = nt; t.unitPrice = nq > 0 ? Math.round(nt / nq) : 0;
-  saveState(); closeEditLedgerModal(); window.showToast('修改成功！庫存均價與數量已回推對齊', 'success');
+  return window.showToast('歷史紀錄不可直接編輯，請使用調整紀錄修正。', 'error');
 }
 
 export function deleteEditLedger() {
