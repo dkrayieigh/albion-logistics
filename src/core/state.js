@@ -2,7 +2,7 @@ import { QUAL_GROUPS } from '../data/constants.js';
 import { ALBION_DB } from '../data/albion_db.js';
 
 export const state = { 
-  assets: { cash: 0 }, 
+  assets: { cash: 0, debt: 0 },
   customLocations: [], 
   inventory: {}, 
   laborerInventory: { '鋼條': {}, '布料': {}, '板材': {}, '滿日記本': {} }, 
@@ -61,6 +61,7 @@ export function initDefaultState() {
 export function loadState() {
   const stocks = localStorage.getItem('albion_crafting_stocks'); if (stocks) state.inventory = JSON.parse(stocks);
   const assets = localStorage.getItem('albion_crafting_assets'); if (assets) state.assets = JSON.parse(assets);
+  if (typeof state.assets.debt !== 'number' || Number.isNaN(state.assets.debt)) state.assets.debt = 0;
   const trans = localStorage.getItem('albion_crafting_transactions'); if (trans) state.transactions = JSON.parse(trans);
   const laborStock = localStorage.getItem('albion_crafting_laborer_stocks'); if (laborStock) state.laborerInventory = JSON.parse(laborStock);
   const laborLogs = localStorage.getItem('albion_crafting_laborer_logs'); if (laborLogs) state.laborerLogs = JSON.parse(laborLogs);
