@@ -145,10 +145,13 @@ let aImpI='', aImpQ='';
 export function openImportModal(i,q,m) { aImpI=i; aImpQ=q; document.getElementById('import-qty').value=formatSilver(m); document.getElementById('import-qty').max=m; document.getElementById('import-modal').style.display='block'; }
 export function closeImportModal() { document.getElementById('import-modal').style.display='none'; }
 export function submitImportLaborStock() {
-  const q=parseNum(document.getElementById('import-qty').value); const m=parseNum(document.getElementById('import-qty').max); const c=document.getElementById('import-city').value;
-  if(q<=0||q>m) return;
+  const q=parseNum(document.getElementById('import-qty').value); const c=document.getElementById('import-city').value;
   const itemKey = `${aImpI}_${aImpQ}`; const targetInventory = state.inventory[itemKey];
+  const laborerItem = state.laborerInventory[aImpI]; const availableQty = laborerItem?.[aImpQ];
+  if (!Number.isInteger(q) || q <= 0) return window.showToast('匯入數量必須是正整數', 'error');
   if (!targetInventory || targetInventory.globalAvgCost === null) return window.showToast('缺乏真實交易定錨。請先透過採購入庫建立成本基準。', 'error');
+  if (!laborerItem || availableQty === undefined) return window.showToast('工人島暫存庫存不存在', 'error');
+  if (availableQty < q) return window.showToast('工人島暫存庫存不足', 'error');
   state.laborerInventory[aImpI][aImpQ]-=q; targetInventory.qtyByCity[c]+=q;
   state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type: '工人島匯入', item: aImpI, quality: aImpQ, qty: q, total: 0, unitPrice: 0, location: c });
   saveState(); window.updateDashboardUI(); closeImportModal(); window.showToast('匯入成功','success');
