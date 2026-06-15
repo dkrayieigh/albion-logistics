@@ -11,7 +11,9 @@ function createElement(id = '') {
     addEventListener(type, handler) {
       this.handlers[type] = handler;
     },
-    click() {}
+    click() {
+      browserDownloadCount++;
+    }
   };
 }
 
@@ -44,6 +46,8 @@ let alerts = [];
 let confirmResult = true;
 let createdBlob;
 let reloadCount = 0;
+let browserDownloadCount = 0;
+let tauriInvocations = [];
 
 globalThis.alert = message => alerts.push(message);
 globalThis.confirm = () => confirmResult;
@@ -93,6 +97,9 @@ function resetMocks() {
   confirmResult = true;
   createdBlob = undefined;
   reloadCount = 0;
+  browserDownloadCount = 0;
+  tauriInvocations = [];
+  delete window.__TAURI__;
   getElement('import-file').value = '';
 }
 
@@ -115,7 +122,7 @@ function storageSnapshot() {
   return JSON.stringify([...storage.entries()]);
 }
 
-test('TEST-B04: export creates readable JSON with complete structured backup data', { concurrency: false }, () => {
+test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
   resetMocks();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '測試交易' }));
   seedStorage({
@@ -126,12 +133,21 @@ test('TEST-B04: export creates readable JSON with complete structured backup dat
     laborerLogs: [{ type: '測試工人紀錄' }],
     customLocations: ['測試倉庫']
   });
+  window.__TAURI__ = {
+    core: {
+      invoke: async (command, args, options) => {
+        tauriInvocations.push({ command, args, options });
+        if (command === 'plugin:dialog|save') return 'D:\\backups\\custom-name.json';
+      }
+    }
+  };
 
-  getElement('btn-export-data').handlers.click();
+  await getElement('btn-export-data').handlers.click();
 
-  assert.ok(createdBlob);
-  assert.equal(createdBlob.options.type, 'application/json');
-  const exportedText = createdBlob.parts.join('');
+  assert.equal(createdBlob, undefined);
+  assert.equal(browserDownloadCount, 0);
+  assert.deepEqual(tauriInvocations.map(call => call.command), ['plugin:dialog|save', 'plugin:fs|write_text_file']);
+  const exportedText = new TextDecoder().decode(tauriInvocations[1].args);
   assert.match(exportedText, /\n  "inventory": \{/);
   const exported = JSON.parse(exportedText);
   assert.equal(typeof exported.inventory, 'object');
@@ -140,6 +156,38 @@ test('TEST-B04: export creates readable JSON with complete structured backup dat
   assert.equal(Array.isArray(exported.assets), false);
   assert.equal(Array.isArray(exported.transactions), true);
   assert.equal(exported.transactions.length, 150);
+});
+
+test('TEST-B04: cancelling Tauri save dialog writes nothing and does not fall back', { concurrency: false }, async () => {
+  resetMocks();
+  seedStorage({ inventory: {}, assets: { cash: 0, debt: 0 }, transactions: [] });
+  window.__TAURI__ = {
+    core: {
+      invoke: async command => {
+        tauriInvocations.push({ command });
+        return null;
+      }
+    }
+  };
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.deepEqual(tauriInvocations.map(call => call.command), ['plugin:dialog|save']);
+  assert.equal(createdBlob, undefined);
+  assert.equal(browserDownloadCount, 0);
+});
+
+test('TEST-B04: browser fallback exports readable JSON when Tauri API is unavailable', { concurrency: false }, async () => {
+  resetMocks();
+  seedStorage({ inventory: {}, assets: { cash: 0, debt: 0 }, transactions: [{ id: 1 }] });
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(browserDownloadCount, 1);
+  assert.ok(createdBlob);
+  const exported = JSON.parse(createdBlob.parts.join(''));
+  assert.equal(Array.isArray(exported.transactions), true);
+  assert.equal(exported.transactions.length, 1);
 });
 
 test('TEST-B04: readable JSON backup imports, reloads, and remains loadState-compatible', { concurrency: false }, () => {

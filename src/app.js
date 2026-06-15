@@ -109,10 +109,22 @@ function handleCityDropdownChange(event) {
 }
 
 // 資料匯出匯入
-function exportData() {
+async function exportData() {
   if (!confirm('確定要匯出目前的系統資料嗎？')) return;
   const data = { inventory: JSON.parse(localStorage.getItem('albion_crafting_stocks') || '{}'), assets: JSON.parse(localStorage.getItem('albion_crafting_assets') || '{}'), transactions: JSON.parse(localStorage.getItem('albion_crafting_transactions') || '[]'), laborerInventory: JSON.parse(localStorage.getItem('albion_crafting_laborer_stocks') || '{}'), laborerLogs: JSON.parse(localStorage.getItem('albion_crafting_laborer_logs') || '[]'), customLocations: JSON.parse(localStorage.getItem('albion_crafting_custom_locs') || '[]') };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); a.download = `albion_data_backup_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}.json`; a.click(); URL.revokeObjectURL(url);
+  const backupText = JSON.stringify(data, null, 2); const d = new Date(); const pad = value => value.toString().padStart(2, '0'); const filename = `albion_data_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.json`;
+  const invoke = window.__TAURI__?.core?.invoke;
+  if (invoke) {
+    try {
+      const path = await invoke('plugin:dialog|save', { options: { defaultPath: filename, filters: [{ name: 'JSON', extensions: ['json'] }] } });
+      if (!path) return;
+      await invoke('plugin:fs|write_text_file', new TextEncoder().encode(backupText), { headers: { path: encodeURIComponent(path), options: JSON.stringify(undefined) } });
+    } catch (err) {
+      return window.showToast(`備份匯出失敗：${err}`, 'error');
+    }
+  } else {
+    const blob = new Blob([backupText], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+  }
   window.showToast('資料匯出成功！', 'success');
 }
 function importData(e) {
