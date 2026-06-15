@@ -206,6 +206,43 @@
 * ✅ `globalAvgCost` 維持 29,000 不變。
 * ✅ 系統不得使用 `itemKey.split("_")` 反推 `stableId` 或 `itemLevel`。
 
+---
+#### TEST-B07：同一採購紀錄不得重複撤銷
+
+**📥 [前置狀態]**
+* 有一筆 `買材料` / 採購入庫紀錄：
+  * item: T6.1 布料
+  * qty: 500
+  * total: 3,000,000
+  * location: Thetford
+* Thetford 的 T6.1 布料庫存為 1,200，足以撤銷兩次。
+* 現金餘額為 0。
+* 該筆採購紀錄尚未被 adjustment 處理。
+
+**🧪 [使用者操作]**
+1. 第一次在 Ledger 點擊該採購紀錄的「刪除」。
+2. 重新渲染 Ledger。
+3. 嘗試對同一筆採購紀錄再次執行刪除。
+
+**📤 [預期結果]**
+
+第一次刪除：
+* 原始 transaction 保留。
+* 新增一筆 `INVENTORY_ADJUSTMENT`。
+* 庫存只扣除一次：1,200 → 700。
+* 現金只加回一次：0 → 3,000,000。
+* `globalAvgCost` 不變。
+* adjustment details 必須包含來源資訊，例如 `sourceSignature`。
+
+第二次刪除：
+* 已撤銷的採購紀錄不再顯示「刪除」按鈕。
+* 若直接觸發 `deleteEditLedger()`，也必須被阻擋。
+* 不新增第二筆 adjustment。
+* 庫存不再變動。
+* 現金不再變動。
+* transactions 長度不再增加。
+* `globalAvgCost` 不變。
+
 ## 🟢 Level C：UI 與體驗 (有空再測)
 影響操作體驗，但不會毀滅資料。
 
