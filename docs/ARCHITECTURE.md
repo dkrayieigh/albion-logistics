@@ -105,3 +105,7 @@
 ### Tauri 視窗控制
 * 桌面版自訂標題列提供最小化、最大化切換與關閉視窗操作。
 * 在沒有 Tauri API 的瀏覽器預覽環境中，視窗控制不執行桌面操作；關閉按鈕僅顯示模擬提示。
+
+### Tauri dev startup note
+
+若 Tauri dev 因舊 workspace 絕對路徑 artifact 發生 blocking error，可清除 `src-tauri/target` 後重新啟動。此問題屬 build artifact，不代表 source code 行為改變。

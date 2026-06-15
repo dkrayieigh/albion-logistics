@@ -10,6 +10,13 @@
 npm test
 ```
 
+### Stable release baseline
+
+- 指令：`npm.cmd test`
+- 結果：**37 tests / 36 pass / 0 fail / 1 TODO**
+- TODO：材料 `globalAvgCost === null` 時阻擋製作。
+- 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
+
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。
 
@@ -248,9 +255,10 @@ npm test
 
 ---
 #### TEST-B04：資料匯出與匯入 (生存確認)
-**Automation：Manual only**
-- 目前尚未被 regression test 覆蓋。
-- 後續應補備份 schema、舊備份相容與匯入失敗原子性測試。
+**Automation：Covered**
+- `tests/backup-regression.test.js`
+- 覆蓋 readable JSON 匯出、新格式匯入、legacy JSON-string backup 相容，以及無效備份不得覆寫既有 `localStorage`。
+- 正式版本化 backup schema 仍屬 docs debt，不代表資料格式 migration 已完成。
 
 **🧪 [使用者操作]**
 * 點擊「匯出資料」，下載 JSON 檔案。
@@ -350,6 +358,21 @@ npm test
 * 現金不再變動。
 * transactions 長度不再增加。
 * `globalAvgCost` 不變。
+
+---
+#### TEST-B08：自訂倉庫刪除資料安全
+**Automation：Covered**
+- `tests/core-cost-regression.test.js`
+- 覆蓋非空自訂倉庫不得刪除，以及空自訂倉庫可刪除且不影響其他狀態。
+
+**📥 [前置狀態]**
+* 建立一個自訂倉庫。
+* 分別準備「仍有庫存」與「所有庫存皆為 0 或不存在」兩種情境。
+
+**📤 [預期結果]**
+* ✅ 非空自訂倉庫刪除時顯示 error toast，且 `customLocations`、inventory、transactions、assets 均不變。
+* ✅ 空自訂倉庫可以刪除。
+* ⚠️ 此案例保護 current implementation 的 legacy location name key，不代表 Location ID migration 已完成。
 
 ## 🟢 Level C：UI 與體驗 (有空再測)
 影響操作體驗，但不會毀滅資料。

@@ -23,43 +23,55 @@ npm test
 
 ### 1.1 成品出售
 
-- **目前行為：** 從指定倉庫扣除成品庫存、增加現金，並新增一筆 `賣成品` 交易紀錄。
-- **主要實作位置：** `src/components/inventory.js` 的 `openSellCraftedModal()`、`submitSellCrafted()`。
-- **文件缺口：** `docs/BUSINESS_RULES.md` 僅把 `SELL_ITEM` 描述為未來事件，尚未定義目前實作的交易欄位、收入金額、稅務處理與損益計算規則。
-- **風險：** Medium。
-- **測試狀態：** Untested。尚未有 regression test 覆蓋成品出售扣庫存、加 cash、ledger 寫入與稅費 / 損益規則。
+- **目前行為：** 從指定倉庫扣除成品庫存、增加現金，並新增一筆 `賣成品` legacy transaction。
+- **目前狀態：** 已補 regression test。成品出售成功、庫存不足阻擋、零數量阻擋、cash 增加、`globalAvgCost` 不變已受測試保護。
+- **主要實作位置：** `src/components/inventory.js`。
+- **測試來源：** `tests/core-cost-regression.test.js`。
+- **文件狀態：** `BUSINESS_RULES.md` 已補 current implementation 出售規則；`SELL_ITEM` 仍是 future event model，不代表 current transaction 已完成遷移。
+- **風險：** Medium → Low / Docs debt。
+- **封版狀態：** 非阻斷。
 
 ### 1.2 工人島物資出售
 
-- **目前行為：** 可直接出售工人島暫存物資或滿日記本，扣除 `laborerInventory` 數量、增加現金，並新增 `工人島出售` 交易紀錄。
-- **主要實作位置：** `src/components/laborer.js` 的 `openSellLaborStockModal()`、`submitSellLaborStock()`。
-- **文件缺口：** 未定義工人島暫存物資是否允許直接出售、收入事件格式，以及與 Yield Inventory 零成本原則的關係。
-- **風險：** Medium。
-- **測試狀態：** Untested。尚未有 regression test 覆蓋工人島暫存物資出售、cash 變化與 ledger 寫入。
+- **目前行為：** 可出售工人島暫存物資，成功時扣除 `laborerInventory`、增加 cash，並新增 `工人島出售` transaction。
+- **目前狀態：** 已修復並補 regression test。暫存不足、零數量、無效總額會阻擋並顯示 error toast。
+- **主要實作位置：** `src/components/laborer.js`。
+- **測試來源：** `tests/core-cost-regression.test.js`。
+- **文件狀態：** `BUSINESS_RULES.md` 已補工人島暫存物資出售與 Yield Inventory 零成本原則的 current implementation 說明。
+- **風險：** Medium → Low / Docs debt。
+- **封版狀態：** 非阻斷。
 
 ### 1.3 銷售估價工具
 
 - **目前行為：** 支援成品銷售的單價與總價互算、扣除 6.5% 後的收入預估，以及總預估市值的 90% 與 85% 參考價。
 - **主要實作位置：** `src/components/inventory.js` 的 `onSellEstimateChange()`、`runEstimator()`、`onSellPriceChange()`。
-- **文件缺口：** 未說明 6.5%、90% 與 85% 的來源、用途及其是否會影響正式交易紀錄。
-- **風險：** Low；若要將估價結果納入帳務則提升為 Medium。
+- **穩定版分類：** Known limitation。比例只作為 UI 參考，不自動寫入正式交易金額。
+- **文件狀態：** 已在 `BUSINESS_RULES.md` 與 `TEST_CASES.md` 標註 current implementation 限制。
+- **風險：** Low。
+- **封版狀態：** 非阻斷。
 
 ### 1.4 自訂倉庫更名、刪除與庫存轉移
 
-- **目前行為：** 可新增、更名與刪除自訂倉庫。更名時會同步搬移各物品庫存並更新歷史交易地點；刪除時會直接刪除該倉庫下的庫存欄位。
-- **主要實作位置：** `src/app.js` 的 `handleCityDropdownChange()`；`src/components/inventory.js` 的 `renameLocation()`、`deleteLocation()`。
-- **文件缺口：** `docs/LOCATION_MODEL.md` 描述自訂地點模型，但未完整規定更名、刪除、歷史交易更新、庫存遺失與 ID 穩定性。
-- **風險：** Medium；刪除含庫存的倉庫具有資料遺失風險。
+- **目前行為：** 可新增、更名與刪除自訂倉庫。封版前已加入資料安全限制：非空自訂倉庫不得刪除，使用者必須先轉移或清空庫存；空自訂倉庫仍可刪除。
+- **目前狀態：** 資料遺失風險已修復並補 regression test。不進行 Location ID migration。
+- **主要實作位置：** `src/components/inventory.js`。
+- **測試來源：** `tests/core-cost-regression.test.js`。
+- **文件狀態：** `LOCATION_MODEL.md` 與 `TEST_CASES.md` 已同步 current implementation 限制。
+- **風險：** Medium → Low / Known limitation。
+- **封版狀態：** 非阻斷。
 
 ### 1.5 現金餘額校正、注資與提領函式
 
 - **目前行為：**
-  - `adjustCashBalance()` 可將系統現金直接校正為使用者輸入值，並新增 `現金流校正` 紀錄。
-  - `adjustWallet()` 支援注資與提領，會同步修改 `assets.cash`、`assets.debt` 與交易紀錄。
-- **主要實作位置：** `src/components/ledger.js` 的 `adjustCashBalance()`、`adjustWallet()`。
-- **文件缺口：** `assets.debt` 只在資料模型中簡短提及，尚未定義注資、提領與現金校正的正式事件、驗證條件及帳務含義。`adjustWallet()` 目前未確認有 UI 入口。
-- **風險：** Medium。
-- **測試狀態：** Untested。尚未有 regression test 覆蓋現金校正、注資、提領、`assets.debt` 變化與 ledger 紀錄。
+  - `adjustCashBalance()` 可將 cash 調整到目標值，並記錄差額。
+  - `adjustWallet()` 支援注資與提領，會同步修改 cash / debt。
+- **目前狀態：** 已修復並補 regression test。零金額或無效金額會阻擋並顯示 error toast；成功操作不影響 inventory。
+- **主要實作位置：** `src/components/ledger.js`。
+- **測試來源：** `tests/ledger-data-safety.test.js`。
+- **文件狀態：** `BUSINESS_RULES.md` 已補 current semantics。
+- **Known limitation：** `adjustWallet()` 目前在 `src/index.html` 找不到明確 UI 綁定，函式雖受測但 UI availability unknown。
+- **風險：** Medium → Low / UI availability unknown。
+- **封版狀態：** 非阻斷，需 release note 標註。
 
 ### 1.6 工人島手動管理與紀錄分頁
 
@@ -68,8 +80,10 @@ npm test
   - 可直接覆寫工人島庫存數量，UI 稱為「無痕校正」。
   - 工人收成紀錄以每頁 10 筆顯示。
 - **主要實作位置：** `src/components/laborer.js` 的 `submitAddFilledJournals()`、`submitEditLabor()`、`renderLaborerLogsTable()`。
-- **文件缺口：** 未定義手動新增滿日記本與直接覆寫暫存庫存的事件、稽核紀錄及允許條件；分頁行為亦未說明。
+- **穩定版分類：** Known limitation。手動新增與「無痕校正」尚無正式稽核事件規格；分頁只影響顯示。
+- **測試狀態：** UI / manual only。
 - **風險：** 手動新增與無痕校正為 Medium；分頁為 Low。
+- **封版狀態：** 非阻斷，日常使用前需了解無痕校正限制。
 
 ### 1.7 製作搜尋、分類、購物清單、佇列編輯與部分製作
 
@@ -79,63 +93,71 @@ npm test
   - 購物清單會彙總勾選項目的材料、神器、鍊金材料與預估現金支出。
   - 執行製作時只處理已勾選項目。
 - **主要實作位置：** `src/components/crafting.js` 的 `openItemSelector()`、`searchItems()`、`updateShoppingListTotal()`、佇列編輯函式與 `submitCraftAll()`。
-- **文件缺口：** `docs/ARCHITECTURE.md` 只概括提及製作佇列，未完整描述佇列生命週期、選取規則、購物清單計算與部分製作行為。
+- **文件狀態：** 搜尋與分類已補 current implementation docs；購物清單、佇列 UI 編輯與部分製作仍屬 known limitation。
 - **風險：** Low；購物清單與正式成本結算的關係需視為 Medium。
 - **測試狀態：** Partially tested。製作結算的核心成本、材料消耗、成品 WAC 與材料不足阻擋已由 `tests/core-cost-regression.test.js` 保護；搜尋、分類、購物清單、佇列 UI 編輯與部分製作仍主要依賴手測。
+- **封版狀態：** 非阻斷。
 
 ### 1.8 搜尋、分頁、Factory Reset 與 Tauri 視窗控制
 
 - **目前行為：**
-  - 庫存可依物品或階級搜尋。
-  - 帳本可依日期、類別或項目搜尋，並以每頁 10 筆顯示。
-  - Factory Reset 會清除全部 `localStorage` 後重新載入。
-  - Tauri 自訂標題列支援最小化、最大化與關閉。
-- **主要實作位置：** `src/components/inventory.js`、`src/components/ledger.js`、`src/app.js` 的 `resetSystemData()`、`src/components/window-controls.js`。
-- **文件缺口：** 未定義搜尋與分頁行為、重置範圍、資料不可復原風險及桌面視窗控制。
-- **風險：** 搜尋、分頁與視窗控制為 Low；Factory Reset 為 Medium。
+  - 庫存與帳本搜尋、分頁、Factory Reset、Tauri 視窗控制仍屬 current implementation。
+  - Tauri desktop blocking error 已確認由 `src-tauri/target` 舊 build artifact 中殘留絕對路徑造成。
+- **目前狀態：** 清除 `src-tauri/target` 後 Tauri dev 可成功啟動，未修改 source code。
+- **文件狀態：** `ARCHITECTURE.md` 已標註此為 build artifact cleanup，不是 source patch。
+- **風險：** Medium → Low。
+- **封版狀態：** 非阻斷。
 
 ### 1.9 JSON 備份匯出、匯入驗證與舊備份相容
 
-- **目前行為：** 匯出多個 `localStorage` 資料集合為 JSON；匯入時驗證必要欄位與基本型別，並接受部分欄位為 JSON 字串的舊備份格式。缺少的工人島或自訂倉庫欄位可維持目前資料。
-- **主要實作位置：** `src/app.js` 的 `exportData()`、`importData()`。
-- **文件缺口：** `docs/TEST_CASES.md` 只有生存確認情境，未定義正式備份 schema、版本、選填欄位、相容策略與失敗時的原子性要求。
-- **風險：** Medium。
-- **測試狀態：** Manual only。`docs/TEST_CASES.md` 有匯出 / 匯入生存確認，但尚未有 regression test 覆蓋 schema、舊備份相容與失敗原子性。
+- **目前行為：** 支援 readable JSON 匯出、新格式 object / array backup 匯入、舊格式 JSON-string backup 匯入。
+- **目前狀態：** 已補 `backup-regression.test.js`。壞資料不得覆寫 localStorage；transactions 150 筆完整保留；`assets.debt` fallback 正常。
+- **主要實作位置：** `src/app.js`。
+- **測試來源：** `tests/backup-regression.test.js`。
+- **文件狀態：** `BUSINESS_RULES.md` 已補 current implementation 資料安全規則；正式版本化 backup schema 仍為 docs debt。
+- **風險：** Medium → Low / Schema docs debt。
+- **封版狀態：** 非阻斷。
 
 ### 1.10 舊 Hideout 倉庫自動遷移
 
 - **目前行為：** 載入資料時，若舊 `Hideout` 倉庫存在庫存，會建立 `舊黑區地堡` 自訂倉庫、搬移庫存並更新舊交易地點；若無庫存則移除舊欄位。
 - **主要實作位置：** `src/core/state.js` 的 `loadState()`。
-- **文件缺口：** 未記錄此 legacy migration 的觸發條件、結果、重複執行行為與移除時機。
+- **穩定版分類：** Known limitation。這是現有 legacy compatibility path，不代表 Location ID migration 已完成。
+- **測試狀態：** 尚無專屬 regression test。
 - **風險：** Medium。
+- **封版狀態：** 非阻斷；使用舊 Hideout 資料前應先備份。
 
 ### 1.11 工人收成紀錄最多保留 100 筆
 
 - **目前行為：** 每次儲存狀態時，超過 100 筆的 `laborerLogs` 會被截斷。
 - **主要實作位置：** `src/core/state.js` 的 `saveState()`。
-- **文件缺口：** 資料模型未說明保留上限、刪除順序或是否需要匯出保存。
+- **穩定版分類：** Known limitation。只保留最新 100 筆工人收成紀錄。
 - **風險：** Medium，因會自動刪除歷史資料。
+- **封版狀態：** 非阻斷，需在 release note 明確標註。
 
 ### 1.12 全域千分位輸入格式化與游標位置維持
 
 - **目前行為：** 對 `.format-num` 欄位即時加入千分位格式，並計算格式化後的游標位置，避免輸入時游標跳動。
 - **主要實作位置：** `src/app.js` 的全域 `input` 事件監聽。
-- **文件缺口：** `docs/TEST_CASES.md` 有 UI 測試項目，但未描述共用格式化行為、允許字元與負數處理。
+- **文件狀態：** 已補 `ARCHITECTURE.md` 與 `TEST_CASES.md`，現為 docs debt closed。
 - **風險：** Low。
+- **封版狀態：** 非阻斷。
 
 ### 1.13 stateUpdated 事件驅動 UI 更新
 
 - **目前行為：** `saveState()` 與 `loadState()` 觸發 `stateUpdated`，由 `app.js` 統一更新城市下拉選單、儀表板、庫存、工人島資料與紀錄。
 - **主要實作位置：** `src/core/state.js` 的 `callUIUpdate()`；`src/app.js` 的 `stateUpdated` 監聽。
-- **文件缺口：** `docs/ARCHITECTURE.md` 提及狀態中心，但未定義此 UI 更新事件與各模組依賴。
+- **文件狀態：** 已補 `ARCHITECTURE.md` 與 `TEST_CASES.md`，現為 docs debt closed。
 - **風險：** Low。
+- **封版狀態：** 非阻斷。
 
 ### 1.14 採購物品自動建議城市
 
 - **目前行為：** 選擇鋼條、布料、板材或皮革時，自動將採購城市切換到對應精煉加成城市。
 - **主要實作位置：** `src/components/inventory.js` 的 `onBuyItemChange()`。
-- **文件缺口：** 未說明這是建議值、是否允許覆寫，以及其與 `LOCATION_MODEL` 的關係。
+- **文件狀態：** 已補 `ARCHITECTURE.md` 與 `TEST_CASES.md`；明確標註為可覆寫的 UI 建議值，現為 docs debt closed。
 - **風險：** Low。
+- **封版狀態：** 非阻斷。
 
 ---
 
@@ -217,12 +239,12 @@ npm test
 | 採購刪除轉 adjustment | current implementation | Tested | `tests/ledger-data-safety.test.js` | 原始交易保留，新增調整交易。 |
 | 庫存不足時阻擋 purchase reversal | current implementation | Tested | `tests/ledger-data-safety.test.js` | 不新增 adjustment，不改狀態。 |
 | 同一筆採購不可 reversal 兩次 | current implementation | Tested | `tests/ledger-data-safety.test.js` | 包含 UI 重新渲染後不再顯示刪除入口。 |
-| 備份匯出 / 匯入 schema 與原子性 | current implementation needs spec | Manual only | `docs/TEST_CASES.md` | 尚未有 regression test。 |
+| 備份匯出 / 匯入 schema 與原子性 | current implementation / schema docs debt | Tested | `tests/backup-regression.test.js` | 覆蓋新舊備份相容與無效資料不得覆寫；正式版本化 schema 尚未完成。 |
 | Factory Reset | current implementation | Manual only | `docs/TEST_CASES.md` / UI | 尚未有 regression test。 |
-| 自訂倉庫更名 / 刪除 | current implementation | Manual only | `docs/TEST_CASES.md` / UI | 具資料遺失風險，尚未有 regression test。 |
-| 成品出售 | current implementation | Untested | 無 | 仍需補正式規格與測試。 |
-| 工人島物資出售 | current implementation | Untested | 無 | 仍需補正式規格與測試。 |
-| 現金餘額校正 / 注資 / 提領 | current implementation / partial UI binding unknown | Untested | 無 | `adjustWallet()` UI 入口仍需確認。 |
+| 自訂倉庫刪除 | current implementation / legacy location key | Tested | `tests/core-cost-regression.test.js` | 非空倉庫不得刪除；Location ID migration 尚未完成。 |
+| 成品出售 | current implementation / legacy transaction | Tested | `tests/core-cost-regression.test.js` | 正式 `SELL_ITEM` event model 尚未完成。 |
+| 工人島物資出售 | current implementation / legacy transaction | Tested | `tests/core-cost-regression.test.js` | 正式出售事件規格尚未完成。 |
+| 現金餘額校正 / 注資 / 提領 | current implementation / partial UI binding unknown | Tested | `tests/ledger-data-safety.test.js` | `adjustWallet()` UI 入口仍需確認。 |
 | Stable ID / `qtyByLocation` / 新版 event payload 遷移 | future spec | Untested | 無 | 不可寫成 current implementation。 |
 
 ---

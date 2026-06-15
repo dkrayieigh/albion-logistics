@@ -147,3 +147,36 @@ mainMaterialCost
 * 以當下 `globalAvgCost` 計算銷貨成本或損益
 
 `SELL_ITEM` 不得回頭修改該物品的 `globalAvgCost`。
+
+---
+
+## Current Implementation Rules（Stable Release）
+
+本節只描述穩定版目前已實作並受 regression test 保護的 legacy-compatible behavior。未來 `SELL_ITEM`、新版 event payload、Stable ID 與 `qtyByLocation` 規格仍屬 migration target，不得將本節解讀為 migration 已完成。
+
+### 成品出售
+
+- 成功出售時，從目前指定倉庫扣除出售數量，增加 `state.assets.cash`，並新增一筆 `賣成品` legacy transaction。
+- 出售數量必須大於 0，且不得超過該倉庫目前庫存；不合法時必須阻擋且不得修改狀態。
+- 成品出售不得修改該品項的 `globalAvgCost`。
+- 銷售估價畫面的 90%、85% 與扣除稅額後預估僅為 UI 參考值，不會自動成為正式交易金額。
+
+### 工人島物資出售
+
+- 成功出售時，從 `state.laborerInventory` 暫存數量扣除出售數量，增加 cash，並新增一筆 `工人島出售` legacy transaction。
+- 出售數量必須大於 0、不得超過暫存數量，且總額必須有效；不合法時必須阻擋且不得修改狀態。
+- 此出售是暫存物資套現行為，不會建立或修改總庫存的 `globalAvgCost`。
+
+### 現金校正、注資與提領
+
+- 現金餘額校正將 cash 設為使用者指定目標值，並以差額新增 `現金流校正` legacy transaction；不得修改 inventory 或 debt。
+- 注資增加 cash 與 debt；提領減少 cash 與 debt。兩者均不得修改 inventory。
+- 零金額或無效金額必須阻擋並顯示錯誤。
+- `adjustWallet()` 已存在並受 regression test 保護，但目前 UI 入口可用性仍屬 known limitation。
+
+### 備份資料安全
+
+- 匯出資料使用 readable structured JSON，包含目前庫存、資產、交易、工人島資料與自訂倉庫資料。
+- 匯入支援目前 object / array 格式，以及 legacy JSON-string backup。
+- 匯入資料缺少必要欄位、欄位型別不符或 JSON 損壞時，必須中斷且不得覆寫既有 `localStorage`。
+- 備份相容行為已受 regression test 保護；正式版本化 backup schema 仍屬 docs debt。

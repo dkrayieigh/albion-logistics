@@ -2,6 +2,16 @@
 **設計守則：**
 本文件定義了「實體庫存地點」、「地區加成屬性」與「動態製作變數」的三層分離架構。**絕對禁止**在 `Inventory` 或 `Location Registry` 中直接儲存 RRR（返還率）數值。所有 RRR 必須在 `CRAFT_COMPLETE` 事件發生時，透過 Local Production Bonus (LPB) 公式動態運算。
 
+## Current Implementation Note
+
+目前自訂倉庫仍以顯示名稱字串作為 legacy key。
+
+封版前已加入資料安全限制：非空自訂倉庫不得刪除，使用者必須先轉移或清空該倉庫庫存。
+
+空自訂倉庫仍可依 current implementation 刪除，且此行為已有 regression test 保護。
+
+此修復不代表 Location ID migration 已完成。
+
 ## 🟢 第一層：庫存儲存鍵值 (Location ID)
 庫存系統 (`state.inventory.qtyByLocation`) 僅記錄物品的實體存放點。
 所有事件 payload 與 state 寫入必須使用 Location ID，不得使用 UI 顯示名稱。

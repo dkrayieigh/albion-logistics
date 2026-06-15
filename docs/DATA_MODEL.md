@@ -1,6 +1,10 @@
 # 🗄️ Albion Logistics ERP 資料模型 (DATA_MODEL.md)
 **設計守則：**
 * 本專案為 Vanilla JS 環境，為避免 AI 實作時的型別與命名幻覺，所有涉及 state.js（核心狀態中心）的資料讀寫，必須絕對遵守以下的物件結構與命名規範。嚴禁自行新增未經定義的屬性（如 tier、enchantment、cityId 等）。
+> ⚠️ 本文件描述 target data model / migration target。
+> Current implementation 仍保留 legacy `qtyByCity`、中文 item key 與 legacy transaction 欄位。
+> 本文件不是 current implementation 的完整快照，不得據此直接重寫現有存檔或 production code。
+> 修改 src 前必須先參考 `IMPLEMENTATION_GAP.md`、`CURRENT_LIMITATIONS.md` 與 `RELEASE_STABILIZATION.md`。
 
 ## 🌳 狀態樹根結構(Root State)
 //Root State

@@ -62,14 +62,16 @@
 
 ---
 
-## 4. 出售功能尚未正式規格化
+## 4. 出售功能為受測的 legacy-compatible behavior
 
 目前 src 已有：
 
 - 成品出售
 - 工人島物資出售
 
-但 docs 尚未完整定義：
+穩定版 current implementation 規則已記錄於 `BUSINESS_RULES.md`，且出售成功與主要失敗路徑已有 regression test 保護。
+
+仍未完成：
 
 - 收入事件格式
 - 稅務處理
@@ -77,13 +79,15 @@
 - ledger 欄位
 - 是否影響成本基準
 
-因此出售功能目前屬於 current implementation，但尚未完成正式規格化。
+因此出售功能目前可作為 legacy-compatible behavior 使用，但不代表正式 `SELL_ITEM` event model 已完成。
 
 ---
 
 ## 5. 備份與匯入仍缺正式 schema
 
-目前系統支援 JSON 匯出 / 匯入，但尚未正式定義：
+目前系統支援 JSON 匯出 / 匯入，新格式、legacy JSON-string backup 與無效資料不得覆寫已有 regression test 保護。
+
+但尚未正式定義：
 
 - 備份版本
 - 必填欄位
@@ -94,16 +98,21 @@
 
 ---
 
-## 6. 自訂倉庫仍有資料風險
+## 6. 自訂倉庫仍使用 legacy location key
 
 目前自訂倉庫使用名稱字串作為儲存 key。
 
-已知限制：
+穩定版資料安全限制：
 
-- 更名可能牽涉庫存 key 搬移
-- 刪除倉庫可能造成該地點庫存欄位消失
+- 非空自訂倉庫不得刪除，必須先轉移或清空庫存。
+- 空自訂倉庫仍可刪除。
+- 此行為已由 regression test 保護。
+
+Known limitation：
+
+- 更名仍會搬移目前 legacy location name key
 - 尚未建立穩定 Location ID
-- 尚未有完整 regression test 保護
+- 尚未完成顯示名稱與儲存 ID 分離
 
 ---
 
@@ -114,13 +123,15 @@
 - 現金餘額校正
 - 注資 / 提領函式
 
+目前 cash / debt 變化、ledger 寫入、無效輸入阻擋與 inventory 不變已有 regression test 保護。
+
 但尚未完整定義：
 
 - `assets.debt` 的正式用途
 - 現金校正事件格式
 - 注資與提領是否有 UI 入口
 - ledger 顯示規則
-- 測試保護範圍
+- `adjustWallet()` 的 UI availability
 
 ---
 
