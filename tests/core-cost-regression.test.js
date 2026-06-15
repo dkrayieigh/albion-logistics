@@ -13,6 +13,7 @@ function createElement(id = '') {
     checked: false,
     max: 0,
     style: { display: 'none' },
+    parentElement: { style: { display: 'block' } },
     children: [],
     rows: [],
     appendChild(child) {
@@ -238,6 +239,83 @@ test('TEST-A06: purchase at zero global quantity replaces a dormant cost anchor'
   assert.equal(state.inventory[key].globalAvgCost, 40000);
   assert.equal(state.assets.cash, 3000000);
   assert.equal(state.transactions.length, 1);
+});
+
+test('crafted item sale reduces inventory, increases cash, and writes a sale transaction', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(10),
+    globalAvgCost: 5000
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '4';
+  getElement('sell-crafted-total').value = '40000';
+  Inventory.submitSellCrafted();
+
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 6);
+  assert.equal(state.inventory[key].globalAvgCost, 5000);
+  assert.equal(state.assets.cash, 40000);
+  assert.equal(state.transactions.length, 1);
+  assert.deepEqual(state.transactions[0], {
+    date: new Date().toISOString().split('T')[0],
+    type: '賣成品',
+    item,
+    quality,
+    qty: 4,
+    total: 40000,
+    unitPrice: 10000,
+    location: LOCATION
+  });
+  assert.equal(toasts.at(-1)?.type, 'success');
+});
+
+test('crafted item sale is blocked when inventory is insufficient', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(2),
+    globalAvgCost: 5000
+  };
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '4';
+  getElement('sell-crafted-total').value = '40000';
+  const before = JSON.stringify(state);
+
+  Inventory.submitSellCrafted();
+
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 2);
+  assert.equal(state.inventory[key].globalAvgCost, 5000);
+  assert.equal(state.assets.cash, 0);
+  assert.equal(state.transactions.length, 0);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
+test('crafted item sale is blocked when quantity is zero', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(10),
+    globalAvgCost: 5000
+  };
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '0';
+  getElement('sell-crafted-total').value = '40000';
+  const before = JSON.stringify(state);
+
+  Inventory.submitSellCrafted();
+
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(state.transactions.length, 0);
+  assert.equal(toasts.at(-1)?.type, 'error');
 });
 
 test('laborer import with null cost basis is blocked before any state change', { concurrency: false }, () => {
