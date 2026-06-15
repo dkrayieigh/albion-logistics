@@ -317,6 +317,7 @@ export function initInventoryEvents() {
   }
   
   document.getElementById('buy-item')?.addEventListener('change', onBuyItemChange);
+  document.getElementById('trans-item')?.addEventListener('change', updateTransMax);
   document.getElementById('btn-close-sell-crafted-modal')?.addEventListener('click', closeSellCraftedModal);
   document.getElementById('btn-submit-sell-crafted')?.addEventListener('click', submitSellCrafted);
   document.getElementById('btn-sell-qty-sub-10')?.addEventListener('click', () => adjustSellCraftedQty(-10));

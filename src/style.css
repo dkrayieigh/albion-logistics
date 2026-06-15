@@ -84,12 +84,16 @@ body {
   font-size: 0.8rem;
   color: var(--text-secondary);
   padding-left: 12px;
-  pointer-events: none;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  height: 100%;
 }
 
 .titlebar-controls {
   display: flex;
   height: 100%;
+  flex-shrink: 0;
 }
 
 .titlebar-button {

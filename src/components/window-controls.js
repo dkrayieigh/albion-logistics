@@ -1,5 +1,5 @@
 export function initWindowControls() {
-  const { appWindow } = window.__TAURI__ ? window.__TAURI__.window : { appWindow: null };
+  const appWindow = window.__TAURI__?.window?.getCurrentWindow?.() || null;
 
   const titlebar = document.getElementById('titlebar-controls');
   if (titlebar && appWindow) {
