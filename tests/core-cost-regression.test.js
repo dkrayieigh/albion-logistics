@@ -114,6 +114,83 @@ test('purchase recalculates WAC, adds inventory, deducts cash, and writes a ledg
   assert.equal(state.transactions[0].location, LOCATION);
 });
 
+test('TEST-A01: first purchase establishes globalAvgCost from total cost and quantity', { concurrency: false }, () => {
+  resetState();
+  const item = 'FirstPurchaseMaterial';
+  const quality = '6.2';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(0),
+    globalAvgCost: null
+  };
+  setCurrentBuyQuality(quality);
+  getElement('buy-item').value = item;
+  getElement('buy-qty').value = '200';
+  getElement('buy-total-price').value = '5800000';
+  getElement('buy-city').value = LOCATION;
+
+  Inventory.submitPurchase();
+
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 200);
+  assert.equal(state.inventory[key].globalAvgCost, 29000);
+  assert.equal(state.assets.cash, -5800000);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0].qty, 200);
+  assert.equal(state.transactions[0].total, 5800000);
+  assert.equal(state.transactions[0].unitPrice, 29000);
+});
+
+test('TEST-A04: purchase WAC uses global inventory quantity across locations', { concurrency: false }, () => {
+  resetState();
+  const item = 'GlobalWacMaterial';
+  const quality = '6.2';
+  const key = `${item}_${quality}`;
+  const locations = qtyByCity(100);
+  locations.Bridgewatch = 100;
+  state.assets.cash = 5800000;
+  state.inventory[key] = {
+    qtyByCity: locations,
+    globalAvgCost: 29000
+  };
+  setCurrentBuyQuality(quality);
+  getElement('buy-item').value = item;
+  getElement('buy-qty').value = '100';
+  getElement('buy-total-price').value = '2850000';
+  getElement('buy-city').value = LOCATION;
+
+  Inventory.submitPurchase();
+
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 200);
+  assert.equal(state.inventory[key].qtyByCity.Bridgewatch, 100);
+  assert.equal(state.inventory[key].globalAvgCost, 28833);
+  assert.equal(state.assets.cash, 2950000);
+  assert.equal(state.transactions.length, 1);
+});
+
+test('TEST-A06: purchase at zero global quantity replaces a dormant cost anchor', { concurrency: false }, () => {
+  resetState();
+  const item = 'DormantAnchorMaterial';
+  const quality = '6.2';
+  const key = `${item}_${quality}`;
+  state.assets.cash = 5000000;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(0),
+    globalAvgCost: 29000
+  };
+  setCurrentBuyQuality(quality);
+  getElement('buy-item').value = item;
+  getElement('buy-qty').value = '50';
+  getElement('buy-total-price').value = '2000000';
+  getElement('buy-city').value = LOCATION;
+
+  Inventory.submitPurchase();
+
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 50);
+  assert.equal(state.inventory[key].globalAvgCost, 40000);
+  assert.equal(state.assets.cash, 3000000);
+  assert.equal(state.transactions.length, 1);
+});
+
 test('laborer import with null cost basis is blocked before any state change', { concurrency: false }, () => {
   resetState();
   const item = 'TestMaterial';
