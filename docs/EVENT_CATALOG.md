@@ -145,7 +145,7 @@
      * 【條件 A：若原全域總數量 = 0】：`globalAvgCost = totalCost / quantity`。
      * 【條件 B：若原全域總數量 > 0】：`globalAvgCost = (歷史全域總價值 + totalCost) / (歷史全域總數量 + quantity)`。
    * 【補充說明：即便此時 `globalAvgCost` 為 null，條件 A 也會直接以本次採購單價建立成本基準。】
-4. **Operation Log (新增作業日誌)**
+3. **Operation Log (新增作業日誌)**
    * 在 `state.transactions` 頂部新增一筆紀錄。
    * `action`: "PURCHASE_ITEM"。
    * `target`: `itemKey`。

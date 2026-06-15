@@ -25,8 +25,12 @@ Albion Logistics 是一款以 ERP 工作流為目標的《阿爾比恩 Online》
 
 ### 安裝與執行
 
-1. 前往 [Releases](https://github.com/dkrayieigh/albion-logistics/releases) 頁面下載最新的 `.exe` 安裝檔。
+目前專案仍在 stabilization phase。  
+若 Releases 頁面有提供 `.exe`，可下載測試版使用；實際可用性仍以目前開發狀態為準。
+
+1. 前往 [Releases](https://github.com/dkrayieigh/albion-logistics/releases) 查看是否有可用的測試版 `.exe`。
 2. 執行安裝並啟動 Albion Logistics。
+3. 若遇到資料、成本或備份問題，請先回報 issue，不建議直接用於重要資料。
 
 ### 技術堆疊
 
@@ -95,6 +99,8 @@ The current `src` implementation remains the reference for actual behavior, whil
 
 The internal package version follows the project's development history and should not be interpreted as product maturity.
 
+Prebuilt `.exe` releases, if available, should be treated as test builds during the stabilization phase.
+
 ### Features
 
 - Crafting cost estimation with RRR, focus, artifact, and alchemy material costs.
@@ -124,5 +130,3 @@ Bug reports, testing notes, real usage scenarios, and documentation suggestions 
 
 - GitHub Issues: preferred for bug reports and feature requests.
 - Discord: `dkrayleigh2`
-
-Prebuilt `.exe` releases, if available, should be treated as test builds during the stabilization phase.
