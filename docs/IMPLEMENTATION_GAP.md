@@ -13,7 +13,7 @@
 - 涉及既有使用者資料、成本計算或交易格式的項目，必須先建立相容與驗證方案。
 
 ## Regression Test 覆蓋狀態
-目前 package.js 已建立 Node.js regression tests，可透過下列指令執行：
+目前 `package.json` 已建立 Node.js regression tests:
 ```bash
 npm test
 ```
@@ -173,7 +173,7 @@ npm test
 - **src 現況：** 庫存渲染與校正等流程使用 `key.split('_')` 或類似方式取得物品名稱與階級。
 - **相容性影響：** 含底線的 Stable ID 或物品名稱可能被錯誤拆解；現有中文 Key 則暫時依賴此行為。
 - **直接修改風險：** High。必須先讓資料模型與呼叫介面能明確提供物品識別資料。
-- **測試狀態：** Partially tested。`tests/ledger-data-safety.test.js` 已保護目前 legacy transaction 的採購 reversal 行為；這不代表新版 event payload 已完成。
+-- **測試狀態：** TODO / Untested。未來禁止拆解 `itemKey` 的規格尚未有可執行 regression test；目前不得將此項寫成 current implementation。
 
 ### 2.5 一般庫存調整不得修改 globalAvgCost 與 UI 允許直接修改成本
 

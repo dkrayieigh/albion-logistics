@@ -1,8 +1,9 @@
 # Albion Logistics ERP Current Limitations
 
 ## 文件定位
-
 本文件記錄目前系統仍存在的限制、技術債與尚未完成的重構項目。
+
+本文件不是 bug 清單；部分限制是為了維持舊資料相容而刻意保留的 current behavior。
 
 本文件只描述 current implementation 的限制，不代表立即修正計畫。
 

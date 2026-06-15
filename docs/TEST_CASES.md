@@ -1,8 +1,11 @@
 # 🛡️ Albion Logistics ERP 回歸測試檢核表 (TEST_CASES.md)
-**測試守則：** 這份清單是系統的最後防線。每次 AI 進行重大修改，或發布新版本前，必須依照以下情境，在 UI 上手動點擊測試。如果不符合「預期結果」，一律退回重改。
+**測試守則：**  
+這份清單是系統的最後防線。每次修改 `src`、成本計算、庫存流程、ledger、資料模型或備份匯入相關邏輯後，必須先執行 `npm test`。  
+發布新版本前，仍需依照本文件進行必要 UI 手動測試。  
+如果 regression test 或手動測試不符合「預期結果」，一律退回重改。
 
 ## 自動化測試狀態
-目前 package.js 已建立 Node.js regression tests，可透過下列指令執行：
+目前 `package.json` 已建立 Node.js regression tests
 ```bash
 npm test
 ```
@@ -139,7 +142,6 @@ npm test
 * ✅ 庫存變化：Thetford 數量變成 `50`。
 
 ---
----
 #### TEST-A07：TODO - 材料 globalAvgCost 為 null 時阻擋製作
 
 **Automation：TODO**
@@ -163,6 +165,7 @@ npm test
 * ✅ 不得扣除 cash。
 * ✅ 不得新增 ledger transaction。
 * ✅ 必須提示使用者該材料缺少成本基準。
+* ✅ 製作佇列應保留原項目，不得因失敗預檢而清空。
 
 ## 🟡 Level B：重要功能 (發布新版本前必測)
 這些功能影響長期的資料正確性與備份安全。
@@ -202,7 +205,12 @@ npm test
 - 確認原始採購紀錄保留、庫存扣除、cash 加回、`globalAvgCost` 不回溯重算。
 
 **📥 [前置狀態]**
-* 有一筆錯誤的 `PURCHASE_ITEM` 紀錄：花費 3,000,000 買了 500 個 T6.1 布料。
+* 有一筆錯誤的 legacy 採購紀錄：
+  * `type: "買材料"`
+  * item: T6.1 布料
+  * qty: 500
+  * total: 3,000,000
+  * location: Thetford
 * 該筆紀錄仍存在於 `state.transactions`。
 * T6.1 布料目前庫存至少 500。
 
@@ -210,7 +218,7 @@ npm test
 * 在作業日誌模組，點擊該筆紀錄的「🗑️ 刪除」。
 
 **📤 [預期結果]**
-* ✅ 原始 `PURCHASE_ITEM` 紀錄不得從 `state.transactions` 移除。
+* ✅ 原始 legacy 採購紀錄不得從 `state.transactions` 移除。
 * ✅ 系統新增一筆 `INVENTORY_ADJUSTMENT`。
 * ✅ 系統現金加回 3,000,000。
 * ✅ T6.1 布料的庫存扣除 500。
