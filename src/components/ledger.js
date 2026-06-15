@@ -38,6 +38,16 @@ export function filterLedger(resetPage = true) {
   renderLedgerTable();
 }
 
+function getPurchaseSourceSignature(t) {
+  return [t.date, t.type, t.item, t.quality, t.qty, t.total, t.unitPrice, t.location].join('|');
+}
+
+function isPurchaseReversed(t) {
+  if (t.type !== '買材料') return false;
+  const sourceSignature = getPurchaseSourceSignature(t);
+  return state.transactions.some(transaction => transaction.type === 'INVENTORY_ADJUSTMENT' && transaction.details?.includes(`sourceSignature=${sourceSignature}`));
+}
+
 export function renderLedgerTable() {
   const tb = document.getElementById('ledger-tbody'); tb.innerHTML='';
   const totalPages = Math.ceil(filteredLedger.length / LEDGER_ITEMS_PER_PAGE) || 1;
@@ -50,7 +60,7 @@ export function renderLedgerTable() {
   pageItems.forEach(t => {
     const tr=document.createElement('tr');
     const displayType = t.type === 'INVENTORY_ADJUSTMENT' ? '調整紀錄' : t.type;
-    const actionButton = t.type === '買材料'
+    const actionButton = t.type === '買材料' && !isPurchaseReversed(t)
       ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" data-action="delete-purchase-adjustment" data-id="${t.originalIndex}">刪除</button>`
       : '';
     tr.innerHTML=`<td>${t.date}</td><td><span style="color:var(--accent-cyan); font-weight:bold;">${displayType}</span></td><td>${t.item} ${t.quality !== '-' ? '('+t.quality+')':''}</td><td>${t.qty}</td><td>${formatSilver(t.unitPrice)}</td><td style="font-weight:bold; color:${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'var(--accent-red)':'var(--accent-green)'};">${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'-':'+'}${formatSilver(t.total)}</td><td>${actionButton}</td>`;
@@ -94,13 +104,15 @@ export function submitEditLedger() {
 export function deleteEditLedger() {
   const t = state.transactions[aLedgerIdx];
   if (t.type !== '買材料') return window.showToast('目前僅支援採購紀錄刪除轉調整', 'error');
+  if (isPurchaseReversed(t)) return window.showToast('此採購紀錄已撤銷，不可重複調整', 'error');
   if (!confirm('確定要將此採購紀錄轉為調整紀錄嗎？')) return;
+  const sourceSignature = getPurchaseSourceSignature(t);
   const itemKey = `${t.item}_${t.quality}`; const targetInventory = state.inventory[itemKey];
   const currentQty = targetInventory?.qtyByCity?.[t.location] || 0;
   if (currentQty < t.qty) return window.showToast('庫存不足，已被消耗無法調整', 'error');
   targetInventory.qtyByCity[t.location] -= t.qty;
   state.assets.cash += t.total;
-  state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type: 'INVENTORY_ADJUSTMENT', item: t.item, quality: t.quality, qty: -t.qty, total: -t.total, unitPrice: t.unitPrice, location: t.location, details: `刪除轉調整；原始索引: ${aLedgerIdx}` });
+  state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type: 'INVENTORY_ADJUSTMENT', item: t.item, quality: t.quality, qty: -t.qty, total: -t.total, unitPrice: t.unitPrice, location: t.location, details: `刪除轉調整；原始索引: ${aLedgerIdx}；sourceSignature=${sourceSignature}` });
   saveState(); closeEditLedgerModal(); window.showToast('已新增調整紀錄，原始紀錄已保留', 'success');
 }
 
