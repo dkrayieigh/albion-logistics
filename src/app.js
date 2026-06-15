@@ -111,8 +111,8 @@ function handleCityDropdownChange(event) {
 // 資料匯出匯入
 function exportData() {
   if (!confirm('確定要匯出目前的系統資料嗎？')) return;
-  const data = { inventory: localStorage.getItem('albion_crafting_stocks'), assets: localStorage.getItem('albion_crafting_assets'), transactions: localStorage.getItem('albion_crafting_transactions'), laborerInventory: localStorage.getItem('albion_crafting_laborer_stocks'), laborerLogs: localStorage.getItem('albion_crafting_laborer_logs') };
-  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); a.download = `albion_data_backup_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}.json`; a.click(); URL.revokeObjectURL(url);
+  const data = { inventory: JSON.parse(localStorage.getItem('albion_crafting_stocks') || '{}'), assets: JSON.parse(localStorage.getItem('albion_crafting_assets') || '{}'), transactions: JSON.parse(localStorage.getItem('albion_crafting_transactions') || '[]'), laborerInventory: JSON.parse(localStorage.getItem('albion_crafting_laborer_stocks') || '{}'), laborerLogs: JSON.parse(localStorage.getItem('albion_crafting_laborer_logs') || '[]'), customLocations: JSON.parse(localStorage.getItem('albion_crafting_custom_locs') || '[]') };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const d = new Date(); a.download = `albion_data_backup_${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}.json`; a.click(); URL.revokeObjectURL(url);
   window.showToast('資料匯出成功！', 'success');
 }
 function importData(e) {
@@ -122,13 +122,16 @@ function importData(e) {
     try {
       const data = JSON.parse(evt.target.result);
       if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.hasOwn(data, 'inventory') || !Object.hasOwn(data, 'assets') || !Object.hasOwn(data, 'transactions')) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
-      if (typeof data.inventory !== 'string' || typeof data.assets !== 'string' || typeof data.transactions !== 'string') return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
-      const inventory = JSON.parse(data.inventory); const assets = JSON.parse(data.assets); const transactions = JSON.parse(data.transactions);
+      const parseBackupField = value => typeof value === 'string' ? JSON.parse(value) : value;
+      const inventory = parseBackupField(data.inventory); const assets = parseBackupField(data.assets); const transactions = parseBackupField(data.transactions);
+      const laborerInventory = Object.hasOwn(data, 'laborerInventory') ? parseBackupField(data.laborerInventory) : undefined; const laborerLogs = Object.hasOwn(data, 'laborerLogs') ? parseBackupField(data.laborerLogs) : undefined; const customLocations = Object.hasOwn(data, 'customLocations') ? parseBackupField(data.customLocations) : undefined;
       if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory) || !assets || typeof assets !== 'object' || Array.isArray(assets) || !Array.isArray(transactions)) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
+      if ((laborerInventory !== undefined && (!laborerInventory || typeof laborerInventory !== 'object' || Array.isArray(laborerInventory))) || (laborerLogs !== undefined && !Array.isArray(laborerLogs)) || (customLocations !== undefined && !Array.isArray(customLocations))) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
       if (confirm("⚠️ 這將會覆寫目前的所有紀錄，確定要匯入嗎？")) {
-        localStorage.setItem('albion_crafting_stocks', data.inventory); localStorage.setItem('albion_crafting_assets', data.assets); localStorage.setItem('albion_crafting_transactions', data.transactions);
-        if(data.laborerInventory) localStorage.setItem('albion_crafting_laborer_stocks', data.laborerInventory);
-        if(data.laborerLogs) localStorage.setItem('albion_crafting_laborer_logs', data.laborerLogs);
+        localStorage.setItem('albion_crafting_stocks', JSON.stringify(inventory)); localStorage.setItem('albion_crafting_assets', JSON.stringify(assets)); localStorage.setItem('albion_crafting_transactions', JSON.stringify(transactions));
+        if(laborerInventory !== undefined) localStorage.setItem('albion_crafting_laborer_stocks', JSON.stringify(laborerInventory));
+        if(laborerLogs !== undefined) localStorage.setItem('albion_crafting_laborer_logs', JSON.stringify(laborerLogs));
+        if(customLocations !== undefined) localStorage.setItem('albion_crafting_custom_locs', JSON.stringify(customLocations));
         alert("匯入成功！系統將重新載入。"); location.reload();
       }
     } catch(err) { alert("匯入失敗：JSON 解析錯誤，已中斷操作！"); }
