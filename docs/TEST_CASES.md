@@ -1,10 +1,20 @@
 # 🛡️ Albion Logistics ERP 回歸測試檢核表 (TEST_CASES.md)
 **測試守則：** 這份清單是系統的最後防線。每次 AI 進行重大修改，或發布新版本前，必須依照以下情境，在 UI 上手動點擊測試。如果不符合「預期結果」，一律退回重改。
 
+## 自動化測試狀態
+目前 package.js 已建立 Node.js regression tests，可透過下列指令執行：
+```bash
+npm test
+```
+
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。
 
 #### TEST-A01：採購入庫 (測試全域均價與現金稀釋)
+**Automation：Covered**
+- `tests/core-cost-regression.test.js`
+- 覆蓋首次採購建立 `globalAvgCost`、扣現金、增加庫存與寫入 ledger。
+
 **📥 [前置狀態]**
 * 系統現金餘額：0
 * T6.2 鋼條（locationId: `thetford`）：庫存 0，globalAvgCost: null
@@ -22,6 +32,11 @@
 
 ---
 #### TEST-A02：物流轉移 (測試物理平移與價值鎖定)
+**Automation：Covered**
+- `tests/core-cost-regression.test.js`
+- 覆蓋正常物流轉移與來源庫存不足阻擋。
+- 確認物流轉移只移動庫存，不改 `globalAvgCost`、不改 cash、不新增 ledger。
+
 **📥 [前置狀態]**
 * 系統現金餘額：-5,800,000
 * T6.2 鋼條（Thetford）：庫存 200，全域均價 29.000
@@ -39,6 +54,11 @@
 
 ---
 #### TEST-A03：製作入庫 (測試資產轉換與成本匯聚)
+**Automation：Partial**
+- `tests/core-cost-regression.test.js`
+- 已覆蓋製作消耗引用材料 `globalAvgCost`、材料 `globalAvgCost` 不變、成品入庫成本計算，以及成品已有庫存時套用 WAC。
+- UI 操作流程、RRR 顯示與實際配方選擇仍需手測。
+
 **📥 [前置狀態]**
 * 系統現金餘額：10,000,000
 * T6.1 鋼條：庫存 100，全域均價 8,000
@@ -59,6 +79,11 @@
 
 ---
 #### TEST-A04：第二次採購入庫（均價稀釋驗證）
+**Automation：Covered**
+- `tests/core-cost-regression.test.js`
+- 覆蓋跨地點全域庫存 WAC。
+- 注意：自動測試資料包含 Thetford 與 Bridgewatch 既有庫存，因此期望值與本手測案例不同，但保護的是同一條規則：採購均價必須以全域總庫存計算。
+
 **📥 [前置狀態]**
 * T6.2鋼條（Thetford）：庫存 100，全域均價 29.000
 * 系統現金餘額：-5,800,000
@@ -76,6 +101,10 @@
 
 ---
 #### TEST-A05：材料不足阻擋製作
+**Automation：Covered**
+- `tests/core-cost-regression.test.js`
+- 覆蓋材料不足時阻擋製作，且不得修改 cash、庫存、transactions 或 craftingQueue。
+
 **📥 [前置狀態]**
 * T6.3皮革 (Thetford) :庫存10
 
@@ -91,6 +120,10 @@
 
 ---
 #### TEST-A06：零庫存重新建立均價 (破除幽靈成本)
+**Automation：Covered**
+- `tests/core-cost-regression.test.js`
+- 覆蓋零庫存時新採購不得沿用 dormant cost anchor。
+
 **📥 [前置狀態]**
 * T6.2 鋼條：全域總庫存 `0`，globalAvgCost 仍為 `29,000`（Dormant Anchor，休眠定錨狀態）
 * 系統現金餘額：`5,000,000`
@@ -105,11 +138,43 @@
 * ❌ 絕對不可：算出 `34,500` 或其他被 `29,000` 污染的奇怪數值。
 * ✅ 庫存變化：Thetford 數量變成 `50`。
 
+---
+---
+#### TEST-A07：TODO - 材料 globalAvgCost 為 null 時阻擋製作
+
+**Automation：TODO**
+- `tests/core-cost-regression.test.js`
+- 已列為 `test.todo('crafting blocks material consumption when a required globalAvgCost is null')`。
+- 目前尚未落地為可執行 assertion。
+
+**📥 [前置狀態]**
+* 製作所需材料庫存數量充足。
+* 至少一種必要材料的 `globalAvgCost === null`。
+* 成品庫存可為 0 或已有庫存。
+
+**🧪 [使用者操作]**
+* 在製作佇列勾選該項目。
+* 點擊「開始製作」。
+
+**📤 [預期結果]**
+* ✅ 製作必須被阻擋。
+* ✅ 不得消耗任何材料。
+* ✅ 不得新增成品庫存。
+* ✅ 不得扣除 cash。
+* ✅ 不得新增 ledger transaction。
+* ✅ 必須提示使用者該材料缺少成本基準。
+
 ## 🟡 Level B：重要功能 (發布新版本前必測)
 這些功能影響長期的資料正確性與備份安全。
 
 ---
 #### TEST-B01：工人島匯入 (無成本繼承)
+**Automation：Covered**
+- `tests/core-cost-regression.test.js`
+- 覆蓋 `globalAvgCost === null` 時阻擋工人匯入。
+- 覆蓋工人匯入不改 cash、不重算 `globalAvgCost`。
+- 覆蓋工人匯入喚醒 dormant cost anchor 時仍維持原成本基準。
+
 **📥 [前置狀態]**
 * 暫存區 (Yield Inventory)：T6.2 鋼條 5 個。
 * 總庫存 (Thetford)：T6.2 鋼條 100 個，全域均價 29,000。
@@ -126,10 +191,16 @@
 * ✅ 暫存區 T6.2 鋼條扣除 5。
 * ✅ 總庫存 Thetford 增加 5（變成 105）。
 * ✅ 最重要防呆：T6.2 鋼條全域均價必須維持 29,000 不變（不可稀釋）。
-* ✅ 系統使用 `stableId` 與 `itemLevel` 扣除暫存區，不得透過拆解 `itemKey` 反推。
+* ⚠️ future spec：未來正式事件模型應使用 `stableId` 與 `itemLevel` 扣除暫存區，不得透過拆解 `itemKey` 反推。
+* current implementation：目前 regression test 仍保護 legacy 中文 item key 與 `qtyByCity` 可用性，不代表 Stable ID 遷移已完成。
 
 ---
 #### TEST-B02：歷史作業日誌刪除轉調整紀錄
+**Automation：Covered**
+- `tests/ledger-data-safety.test.js`
+- 覆蓋採購刪除轉 `INVENTORY_ADJUSTMENT`。
+- 確認原始採購紀錄保留、庫存扣除、cash 加回、`globalAvgCost` 不回溯重算。
+
 **📥 [前置狀態]**
 * 有一筆錯誤的 `PURCHASE_ITEM` 紀錄：花費 3,000,000 買了 500 個 T6.1 布料。
 * 該筆紀錄仍存在於 `state.transactions`。
@@ -148,6 +219,10 @@
 
 ---
 #### TEST-B03：歷史作業日誌調整與負庫存防禦
+**Automation：Covered**
+- `tests/ledger-data-safety.test.js`
+- 覆蓋庫存不足時阻擋 purchase reversal。
+- 確認不新增 adjustment，不修改 cash、inventory 或 transactions。
 
 **📥 [前置狀態]**
 * 歷史紀錄：花費 3,000,000 買了 500 個 T6.1 布料。
@@ -165,6 +240,10 @@
 
 ---
 #### TEST-B04：資料匯出與匯入 (生存確認)
+**Automation：Manual only**
+- 目前尚未被 regression test 覆蓋。
+- 後續應補備份 schema、舊備份相容與匯入失敗原子性測試。
+
 **🧪 [使用者操作]**
 * 點擊「匯出資料」，下載 JSON 檔案。
 * 清空瀏覽器快取（或點擊重置系統）。
@@ -174,40 +253,61 @@
 * ✅ 所有庫存數量、全域均價、現金流與歷史作業日誌完全一字不差地恢復。
 
 ---
-#### TEST-B05：Legacy Data Migration (舊資料過渡)
+#### TEST-B05：Legacy Data Compatibility（舊資料相容）
+**Automation：Partial**
+- `tests/core-cost-regression.test.js`
+- 已覆蓋 legacy 中文 item key + `qtyByCity` 在物流轉移中仍可用。
+- 尚未覆蓋完整備份匯入、舊 transaction 顯示、舊 `customLocations` 與完整 migration 流程。
+
 **📥 [前置狀態]：**
-* 匯入一份含有舊版 quality: "6.2" 屬性的 JSON 存檔。
+* 使用 legacy 中文 item key，例如 `布料_6.1`。
+* 庫存仍使用 `qtyByCity`。
+* 交易紀錄仍使用目前 legacy transaction 欄位，例如 `type`、`item`、`quality`、`qty`、`total`、`unitPrice`、`location`。
 
 **🧪 [使用者操作]：**
-* 執行系統初始化/資料清洗腳本。
+* 執行目前支援 legacy 結構的既有操作，例如物流轉移或 ledger 顯示。
+* 不執行 Stable ID / `qtyByLocation` / 新版 event payload migration。
 
 **📤 [預期結果]：**
-* 所有庫存與歷史作業日誌的 quality 欄位徹底消失，並正確轉移為 itemLevel: "6.2"。資料讀取與均價計算無任何錯誤。
+* ✅ legacy 中文 item key 仍可被正確讀取。
+* ✅ `qtyByCity` 庫存仍可被正確操作。
+* ✅ legacy transaction 仍可被 Ledger 顯示或查詢。
+* ✅ 操作不得破壞現有 `globalAvgCost`。
+* ⚠️ 本測試只驗證舊資料相容，不代表 Stable ID、`qtyByLocation` 或新版 event payload 遷移已完成。
 
 ---
-#### TEST-B06：LABORER_IMPORT 禁止拆解 itemKey
+#### TEST-B06：TODO - LABORER_IMPORT 禁止拆解 itemKey
+**Automation：TODO**
+- 目前尚未被 regression test 覆蓋。
+- 此案例屬 future spec / migration target，不代表 current implementation 已完成。
+- 在 Stable ID 與 legacy 中文 key 相容層建立前，不應要求 src 直接改成只接受新版格式。
 
 **📥 [前置狀態]**
-* 暫存區：`state.laborerInventory["FULL_JOURNAL"]["6.2"] = 5`
-* 總庫存：`state.inventory["FULL_JOURNAL_6.2"].globalAvgCost = 29000`
-* 目標地點：`targetLocationId = "thetford"`
+* 暫存區存在可匯入項目。
+* 事件 payload 同時明確提供：
+  * `stableId`
+  * `itemLevel`
+  * `itemKey`
+  * `quantity`
+  * `targetLocationId`
 
 **🧪 [使用者操作]**
-* 執行 `LABORER_IMPORT`：
-  * stableId: `FULL_JOURNAL`
-  * itemLevel: `"6.2"`
-  * itemKey: `FULL_JOURNAL_6.2`
-  * quantity: `5`
-  * targetLocationId: `thetford`
+* 執行未來新版 `LABORER_IMPORT` 事件。
 
 **📤 [預期結果]**
-* ✅ 暫存區 `state.laborerInventory["FULL_JOURNAL"]["6.2"]` 從 5 變成 0。
-* ✅ 總庫存 `state.inventory["FULL_JOURNAL_6.2"].qtyByLocation["thetford"]` 增加 5。
-* ✅ `globalAvgCost` 維持 29,000 不變。
+* ✅ 系統使用 `stableId` 與 `itemLevel` 定位暫存區資料。
 * ✅ 系統不得使用 `itemKey.split("_")` 反推 `stableId` 或 `itemLevel`。
+* ✅ 匯入後不改 cash。
+* ✅ 匯入後不重算 `globalAvgCost`。
+* ⚠️ 此測試需等 adapter / compatibility layer 建立後再正式落地。
 
 ---
 #### TEST-B07：同一採購紀錄不得重複撤銷
+**Automation：Covered**
+- `tests/ledger-data-safety.test.js`
+- 覆蓋同一筆採購不可 reversal 兩次。
+- 覆蓋第一次 reversal 後 UI 不再顯示 adjustment 刪除入口。
+- 覆蓋直接呼叫刪除流程時仍會被阻擋。
 
 **📥 [前置狀態]**
 * 有一筆 `買材料` / 採購入庫紀錄：

@@ -12,6 +12,11 @@
 - 「規格與實作衝突」代表兩者對資料格式或行為有不同定義，不應直接修改其中一方來消除差異。
 - 涉及既有使用者資料、成本計算或交易格式的項目，必須先建立相容與驗證方案。
 
+## Regression Test 覆蓋狀態
+目前 package.js 已建立 Node.js regression tests，可透過下列指令執行：
+```bash
+npm test
+```
 ---
 
 ## 1. 已在 src 實作，但 docs 未完整描述的功能
@@ -22,6 +27,7 @@
 - **主要實作位置：** `src/components/inventory.js` 的 `openSellCraftedModal()`、`submitSellCrafted()`。
 - **文件缺口：** `docs/BUSINESS_RULES.md` 僅把 `SELL_ITEM` 描述為未來事件，尚未定義目前實作的交易欄位、收入金額、稅務處理與損益計算規則。
 - **風險：** Medium。
+- **測試狀態：** Untested。尚未有 regression test 覆蓋成品出售扣庫存、加 cash、ledger 寫入與稅費 / 損益規則。
 
 ### 1.2 工人島物資出售
 
@@ -29,6 +35,7 @@
 - **主要實作位置：** `src/components/laborer.js` 的 `openSellLaborStockModal()`、`submitSellLaborStock()`。
 - **文件缺口：** 未定義工人島暫存物資是否允許直接出售、收入事件格式，以及與 Yield Inventory 零成本原則的關係。
 - **風險：** Medium。
+- **測試狀態：** Untested。尚未有 regression test 覆蓋工人島暫存物資出售、cash 變化與 ledger 寫入。
 
 ### 1.3 銷售估價工具
 
@@ -52,6 +59,7 @@
 - **主要實作位置：** `src/components/ledger.js` 的 `adjustCashBalance()`、`adjustWallet()`。
 - **文件缺口：** `assets.debt` 只在資料模型中簡短提及，尚未定義注資、提領與現金校正的正式事件、驗證條件及帳務含義。`adjustWallet()` 目前未確認有 UI 入口。
 - **風險：** Medium。
+- **測試狀態：** Untested。尚未有 regression test 覆蓋現金校正、注資、提領、`assets.debt` 變化與 ledger 紀錄。
 
 ### 1.6 工人島手動管理與紀錄分頁
 
@@ -73,6 +81,7 @@
 - **主要實作位置：** `src/components/crafting.js` 的 `openItemSelector()`、`searchItems()`、`updateShoppingListTotal()`、佇列編輯函式與 `submitCraftAll()`。
 - **文件缺口：** `docs/ARCHITECTURE.md` 只概括提及製作佇列，未完整描述佇列生命週期、選取規則、購物清單計算與部分製作行為。
 - **風險：** Low；購物清單與正式成本結算的關係需視為 Medium。
+- **測試狀態：** Partially tested。製作結算的核心成本、材料消耗、成品 WAC 與材料不足阻擋已由 `tests/core-cost-regression.test.js` 保護；搜尋、分類、購物清單、佇列 UI 編輯與部分製作仍主要依賴手測。
 
 ### 1.8 搜尋、分頁、Factory Reset 與 Tauri 視窗控制
 
@@ -91,6 +100,7 @@
 - **主要實作位置：** `src/app.js` 的 `exportData()`、`importData()`。
 - **文件缺口：** `docs/TEST_CASES.md` 只有生存確認情境，未定義正式備份 schema、版本、選填欄位、相容策略與失敗時的原子性要求。
 - **風險：** Medium。
+- **測試狀態：** Manual only。`docs/TEST_CASES.md` 有匯出 / 匯入生存確認，但尚未有 regression test 覆蓋 schema、舊備份相容與失敗原子性。
 
 ### 1.10 舊 Hideout 倉庫自動遷移
 
@@ -139,6 +149,7 @@
 - **src 現況：** `src/core/state.js` 與各業務模組使用 `qtyByCity`，Key 為 `Thetford`、`LaborerIsland` 或自訂倉庫顯示名稱。
 - **相容性影響：** 現有 `localStorage`、備份 JSON 與全部庫存讀寫均依賴 `qtyByCity`。
 - **直接修改風險：** High。若沒有 adapter 與 migration，舊資料會無法讀取或看似庫存歸零。
+- **測試狀態：** Partially tested。`tests/core-cost-regression.test.js` 已保護 legacy `qtyByCity` 在核心庫存、物流與成本流程中仍可用；這是相容性保護，不代表 `qtyByLocation` 遷移已完成。
 
 ### 2.2 Stable ID 與中文品名 key
 
@@ -146,6 +157,7 @@
 - **src 現況：** 多數庫存 Key 使用中文顯示名稱，例如 `鋼條_6.2`；製造成品也使用配方顯示名稱。
 - **相容性影響：** 現有存檔、製作材料查詢、工人島匯入、UI 顯示與交易紀錄都依賴中文品名。
 - **直接修改風險：** High。需先建立 Stable ID 與舊中文 Key 的雙向映射及衝突處理。
+- **測試狀態：** Partially tested。`tests/core-cost-regression.test.js` 已保護 legacy 中文 item key 可用；這是舊資料相容性保護，不代表 Stable ID 遷移已完成。
 
 ### 2.3 新版 event payload 與舊版 transaction 格式
 
@@ -153,6 +165,7 @@
 - **src 現況：** 大部分新交易仍寫入 `type`、`item`、`quality`、`qty`、`total`、`unitPrice`、`location`。
 - **相容性影響：** Ledger 顯示、搜尋、採購撤銷、備份及測試依賴舊欄位。
 - **直接修改風險：** High。需要統一事件寫入點、讀取 adapter 與雙格式測試。
+- **測試狀態：** Partially tested。`tests/ledger-data-safety.test.js` 已保護目前 legacy transaction 的採購 reversal 行為；這不代表新版 event payload 已完成。
 
 ### 2.4 禁止拆解 itemKey 與 src 仍拆解 itemKey
 
@@ -160,6 +173,7 @@
 - **src 現況：** 庫存渲染與校正等流程使用 `key.split('_')` 或類似方式取得物品名稱與階級。
 - **相容性影響：** 含底線的 Stable ID 或物品名稱可能被錯誤拆解；現有中文 Key 則暫時依賴此行為。
 - **直接修改風險：** High。必須先讓資料模型與呼叫介面能明確提供物品識別資料。
+- **測試狀態：** Partially tested。`tests/ledger-data-safety.test.js` 已保護目前 legacy transaction 的採購 reversal 行為；這不代表新版 event payload 已完成。
 
 ### 2.5 一般庫存調整不得修改 globalAvgCost 與 UI 允許直接修改成本
 
@@ -181,6 +195,35 @@
 - **src 現況：** 多數交易使用中文名稱，例如 `買材料`、`製作入庫`、`工人島匯入`、`賣成品`；只有部分調整使用 `INVENTORY_ADJUSTMENT`。
 - **相容性影響：** Ledger 顯示、現金方向判定與採購撤銷邏輯會比較中文 `type`。
 - **直接修改風險：** High。需要事件名稱正規化與舊資料讀取相容。
+
+## 2.8 Regression Test 保護矩陣
+
+| 項目 | 目前狀態 | 測試保護狀態 | 測試來源 | 備註 |
+|---|---|---|---|---|
+| 首次採購建立 `globalAvgCost` | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證首次採購以 total / qty 建立成本基準。 |
+| 跨地點全域庫存 WAC | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證採購均價以全域總庫存計算，不限單一地點。 |
+| 零庫存不沿用 dormant cost anchor | current implementation | Tested | `tests/core-cost-regression.test.js` | 新採購在全域庫存為 0 時直接重建成本基準。 |
+| 工人匯入 `globalAvgCost === null` 時阻擋 | current implementation | Tested | `tests/core-cost-regression.test.js` | 防止無成本基準物資進入總庫存。 |
+| 工人匯入不改 cash / 不重算 `globalAvgCost` | current implementation | Tested | `tests/core-cost-regression.test.js` | 保護 Yield Inventory 匯入不稀釋成本。 |
+| 工人匯入喚醒 dormant cost anchor | current implementation | Tested | `tests/core-cost-regression.test.js` | 庫存從 0 增加時仍沿用既有 dormant 成本基準。 |
+| 製作消耗引用材料 `globalAvgCost` | current implementation | Tested | `tests/core-cost-regression.test.js` | 製作成本引用材料目前成本基準。 |
+| 製作後材料 `globalAvgCost` 不變 | current implementation | Tested | `tests/core-cost-regression.test.js` | 製作消耗只扣數量，不重算材料成本。 |
+| 成品已有庫存時套用 WAC | current implementation | Tested | `tests/core-cost-regression.test.js` | 新製成品與既有成品庫存合併計算 WAC。 |
+| 材料不足時阻擋製作 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證製作前預檢不可造成部分狀態變更。 |
+| 材料 `globalAvgCost === null` 時阻擋製作 | expected current safety rule | TODO | `tests/core-cost-regression.test.js` | 已列為 `test.todo`，尚未落地 assertion。 |
+| 物流轉移不改成本、不改 cash、不新增 ledger | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流只做物理庫存平移。 |
+| 來源庫存不足時阻擋物流轉移 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流轉移預檢不造成狀態變更。 |
+| legacy 中文 item key + `qtyByCity` 仍可用 | current compatibility behavior | Tested | `tests/core-cost-regression.test.js` | 保護目前舊資料相容，不代表 Stable ID 遷移完成。 |
+| 採購刪除轉 adjustment | current implementation | Tested | `tests/ledger-data-safety.test.js` | 原始交易保留，新增調整交易。 |
+| 庫存不足時阻擋 purchase reversal | current implementation | Tested | `tests/ledger-data-safety.test.js` | 不新增 adjustment，不改狀態。 |
+| 同一筆採購不可 reversal 兩次 | current implementation | Tested | `tests/ledger-data-safety.test.js` | 包含 UI 重新渲染後不再顯示刪除入口。 |
+| 備份匯出 / 匯入 schema 與原子性 | current implementation needs spec | Manual only | `docs/TEST_CASES.md` | 尚未有 regression test。 |
+| Factory Reset | current implementation | Manual only | `docs/TEST_CASES.md` / UI | 尚未有 regression test。 |
+| 自訂倉庫更名 / 刪除 | current implementation | Manual only | `docs/TEST_CASES.md` / UI | 具資料遺失風險，尚未有 regression test。 |
+| 成品出售 | current implementation | Untested | 無 | 仍需補正式規格與測試。 |
+| 工人島物資出售 | current implementation | Untested | 無 | 仍需補正式規格與測試。 |
+| 現金餘額校正 / 注資 / 提領 | current implementation / partial UI binding unknown | Untested | 無 | `adjustWallet()` UI 入口仍需確認。 |
+| Stable ID / `qtyByLocation` / 新版 event payload 遷移 | future spec | Untested | 無 | 不可寫成 current implementation。 |
 
 ---
 
