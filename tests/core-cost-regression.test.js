@@ -292,6 +292,75 @@ test('crafting consumes materials at current globalAvgCost without changing mate
   assert.equal(state.transactions[0].total, 600);
 });
 
+test('TEST-A05: insufficient materials block crafting before any state change', { concurrency: false }, () => {
+  resetState();
+  const quality = '4.0';
+  const mainKey = `MainMaterial_${quality}`;
+  const subKey = `SubMaterial_${quality}`;
+  const outputKey = `TestProduct_${quality}`;
+  state.assets.cash = 1000;
+  state.inventory[mainKey] = {
+    qtyByCity: qtyByCity(3),
+    globalAvgCost: 100
+  };
+  state.inventory[subKey] = {
+    qtyByCity: qtyByCity(10),
+    globalAvgCost: 50
+  };
+  state.inventory[outputKey] = {
+    qtyByCity: qtyByCity(0),
+    globalAvgCost: null
+  };
+  craftingQueue.push({
+    id: 1,
+    checked: true,
+    recipe: {
+      name: 'TestProduct',
+      main: 'MainMaterial',
+      sub: 'SubMaterial',
+      mainBaseQty: 2,
+      subBaseQty: 1,
+      artifactVal: 0
+    },
+    qty: 2,
+    quality,
+    city: LOCATION,
+    mainKey,
+    mainQty: 4,
+    subKey,
+    subQty: 2,
+    tax: 100,
+    artifactPrice: 0,
+    artifactQty: 1,
+    alchemyName: null
+  });
+  const before = JSON.stringify({
+    assets: state.assets,
+    inventory: state.inventory,
+    transactions: state.transactions,
+    craftingQueue
+  });
+
+  Crafting.submitCraftAll();
+
+  assert.equal(JSON.stringify({
+    assets: state.assets,
+    inventory: state.inventory,
+    transactions: state.transactions,
+    craftingQueue
+  }), before);
+  assert.equal(state.inventory[mainKey].qtyByCity[LOCATION], 3);
+  assert.equal(state.inventory[subKey].qtyByCity[LOCATION], 10);
+  assert.equal(state.inventory[outputKey].qtyByCity[LOCATION], 0);
+  assert.equal(state.inventory[mainKey].globalAvgCost, 100);
+  assert.equal(state.inventory[subKey].globalAvgCost, 50);
+  assert.equal(state.inventory[outputKey].globalAvgCost, null);
+  assert.equal(state.assets.cash, 1000);
+  assert.equal(state.transactions.length, 0);
+  assert.equal(craftingQueue.length, 1);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
 test.todo('crafting blocks material consumption when a required globalAvgCost is null');
 
 test('legacy Chinese item key and qtyByCity remain usable for transport without cost or ledger changes', { concurrency: false }, () => {
