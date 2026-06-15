@@ -219,6 +219,15 @@ export function submitCraftAll() {
     const [city, mat] = k.split('|'); const av = state.inventory[mat]?.qtyByCity[city] || 0;
     if (av < needed[k]) return window.showToast(`短缺警告：${SYSTEM_CITIES[city]?.name||city} 的 ${mat.replace('_',' ')} 需要 ${needed[k]}，但庫存僅有 ${av}！`, 'error');
   }
+
+  for (const q of toCraft) {
+    const mainCost = state.inventory[q.mainKey]?.globalAvgCost;
+    if (typeof mainCost !== 'number' || Number.isNaN(mainCost)) return window.showToast(`${q.mainKey.replace('_',' ')} 缺少成本基準，無法製作！`, 'error');
+    if (q.recipe.subBaseQty > 0) {
+      const subCost = state.inventory[q.subKey]?.globalAvgCost;
+      if (typeof subCost !== 'number' || Number.isNaN(subCost)) return window.showToast(`${q.subKey.replace('_',' ')} 缺少成本基準，無法製作！`, 'error');
+    }
+  }
   
   toCraft.forEach(q => {
     state.inventory[q.mainKey].qtyByCity[q.city] -= q.mainQty;
