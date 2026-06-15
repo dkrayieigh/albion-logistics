@@ -4,7 +4,8 @@
   "version": "4.1.2",
   "type": "module",
   "scripts": {
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "node --test tests/ledger-data-safety.test.js tests/core-cost-regression.test.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
