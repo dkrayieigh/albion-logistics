@@ -363,6 +363,75 @@ test('TEST-A05: insufficient materials block crafting before any state change', 
 
 test.todo('crafting blocks material consumption when a required globalAvgCost is null');
 
+test('TEST-A02: transport moves inventory without changing cost, cash, or ledger', { concurrency: false }, () => {
+  resetState();
+  const key = 'TransportMaterial_6.2';
+  state.assets.cash = -5800000;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(200),
+    globalAvgCost: 29000
+  };
+  state.transactions = [{
+    date: '2026-06-15',
+    type: '買材料',
+    item: 'TransportMaterial',
+    quality: '6.2',
+    qty: 200,
+    total: 5800000,
+    unitPrice: 29000,
+    location: LOCATION
+  }];
+  const originalTransaction = state.transactions[0];
+  getElement('trans-item').value = key;
+  getElement('trans-qty').value = '100';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = 'Bridgewatch';
+
+  Inventory.submitTransport();
+
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 100);
+  assert.equal(state.inventory[key].qtyByCity.Bridgewatch, 100);
+  assert.equal(state.inventory[key].globalAvgCost, 29000);
+  assert.equal(state.assets.cash, -5800000);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0], originalTransaction);
+});
+
+test('TEST-A02: insufficient source inventory blocks transport before any state change', { concurrency: false }, () => {
+  resetState();
+  const key = 'TransportMaterial_6.2';
+  state.assets.cash = 12345;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(50),
+    globalAvgCost: 29000
+  };
+  state.transactions = [{
+    date: '2026-06-15',
+    type: '買材料',
+    item: 'TransportMaterial',
+    quality: '6.2',
+    qty: 50,
+    total: 1450000,
+    unitPrice: 29000,
+    location: LOCATION
+  }];
+  getElement('trans-item').value = key;
+  getElement('trans-qty').value = '100';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = 'Bridgewatch';
+  const before = JSON.stringify(state);
+
+  Inventory.submitTransport();
+
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 50);
+  assert.equal(state.inventory[key].qtyByCity.Bridgewatch, 0);
+  assert.equal(state.inventory[key].globalAvgCost, 29000);
+  assert.equal(state.assets.cash, 12345);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
 test('legacy Chinese item key and qtyByCity remain usable for transport without cost or ledger changes', { concurrency: false }, () => {
   resetState();
   const key = '布料_6.1';
