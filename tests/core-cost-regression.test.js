@@ -237,6 +237,35 @@ test('laborer import adds quantity without changing cost basis or cash', { concu
   assert.equal(state.transactions.length, 1);
 });
 
+test('TEST-B01: laborer import revives zero inventory without changing dormant cost anchor', { concurrency: false }, () => {
+  resetState();
+  const item = 'DormantLaborMaterial';
+  const quality = '6.2';
+  const key = `${item}_${quality}`;
+  state.assets.cash = 12345;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(0),
+    globalAvgCost: 29000
+  };
+  state.laborerInventory[item] = { [quality]: 5 };
+  Laborer.openImportModal(item, quality, 5);
+  getElement('import-qty').value = '5';
+  getElement('import-city').value = LOCATION;
+
+  Laborer.submitImportLaborStock();
+
+  assert.equal(state.laborerInventory[item][quality], 0);
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 5);
+  assert.equal(state.inventory[key].globalAvgCost, 29000);
+  assert.equal(state.assets.cash, 12345);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0].item, item);
+  assert.equal(state.transactions[0].quality, quality);
+  assert.equal(state.transactions[0].qty, 5);
+  assert.equal(state.transactions[0].total, 0);
+  assert.equal(state.transactions[0].location, LOCATION);
+});
+
 test('crafting consumes materials at current globalAvgCost without changing material cost bases', { concurrency: false }, () => {
   resetState();
   const quality = '4.0';
