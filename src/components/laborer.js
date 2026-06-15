@@ -162,7 +162,7 @@ export function openSellLaborStockModal(i,q,m) { aSelI=i; aSelQ=q; document.getE
 export function closeSellLaborStockModal() { document.getElementById('sell-modal').style.display='none'; }
 export function submitSellLaborStock() {
   const q=parseNum(document.getElementById('sell-qty').value); const m=parseNum(document.getElementById('sell-qty').max); const p=parseNum(document.getElementById('sell-price').value);
-  if(q<=0||q>m||p<=0) return; state.laborerInventory[aSelI][aSelQ]-=q; state.assets.cash+=p;
+  if(q<=0||q>m||p<=0) return window.showToast('出售數量或總額錯誤', 'error'); state.laborerInventory[aSelI][aSelQ]-=q; state.assets.cash+=p;
   state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type:'工人島出售', item:aSelI, quality:aSelQ, qty:q, total:p, unitPrice:Math.round(p/q), location:'LaborerIsland' });
   saveState(); window.updateDashboardUI(); closeSellLaborStockModal(); window.showToast('套現成功','success');
 }

@@ -318,6 +318,69 @@ test('crafted item sale is blocked when quantity is zero', { concurrency: false 
   assert.equal(toasts.at(-1)?.type, 'error');
 });
 
+test('laborer stock sale reduces temporary inventory, increases cash, and writes a sale transaction', { concurrency: false }, () => {
+  resetState();
+  const item = 'METALBAR';
+  const quality = '6.1';
+  state.laborerInventory[item] = { [quality]: 10 };
+
+  Laborer.openSellLaborStockModal(item, quality, 10);
+  getElement('sell-qty').value = '4';
+  getElement('sell-price').value = '40000';
+  Laborer.submitSellLaborStock();
+
+  assert.equal(state.laborerInventory[item][quality], 6);
+  assert.equal(state.assets.cash, 40000);
+  assert.equal(state.transactions.length, 1);
+  assert.deepEqual(state.transactions[0], {
+    date: new Date().toISOString().split('T')[0],
+    type: '工人島出售',
+    item,
+    quality,
+    qty: 4,
+    total: 40000,
+    unitPrice: 10000,
+    location: 'LaborerIsland'
+  });
+  assert.equal(toasts.at(-1)?.type, 'success');
+});
+
+test('laborer stock sale is blocked when temporary inventory is insufficient', { concurrency: false }, () => {
+  resetState();
+  const item = 'METALBAR';
+  const quality = '6.1';
+  state.laborerInventory[item] = { [quality]: 2 };
+  Laborer.openSellLaborStockModal(item, quality, 2);
+  getElement('sell-qty').value = '4';
+  getElement('sell-price').value = '40000';
+  const before = JSON.stringify(state);
+
+  Laborer.submitSellLaborStock();
+
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(state.laborerInventory[item][quality], 2);
+  assert.equal(state.assets.cash, 0);
+  assert.equal(state.transactions.length, 0);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
+test('laborer stock sale is blocked when quantity is zero', { concurrency: false }, () => {
+  resetState();
+  const item = 'METALBAR';
+  const quality = '6.1';
+  state.laborerInventory[item] = { [quality]: 10 };
+  Laborer.openSellLaborStockModal(item, quality, 10);
+  getElement('sell-qty').value = '0';
+  getElement('sell-price').value = '40000';
+  const before = JSON.stringify(state);
+
+  Laborer.submitSellLaborStock();
+
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(state.transactions.length, 0);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
 test('laborer import with null cost basis is blocked before any state change', { concurrency: false }, () => {
   resetState();
   const item = 'TestMaterial';
