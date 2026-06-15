@@ -48,9 +48,12 @@ globalThis.localStorage = {
 };
 
 let toasts = [];
+let confirmResult = true;
+globalThis.confirm = () => confirmResult;
 globalThis.window = {
   showToast: (message, type) => toasts.push({ message, type }),
-  updateDashboardUI: () => {}
+  updateDashboardUI: () => {},
+  renderCityDropdowns: () => {}
 };
 
 const Inventory = await import('../src/components/inventory.js');
@@ -82,8 +85,54 @@ function resetState() {
   storage.clear();
   elements.clear();
   toasts = [];
+  confirmResult = true;
   getElement('global-shopfee').value = '0';
 }
+
+test('non-empty custom location cannot be deleted', { concurrency: false }, () => {
+  resetState();
+  const location = '測試倉庫';
+  state.customLocations = [location];
+  state.assets.cash = 12345;
+  state.inventory['TestMaterial_4.0'] = {
+    qtyByCity: { ...qtyByCity(0), [location]: 1 },
+    globalAvgCost: 100
+  };
+  state.transactions = [{ type: 'existing transaction' }];
+  const before = JSON.stringify(state);
+
+  Inventory.deleteLocation(location);
+
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(state.customLocations.includes(location), true);
+  assert.equal(toasts.at(-1)?.type, 'error');
+  assert.match(toasts.at(-1)?.message || '', /先轉移或清空/);
+});
+
+test('empty custom location can be deleted without affecting other state', { concurrency: false }, () => {
+  resetState();
+  const location = '空倉庫';
+  state.customLocations = [location];
+  state.assets.cash = 12345;
+  state.inventory['TestMaterial_4.0'] = {
+    qtyByCity: { ...qtyByCity(7), [location]: 0 },
+    globalAvgCost: 100
+  };
+  state.transactions = [{ type: 'existing transaction' }];
+  const inventoryBefore = JSON.stringify(state.inventory);
+  const transactionsBefore = JSON.stringify(state.transactions);
+
+  Inventory.deleteLocation(location);
+
+  assert.equal(state.customLocations.includes(location), false);
+  assert.equal(state.inventory['TestMaterial_4.0'].qtyByCity[LOCATION], 7);
+  assert.equal(state.inventory['TestMaterial_4.0'].qtyByCity[location], undefined);
+  assert.equal(state.inventory['TestMaterial_4.0'].globalAvgCost, 100);
+  assert.equal(JSON.stringify(state.transactions), transactionsBefore);
+  assert.equal(state.assets.cash, 12345);
+  assert.equal(toasts.at(-1)?.type, 'success');
+  assert.notEqual(JSON.stringify(state.inventory), inventoryBefore);
+});
 
 test('purchase recalculates WAC, adds inventory, deducts cash, and writes a ledger record', { concurrency: false }, () => {
   resetState();

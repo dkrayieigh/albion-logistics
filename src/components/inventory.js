@@ -132,6 +132,9 @@ export function openManageLocationsModal() {
   document.getElementById('manage-locations-modal').style.display = 'block';
 }
 export function closeManageLocationsModal() { document.getElementById('manage-locations-modal').style.display = 'none'; }
+function locationHasInventory(name) {
+  return Object.values(state.inventory).some(item => Number(item?.qtyByCity?.[name] || 0) > 0);
+}
 export function renameLocation(oldName) {
   openCustomLocationModal('edit', oldName, function(newName) {
     if (!newName || newName.trim() === '' || newName === oldName) return;
@@ -145,6 +148,7 @@ export function renameLocation(oldName) {
   });
 }
 export function deleteLocation(name) {
+  if (locationHasInventory(name)) return window.showToast('此倉庫仍有庫存，請先轉移或清空後再刪除。', 'error');
   if (!confirm(`警告：確定要刪除倉庫「${name}」嗎？\n如果裡面還有庫存，該庫存將永遠遺失！`)) return;
   state.customLocations = state.customLocations.filter(c => c !== name);
   for (let k in state.inventory) { delete state.inventory[k].qtyByCity[name]; }
