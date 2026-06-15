@@ -118,16 +118,7 @@ npm test
 - **風險：** Medium → Low / Schema docs debt。
 - **封版狀態：** 非阻斷。
 
-### 1.10 舊 Hideout 倉庫自動遷移
-
-- **目前行為：** 載入資料時，若舊 `Hideout` 倉庫存在庫存，會建立 `舊黑區地堡` 自訂倉庫、搬移庫存並更新舊交易地點；若無庫存則移除舊欄位。
-- **主要實作位置：** `src/core/state.js` 的 `loadState()`。
-- **穩定版分類：** Known limitation。這是現有 legacy compatibility path，不代表 Location ID migration 已完成。
-- **測試狀態：** 尚無專屬 regression test。
-- **風險：** Medium。
-- **封版狀態：** 非阻斷；使用舊 Hideout 資料前應先備份。
-
-### 1.11 工人收成紀錄最多保留 100 筆
+### 1.10 工人收成紀錄最多保留 100 筆
 
 - **目前行為：** 每次儲存狀態時，超過 100 筆的 `laborerLogs` 會被截斷。
 - **主要實作位置：** `src/core/state.js` 的 `saveState()`。
@@ -135,7 +126,7 @@ npm test
 - **風險：** Medium，因會自動刪除歷史資料。
 - **封版狀態：** 非阻斷，需在 release note 明確標註。
 
-### 1.12 全域千分位輸入格式化與游標位置維持
+### 1.11 全域千分位輸入格式化與游標位置維持
 
 - **目前行為：** 對 `.format-num` 欄位即時加入千分位格式，並計算格式化後的游標位置，避免輸入時游標跳動。
 - **主要實作位置：** `src/app.js` 的全域 `input` 事件監聽。
@@ -143,7 +134,7 @@ npm test
 - **風險：** Low。
 - **封版狀態：** 非阻斷。
 
-### 1.13 stateUpdated 事件驅動 UI 更新
+### 1.12 stateUpdated 事件驅動 UI 更新
 
 - **目前行為：** `saveState()` 與 `loadState()` 觸發 `stateUpdated`，由 `app.js` 統一更新城市下拉選單、儀表板、庫存、工人島資料與紀錄。
 - **主要實作位置：** `src/core/state.js` 的 `callUIUpdate()`；`src/app.js` 的 `stateUpdated` 監聽。
@@ -151,7 +142,7 @@ npm test
 - **風險：** Low。
 - **封版狀態：** 非阻斷。
 
-### 1.14 採購物品自動建議城市
+### 1.13 採購物品自動建議城市
 
 - **目前行為：** 選擇鋼條、布料、板材或皮革時，自動將採購城市切換到對應精煉加成城市。
 - **主要實作位置：** `src/components/inventory.js` 的 `onBuyItemChange()`。

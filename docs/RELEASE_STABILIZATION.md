@@ -44,7 +44,6 @@ npm.cmd test
 - 銷售估價的 6.5%、90% 與 85% 僅為 UI 參考，不是正式事件規格。
 - 工人島手動新增與「無痕校正」尚無正式稽核事件規格。
 - 工人收成紀錄只保留最新 100 筆。
-- 舊 `Hideout` 自動遷移仍為 legacy compatibility path，尚無專屬 regression test。
 - 搜尋、分頁、部分製作、購物清單與部分桌面 UI 行為仍主要依賴手動驗證。
 
 ## Release Guardrails
