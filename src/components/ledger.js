@@ -117,7 +117,7 @@ export function deleteEditLedger() {
 }
 
 export function adjustWallet(a) {
-  const am = parseNum(document.getElementById('wallet-adjust-amt').value) * 1000000; if(am<=0) return;
+  const am = parseNum(document.getElementById('wallet-adjust-amt').value) * 1000000; if(am<=0) return window.showToast('金額必須大於 0','error');
   if(a==='deposit') { state.assets.cash+=am; state.assets.debt+=am; state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type:'注資本金', item:'-', quality:'-', qty:0, total:am, unitPrice:0, location:'-' }); window.showToast('注資成功','success'); }
   else { if(state.assets.cash<am) return window.showToast('餘額不足','error'); state.assets.cash-=am; state.assets.debt-=am; state.transactions.unshift({ date: new Date().toISOString().split('T')[0], type:'提領利潤', item:'-', quality:'-', qty:0, total:am, unitPrice:0, location:'-' }); window.showToast('提領成功','success'); }
   saveState(); window.updateDashboardUI();

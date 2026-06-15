@@ -45,10 +45,13 @@ globalThis.localStorage = {
 };
 
 let confirmResult = true;
+let promptResult = null;
 let toasts = [];
 globalThis.confirm = () => confirmResult;
+globalThis.prompt = () => promptResult;
 globalThis.window = {
-  showToast: (message, type) => toasts.push({ message, type })
+  showToast: (message, type) => toasts.push({ message, type }),
+  updateDashboardUI: () => {}
 };
 
 const Ledger = await import('../src/components/ledger.js');
@@ -89,9 +92,17 @@ function resetState(inventoryQty) {
   storage.clear();
   toasts = [];
   confirmResult = true;
+  promptResult = null;
   getElement('ledger-tbody').rows = [];
   getElement('ledger-search').value = '';
   getElement('edit-ledger-modal').style.display = 'none';
+}
+
+function resetWalletState(cash, debt) {
+  resetState(500);
+  state.assets = { cash, debt };
+  state.transactions = [];
+  getElement('wallet-adjust-amt').value = '';
 }
 
 function clickDelete(index) {
@@ -177,5 +188,69 @@ test('TEST-B07: the same purchase cannot be reversed twice', { concurrency: fals
   assert.equal(state.inventory[INVENTORY_KEY].qtyByCity[LOCATION], 700);
   assert.equal(state.assets.cash, 3000000);
   assert.equal(state.inventory[INVENTORY_KEY].globalAvgCost, 6000);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
+test('cash balance adjustment updates cash, preserves debt and inventory, and writes the difference', { concurrency: false }, () => {
+  resetWalletState(1000, 0);
+  const inventoryBefore = JSON.stringify(state.inventory);
+  promptResult = '5000';
+
+  Ledger.adjustCashBalance();
+
+  assert.equal(state.assets.cash, 5000);
+  assert.equal(state.assets.debt, 0);
+  assert.equal(JSON.stringify(state.inventory), inventoryBefore);
+  assert.equal(state.transactions.length, 1);
+  assert.deepEqual(state.transactions[0], {
+    date: new Date().toISOString().split('T')[0],
+    type: '現金流校正',
+    item: '-',
+    quality: '-',
+    qty: 1,
+    total: 4000,
+    unitPrice: 4000,
+    location: '-'
+  });
+});
+
+test('wallet deposit increases cash and debt without changing inventory', { concurrency: false }, () => {
+  resetWalletState(1000, 0);
+  const inventoryBefore = JSON.stringify(state.inventory);
+  getElement('wallet-adjust-amt').value = '0.003';
+
+  Ledger.adjustWallet('deposit');
+
+  assert.equal(state.assets.cash, 4000);
+  assert.equal(state.assets.debt, 3000);
+  assert.equal(JSON.stringify(state.inventory), inventoryBefore);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0].type, '注資本金');
+  assert.equal(state.transactions[0].total, 3000);
+});
+
+test('wallet withdrawal decreases cash and debt without changing inventory', { concurrency: false }, () => {
+  resetWalletState(5000, 3000);
+  const inventoryBefore = JSON.stringify(state.inventory);
+  getElement('wallet-adjust-amt').value = '0.001';
+
+  Ledger.adjustWallet('withdraw');
+
+  assert.equal(state.assets.cash, 4000);
+  assert.equal(state.assets.debt, 2000);
+  assert.equal(JSON.stringify(state.inventory), inventoryBefore);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0].type, '提領利潤');
+  assert.equal(state.transactions[0].total, 1000);
+});
+
+test('wallet adjustment with zero amount is blocked without state changes', { concurrency: false }, () => {
+  resetWalletState(1000, 0);
+  getElement('wallet-adjust-amt').value = '0';
+  const before = JSON.stringify(state);
+
+  Ledger.adjustWallet('deposit');
+
+  assert.equal(JSON.stringify(state), before);
   assert.equal(toasts.at(-1)?.type, 'error');
 });
