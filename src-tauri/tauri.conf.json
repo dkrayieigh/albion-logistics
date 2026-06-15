@@ -11,9 +11,9 @@
     "windows": [
       {
         "title": "Albion Logistics V4.0-beta",
-        "width": 1280,
-        "height": 800,
-        "minWidth": 1024,
+        "width": 1360,
+        "height": 820,
+        "minWidth": 1200,
         "minHeight": 768,
         "decorations": false,
         "resizable": true,
