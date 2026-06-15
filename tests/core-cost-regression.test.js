@@ -292,6 +292,65 @@ test('crafting consumes materials at current globalAvgCost without changing mate
   assert.equal(state.transactions[0].total, 600);
 });
 
+test('TEST-A03: crafting applies WAC when finished goods already have inventory', { concurrency: false }, () => {
+  resetState();
+  const quality = '4.0';
+  const mainKey = `MainMaterial_${quality}`;
+  const subKey = `SubMaterial_${quality}`;
+  const outputKey = `TestProduct_${quality}`;
+  state.assets.cash = 1000;
+  state.inventory[mainKey] = {
+    qtyByCity: qtyByCity(10),
+    globalAvgCost: 100
+  };
+  state.inventory[subKey] = {
+    qtyByCity: qtyByCity(10),
+    globalAvgCost: 50
+  };
+  state.inventory[outputKey] = {
+    qtyByCity: qtyByCity(2),
+    globalAvgCost: 200
+  };
+  craftingQueue.push({
+    id: 1,
+    checked: true,
+    recipe: {
+      name: 'TestProduct',
+      main: 'MainMaterial',
+      sub: 'SubMaterial',
+      mainBaseQty: 2,
+      subBaseQty: 1,
+      artifactVal: 0
+    },
+    qty: 2,
+    quality,
+    city: LOCATION,
+    mainKey,
+    mainQty: 4,
+    subKey,
+    subQty: 2,
+    tax: 100,
+    artifactPrice: 0,
+    artifactQty: 1,
+    alchemyName: null
+  });
+
+  Crafting.submitCraftAll();
+
+  assert.equal(state.inventory[mainKey].qtyByCity[LOCATION], 6);
+  assert.equal(state.inventory[subKey].qtyByCity[LOCATION], 8);
+  assert.equal(state.inventory[mainKey].globalAvgCost, 100);
+  assert.equal(state.inventory[subKey].globalAvgCost, 50);
+  assert.equal(state.inventory[outputKey].qtyByCity[LOCATION], 4);
+  assert.equal(state.inventory[outputKey].globalAvgCost, 250);
+  assert.equal(state.assets.cash, 900);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0].item, 'TestProduct');
+  assert.equal(state.transactions[0].qty, 2);
+  assert.equal(state.transactions[0].total, 600);
+  assert.equal(state.transactions[0].unitPrice, 300);
+});
+
 test('TEST-A05: insufficient materials block crafting before any state change', { concurrency: false }, () => {
   resetState();
   const quality = '4.0';
