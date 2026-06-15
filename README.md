@@ -57,10 +57,10 @@ Albion Logistics 是一款以 ERP 工作流為目標的《阿爾比恩 Online》
 
 主要文件：
 
-- `docs/ROADMAP.md`：遷移與重構路線圖。
-- `docs/CURRENT_LIMITATIONS.md`：目前限制與技術債。
-- `docs/IMPLEMENTATION_GAP.md`：`src`、docs 與 future spec 的差異追蹤。
-- `docs/TEST_CASES.md`：手動測試與 regression test 對照。
+- [ROADMAP.md](docs/ROADMAP.md)：遷移與重構路線圖。
+- [CURRENT_LIMITATIONS.md](docs/CURRENT_LIMITATIONS.md)：目前限制與技術債。
+- [IMPLEMENTATION_GAP.md](docs/IMPLEMENTATION_GAP.md)：`src`、docs 與 future spec 的差異追蹤。
+- [TEST_CASES.md](docs/TEST_CASES.md)：手動測試與 regression test 對照。
 
 ### 支持專案
 
@@ -124,3 +124,5 @@ Bug reports, testing notes, real usage scenarios, and documentation suggestions 
 
 - GitHub Issues: preferred for bug reports and feature requests.
 - Discord: `dkrayleigh2`
+
+Prebuilt `.exe` releases, if available, should be treated as test builds during the stabilization phase.
