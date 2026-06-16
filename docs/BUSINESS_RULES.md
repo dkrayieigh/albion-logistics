@@ -30,7 +30,7 @@
 - 手動變動原則：在全域庫存「手動增加/減少」材料數量時，一律強制套用當下該物品的全域均價。均價絕對不因手動校正而改變。
 
 ## 3. 🚚 物流轉移原則 (Transport)
-- 純數量平移：將物品在不同地點（Location，如城市或自訂黑區地堡）轉移時，只改變該地點的 qtyByLocation。
+- 純數量平移：物流轉移只改變該地點的庫存數量；current implementation 使用 `qtyByCity`，future target 使用 `qtyByLocation`。
 - 無價值變動：物流轉移絕對不改變全域均價，不產生現金流變化。
 
 ## 4. 👷 工人島產出原則 (Laborer Harvest)

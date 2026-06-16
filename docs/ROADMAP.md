@@ -8,7 +8,7 @@
 實際 current implementation 仍以 `src` 與 regression tests 為準。  
 若本文件與 `IMPLEMENTATION_GAP.md` 衝突，應先回到 `IMPLEMENTATION_GAP.md` 確認目前差異狀態。
 
-目前 stable regression baseline：39 tests / 39 pass / 0 fail / 0 TODO。
+目前 stable regression baseline 請以 `TEST_CASES.md` 的 Stable release baseline 為準。
 
 ---
 
