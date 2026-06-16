@@ -76,7 +76,7 @@ npm test
 ### 1.6 工人島手動管理與紀錄分頁
 
 - **目前行為：**
-  - 可手動新增滿日記本。
+  - 可手動新增滿日誌。
   - 可直接覆寫工人島庫存數量，UI 稱為「無痕校正」。
   - 工人收成紀錄以每頁 10 筆顯示。
 - **主要實作位置：** `src/components/laborer.js` 的 `submitAddFilledJournals()`、`submitEditLabor()`、`renderLaborerLogsTable()`。
@@ -270,7 +270,7 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 
 - 成品出售與工人島物資出售。
 - 現金餘額校正、注資與提領。
-- 工人島手動新增滿日記本與無痕庫存校正。
+- 工人島手動新增滿日誌與無痕庫存校正。
 - 自訂倉庫新增、更名與刪除生命週期。
 - Factory Reset。
 - JSON 備份匯入、匯出與舊備份相容。

@@ -310,3 +310,65 @@ test('adapter/migration red test: future transaction reader adapter tolerates mi
   assert.deepEqual(entries.map(entry => entry.displayType), ['買材料', '製作入庫', '賣成品', 'INVENTORY_ADJUSTMENT']);
   assert.deepEqual(entries.map(entry => entry.raw), transactions);
 });
+
+test('adapter/integration red test: ledger render display path accepts normalized transaction reader entries without mutating legacy transactions', { concurrency: false }, () => {
+  const transactions = [
+    {
+      date: '2026-06-17',
+      type: '買材料',
+      item: '布料',
+      quality: '6.1',
+      qty: 500,
+      total: 3000000,
+      unitPrice: 6000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-17',
+      type: '製作入庫',
+      item: 'TestProduct',
+      quality: '6.1',
+      qty: 4,
+      total: 20000,
+      unitPrice: 5000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-17',
+      type: '賣成品',
+      item: 'TestProduct',
+      quality: '6.1',
+      qty: 4,
+      total: 40000,
+      unitPrice: 10000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-17',
+      type: 'INVENTORY_ADJUSTMENT',
+      item: '布料',
+      quality: '6.1',
+      qty: -500,
+      total: -3000000,
+      unitPrice: 6000,
+      location: 'Thetford',
+      details: 'delete reversal sourceSignature=legacy-sample'
+    }
+  ];
+  const before = JSON.stringify(transactions);
+  const entries = transactions.map(transaction => readTransaction(transaction));
+
+  state.transactions = entries;
+  getElement('ledger-search').value = '';
+  getElement('ledger-tbody').rows = [];
+
+  Ledger.filterLedger();
+
+  assert.equal(JSON.stringify(transactions), before);
+  assert.equal(getElement('ledger-tbody').rows.length, 4);
+  const renderedText = getElement('ledger-tbody').rows.map(row => row.innerHTML).join('\n');
+  assert.match(renderedText, /買材料/);
+  assert.match(renderedText, /製作入庫/);
+  assert.match(renderedText, /賣成品/);
+  assert.match(renderedText, /INVENTORY_ADJUSTMENT/);
+});

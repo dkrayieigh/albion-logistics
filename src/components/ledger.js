@@ -6,6 +6,38 @@ export const LEDGER_ITEMS_PER_PAGE = 10;
 let filteredLedger = [];
 let aLedgerIdx = -1;
 
+function getLedgerType(t) {
+  return t?.type ?? t?.displayType ?? t?.action ?? t?.raw?.type ?? t?.raw?.action ?? 'UNKNOWN_TRANSACTION';
+}
+
+function getLedgerDate(t) {
+  return t?.date ?? t?.raw?.date ?? '';
+}
+
+function getLedgerItem(t) {
+  return t?.item ?? t?.itemRef ?? t?.target ?? t?.raw?.item ?? t?.raw?.target ?? '-';
+}
+
+function getLedgerQuality(t) {
+  return t?.quality ?? t?.raw?.quality ?? '-';
+}
+
+function getLedgerQty(t) {
+  return t?.qty ?? t?.quantity ?? t?.raw?.qty ?? 0;
+}
+
+function getLedgerTotal(t) {
+  return t?.total ?? t?.cashImpact ?? t?.raw?.total ?? t?.raw?.cashChange ?? 0;
+}
+
+function getLedgerUnitPrice(t) {
+  return t?.unitPrice ?? t?.raw?.unitPrice ?? 0;
+}
+
+function getLedgerLocation(t) {
+  return t?.location ?? t?.locationRef ?? t?.locationId ?? t?.raw?.location ?? t?.raw?.locationId ?? '-';
+}
+
 export function updateDashboardUI() {
   let mainInvValue = 0;
   for (let key in state.inventory) {
@@ -32,20 +64,20 @@ export function filterLedger(resetPage = true) {
   const qry = document.getElementById('ledger-search')?.value.toLowerCase() || '';
   filteredLedger = state.transactions.map((t, index) => ({...t, originalIndex: index})).filter(t => {
     if (!qry) return true;
-    return t.date.includes(qry) || t.type.toLowerCase().includes(qry) || t.item.toLowerCase().includes(qry);
+    return getLedgerDate(t).includes(qry) || getLedgerType(t).toLowerCase().includes(qry) || getLedgerItem(t).toLowerCase().includes(qry);
   });
   if (resetPage) currentLedgerPage = 1;
   renderLedgerTable();
 }
 
 function getPurchaseSourceSignature(t) {
-  return [t.date, t.type, t.item, t.quality, t.qty, t.total, t.unitPrice, t.location].join('|');
+  return [getLedgerDate(t), getLedgerType(t), getLedgerItem(t), getLedgerQuality(t), getLedgerQty(t), getLedgerTotal(t), getLedgerUnitPrice(t), getLedgerLocation(t)].join('|');
 }
 
 function isPurchaseReversed(t) {
-  if (t.type !== '買材料') return false;
+  if (getLedgerType(t) !== '買材料') return false;
   const sourceSignature = getPurchaseSourceSignature(t);
-  return state.transactions.some(transaction => transaction.type === 'INVENTORY_ADJUSTMENT' && transaction.details?.includes(`sourceSignature=${sourceSignature}`));
+  return state.transactions.some(transaction => getLedgerType(transaction) === 'INVENTORY_ADJUSTMENT' && (transaction.details ?? transaction.raw?.details)?.includes(`sourceSignature=${sourceSignature}`));
 }
 
 export function renderLedgerTable() {
@@ -59,11 +91,19 @@ export function renderLedgerTable() {
 
   pageItems.forEach(t => {
     const tr=document.createElement('tr');
-    const displayType = t.type === 'INVENTORY_ADJUSTMENT' ? '調整紀錄' : t.type;
-    const actionButton = t.type === '買材料' && !isPurchaseReversed(t)
+    const entryType = getLedgerType(t);
+    const entryDate = getLedgerDate(t);
+    const entryItem = getLedgerItem(t);
+    const entryQuality = getLedgerQuality(t);
+    const entryQty = getLedgerQty(t);
+    const entryTotal = getLedgerTotal(t);
+    const entryUnitPrice = getLedgerUnitPrice(t);
+    const displayType = entryType === 'INVENTORY_ADJUSTMENT' ? '調整紀錄' : entryType;
+    const isCashOut = ['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>entryType.includes(x));
+    const actionButton = entryType === '買材料' && !isPurchaseReversed(t)
       ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" data-action="delete-purchase-adjustment" data-id="${t.originalIndex}">刪除</button>`
       : '';
-    tr.innerHTML=`<td>${t.date}</td><td><span style="color:var(--accent-cyan); font-weight:bold;">${displayType}</span></td><td>${t.item} ${t.quality !== '-' ? '('+t.quality+')':''}</td><td>${t.qty}</td><td>${formatSilver(t.unitPrice)}</td><td style="font-weight:bold; color:${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'var(--accent-red)':'var(--accent-green)'};">${['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>t.type.includes(x))?'-':'+'}${formatSilver(t.total)}</td><td>${actionButton}</td>`;
+    tr.innerHTML=`<td>${entryDate}</td><td><span data-raw-type="${entryType}" style="color:var(--accent-cyan); font-weight:bold;">${displayType}</span></td><td>${entryItem} ${entryQuality !== '-' ? '('+entryQuality+')':''}</td><td>${entryQty}</td><td>${formatSilver(entryUnitPrice)}</td><td style="font-weight:bold; color:${isCashOut?'var(--accent-red)':'var(--accent-green)'};">${isCashOut?'-':'+'}${formatSilver(entryTotal)}</td><td>${actionButton}</td>`;
     tb.appendChild(tr);
   });
 }
