@@ -271,6 +271,68 @@ test('crafted item sale reduces inventory, increases cash, and writes a sale tra
     location: LOCATION
   });
   assert.equal(toasts.at(-1)?.type, 'success');
+  assert.match(toasts.at(-1)?.message || '', /40,000/);
+  assert.match(toasts.at(-1)?.message || '', /10,000/);
+  assert.match(toasts.at(-1)?.message || '', /20,000/);
+});
+
+test('crafted item sale reports unknown profit when cost basis is invalid', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(10),
+    globalAvgCost: null
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '4';
+  getElement('sell-crafted-total').value = '40000';
+  Inventory.submitSellCrafted();
+
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 6);
+  assert.equal(state.inventory[key].globalAvgCost, null);
+  assert.equal(state.assets.cash, 40000);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(toasts.at(-1)?.type, 'success');
+  assert.match(toasts.at(-1)?.message || '', /成本基準未知/);
+});
+
+test('crafted item sale closes modal and shows success when dashboard refresh fails', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  const originalUpdateDashboardUI = window.updateDashboardUI;
+  const originalWarn = console.warn;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(10),
+    globalAvgCost: 5000
+  };
+
+  try {
+    console.warn = () => {};
+    window.updateDashboardUI = () => {
+      throw new Error('refresh failed');
+    };
+    Inventory.openSellCraftedModal(item, quality, LOCATION);
+    getElement('sell-crafted-qty').value = '4';
+    getElement('sell-crafted-total').value = '40000';
+
+    Inventory.submitSellCrafted();
+  } finally {
+    window.updateDashboardUI = originalUpdateDashboardUI;
+    console.warn = originalWarn;
+  }
+
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 6);
+  assert.equal(state.inventory[key].globalAvgCost, 5000);
+  assert.equal(state.assets.cash, 40000);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(getElement('sell-crafted-modal').style.display, 'none');
+  assert.equal(toasts.at(-1)?.type, 'success');
+  assert.match(toasts.at(-1)?.message || '', /出售成功/);
 });
 
 test('crafted item sale is blocked when inventory is insufficient', { concurrency: false }, () => {

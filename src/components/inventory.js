@@ -276,6 +276,11 @@ export function submitSellCrafted() {
   
   const key = `${aSellItem}_${aSellQual}`;
   if (state.inventory[key].qtyByCity[aSellCity] < q) return window.showToast('庫存不足', 'error');
+  const avgCost = state.inventory[key].globalAvgCost;
+  const unitPrice = Math.round(p/q);
+  const profitText = typeof avgCost === 'number' && !Number.isNaN(avgCost)
+    ? `預估毛利: ${formatSilver(p - avgCost * q)}`
+    : '預估毛利: 成本基準未知';
   
   state.inventory[key].qtyByCity[aSellCity] -= q;
   state.assets.cash += p;
@@ -286,11 +291,16 @@ export function submitSellCrafted() {
     quality: aSellQual, 
     qty: q, 
     total: p, 
-    unitPrice: Math.round(p/q), 
+    unitPrice, 
     location: aSellCity 
   });
   
-  saveState(); window.updateDashboardUI(); closeSellCraftedModal(); window.showToast('出售成功', 'success');
+  saveState(); closeSellCraftedModal(); window.showToast(`出售成功：總價 ${formatSilver(p)}，單價 ${formatSilver(unitPrice)}，${profitText}`, 'success');
+  try {
+    window.updateDashboardUI();
+  } catch (err) {
+    console.warn('Dashboard refresh failed after crafted sale:', err);
+  }
 }
 export function initInventoryEvents() {
     // 成品出售 Modal 事件綁定
