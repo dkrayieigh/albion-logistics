@@ -79,6 +79,7 @@ npm test
   - 可手動新增滿日記本。
   - 可直接覆寫工人島庫存數量，UI 稱為「無痕校正」。
   - 工人收成紀錄以每頁 10 筆顯示。
+ **目前狀態：** `TEST-A07` 已從 TODO 轉為正式 regression test；材料數量充足但缺成本基準時，製作不得消耗材料、不得新增成品、不得扣 cash、不得新增 transaction，且 craftingQueue 必須保留。
 - **主要實作位置：** `src/components/laborer.js` 的 `submitAddFilledJournals()`、`submitEditLabor()`、`renderLaborerLogsTable()`。
 - **穩定版分類：** Known limitation。手動新增與「無痕校正」尚無正式稽核事件規格；分頁只影響顯示。
 - **測試狀態：** UI / manual only。
@@ -95,7 +96,7 @@ npm test
 - **主要實作位置：** `src/components/crafting.js` 的 `openItemSelector()`、`searchItems()`、`updateShoppingListTotal()`、佇列編輯函式與 `submitCraftAll()`。
 - **文件狀態：** 搜尋與分類已補 current implementation docs；購物清單、佇列 UI 編輯與部分製作仍屬 known limitation。
 - **風險：** Low；購物清單與正式成本結算的關係需視為 Medium。
-- **測試狀態：** Partially tested。製作結算的核心成本、材料消耗、成品 WAC 與材料不足阻擋已由 `tests/core-cost-regression.test.js` 保護；搜尋、分類、購物清單、佇列 UI 編輯與部分製作仍主要依賴手測。
+- **測試狀態：** Partially tested。製作結算的核心成本、材料消耗、成品 WAC、材料不足阻擋與材料缺成本基準阻擋已由 `tests/core-cost-regression.test.js` 保護；搜尋、分類、購物清單、佇列 UI 編輯與部分製作仍主要依賴手測。
 - **封版狀態：** 非阻斷。
 
 ### 1.8 搜尋、分頁、Factory Reset 與 Tauri 視窗控制

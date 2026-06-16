@@ -55,10 +55,7 @@
 - 製作後材料成本不變
 - 成品已有庫存時套用 WAC
 - 物流轉移不改成本
-
-目前仍有 TODO：
-
-- 製作材料 `globalAvgCost === null` 時必須阻擋製作
+- 製作材料 `globalAvgCost === null` 時阻擋製作
 
 ---
 

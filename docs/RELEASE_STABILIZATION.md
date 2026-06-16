@@ -21,12 +21,11 @@ npm.cmd test
 
 穩定版 baseline：
 
-- 37 tests
-- 36 pass
+- 39 tests
+- 39 pass
 - 0 fail
-- 1 TODO
+- 0 TODO
 
-目前 TODO：製作所需材料 `globalAvgCost === null` 時應阻擋製作。
 
 ## 已修復與已受保護項目
 
@@ -36,6 +35,7 @@ npm.cmd test
 - 備份：readable JSON、新格式匯入、legacy JSON-string backup、無效資料不得覆寫。
 - 自訂倉庫：非空倉庫不得刪除；空倉庫可刪除且不影響其他狀態。
 - 既有採購、物流、製作、工人匯入與採購 reversal 核心規則。
+- 製作成本基準防呆：材料數量充足但必要材料 `globalAvgCost === null` 時，製作會被阻擋，且不修改材料、成品、cash、transactions 或 craftingQueue。
 
 ## Known Limitations
 

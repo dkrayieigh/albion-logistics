@@ -149,12 +149,12 @@ npm test
 * ✅ 庫存變化：Thetford 數量變成 `50`。
 
 ---
-#### TEST-A07：TODO - 材料 globalAvgCost 為 null 時阻擋製作
-
-**Automation：TODO**
+#### TEST-A07：材料 globalAvgCost 為 null 時阻擋製作
+**Automation：Covered**
 - `tests/core-cost-regression.test.js`
-- 已列為 `test.todo('crafting blocks material consumption when a required globalAvgCost is null')`。
-- 目前尚未落地為可執行 assertion。
+- 已由 `tests/core-cost-regression.test.js` 正式覆蓋。
+- 覆蓋材料數量充足但必要材料 `globalAvgCost === null` 時，製作必須阻擋。
+- 驗證不得消耗材料、不得新增成品、不得扣 cash、不得新增 transaction，且 craftingQueue 必須保留。
 
 **📥 [前置狀態]**
 * 製作所需材料庫存數量充足。

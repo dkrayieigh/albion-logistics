@@ -99,8 +99,9 @@
 
 * `CRAFT_COMPLETE` 不得修改被消耗材料的 `globalAvgCost`。
 * `CRAFT_COMPLETE` 必須引用材料當下既有的 `globalAvgCost` 計算材料成本。
+* 若任一必要材料 `globalAvgCost === null`，即使材料數量充足，也必須阻擋製作。
+* 阻擋時不得消耗材料、不得新增成品、不得扣 cash、不得新增 transaction，且 craftingQueue 必須保留。
 * 成品的本次製造成本為：
-
 ```js
 mainMaterialCost
 + subMaterialCost
