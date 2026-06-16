@@ -870,4 +870,18 @@ test('legacy Chinese item key and qtyByCity remain usable for transport without 
   assert.equal(state.transactions[0].type, '買材料');
 });
 
-test.todo('adapter/migration precondition gap: missing item mapping must fail explicitly without silently producing the wrong Stable ID or itemKey');
+test('adapter/migration red test: future item identity adapter fails explicitly on missing legacy item mapping without mutating input', { concurrency: false }, () => {
+  const input = {
+    legacyItemKey: '未知材料_6.2',
+    mappingTable: {}
+  };
+  const before = JSON.stringify(input);
+
+  assert.equal(typeof resolveItemIdentity, 'function');
+  assert.throws(
+    () => resolveItemIdentity(input),
+    /mapping|Stable ID|item/i
+  );
+
+  assert.equal(JSON.stringify(input), before);
+});
