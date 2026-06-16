@@ -63,6 +63,26 @@ Current implementation：
 
 Future `SELL_ITEM` 應在 event migration track 中另行定義。
 
+## Cost Adjustment Boundary
+
+Current implementation 仍存在 legacy-compatible 成本校正行為。庫存校正 UI 可能建立 legacy `成本校正` transaction，並直接覆寫該品項的 `globalAvgCost`。
+
+這是 current legacy-compatible behavior，不代表 future canonical event model 已完成。
+
+Migration boundary：
+
+- Future event model 必須把「一般庫存數量調整」與「成本基準調整」分開定義。
+- 一般 `INVENTORY_ADJUSTMENT` 不應被假設為可以任意修改 `globalAvgCost`。
+- 未來若正式支援成本基準調整，需要獨立事件或明確欄位，例如 `COST_BASIS_ADJUSTMENT` 或等價 future event。
+- 不得把目前 legacy `成本校正` 行為直接等同於 future `INVENTORY_ADJUSTMENT` 規格。
+- Migration 前不得回溯重算歷史 `globalAvgCost`。
+- Migration 前不得刪除 legacy `成本校正` transaction fallback。
+- 任何成本基準調整規格都必須先有 regression tests，驗證：
+  - 不回溯重算歷史交易。
+  - 不破壞既有 `globalAvgCost`。
+  - ledger 顯示仍可讀取 legacy `成本校正`。
+  - backup import/export 保持相容。
+
 ## Ledger Reader Boundary
 
 Migration 前 ledger reader 必須支援 legacy transactions。
