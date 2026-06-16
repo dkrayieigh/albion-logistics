@@ -224,7 +224,7 @@ npm test
 | 製作後材料 `globalAvgCost` 不變 | current implementation | Tested | `tests/core-cost-regression.test.js` | 製作消耗只扣數量，不重算材料成本。 |
 | 成品已有庫存時套用 WAC | current implementation | Tested | `tests/core-cost-regression.test.js` | 新製成品與既有成品庫存合併計算 WAC。 |
 | 材料不足時阻擋製作 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證製作前預檢不可造成部分狀態變更。 |
-| 材料 `globalAvgCost === null` 時阻擋製作 | expected current safety rule | TODO | `tests/core-cost-regression.test.js` | 已列為 `test.todo`，尚未落地 assertion。 |
+| 材料 `globalAvgCost === null` 時阻擋製作 | current implementation | Tested | `tests/core-cost-regression.test.js` | `TEST-A07` 已落地，驗證阻擋後不修改材料、成品、cash、transactions 或 craftingQueue。 |
 | 物流轉移不改成本、不改 cash、不新增 ledger | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流只做物理庫存平移。 |
 | 來源庫存不足時阻擋物流轉移 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流轉移預檢不造成狀態變更。 |
 | legacy 中文 item key + `qtyByCity` 仍可用 | current compatibility behavior | Tested | `tests/core-cost-regression.test.js` | 保護目前舊資料相容，不代表 Stable ID 遷移完成。 |
