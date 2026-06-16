@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
 
 const elements = new Map();
 
