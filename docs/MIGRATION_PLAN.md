@@ -1,0 +1,160 @@
+# Albion Logistics ERP Migration Plan
+
+## 文件定位
+
+本文件定義下一階段 migration boundary。它不是執行 migration 的指令，也不要求立即修改 production code。
+
+目前 v0.4.2 應視為 legacy-compatible stable release：
+
+- current implementation 仍支援 legacy 中文 item key。
+- current implementation 仍支援 `qtyByCity`。
+- current implementation 仍使用 legacy transaction 欄位。
+- regression tests 保護目前穩定版資料安全與核心成本規則。
+
+## Non-Goals
+
+本階段不做：
+
+- 不做 `localStorage` schema migration。
+- 不移除 legacy fallback。
+- 不改成本規則。
+- 不改 WAC。
+- 不全域替換 `qtyByCity`。
+- 不全域替換 legacy 中文 item key。
+- 不全域改寫 transaction payload。
+- 不把 future spec 寫成 current implementation。
+
+## Global Migration Boundary
+
+在 adapter / tests / backup validation 前，不得直接改 storage key 或 transaction payload。
+
+所有 migration track 都必須遵守：
+
+- adapter first。
+- regression tests before write migration。
+- backup validation before storage mutation。
+- rollback plan before release.
+- at least one compatible release before removing legacy fallback.
+
+---
+
+## Track 1：Item ID Migration
+
+### Precondition
+
+- 建立 legacy 中文 key ↔ Stable ID mapping。
+- 明確定義 `itemLevel` 格式與來源。
+- 確認所有 material、crafted item、laborer item 都能被 mapping。
+
+### Adapter-First Rule
+
+- 先建立 item identity adapter。
+- Adapter 必須能讀取 legacy 中文 key 與 future Stable ID。
+- 新 code 應透過 adapter 取得 item identity，不直接拆解 `itemKey`。
+
+### Test Requirement
+
+- Legacy 中文 key 仍可讀。
+- Stable ID key 可透過 adapter 讀。
+- Mapping 缺失必須被阻擋或明確報錯。
+- Mapping 衝突不得靜默覆寫。
+- 遷移前後 inventory quantity、`globalAvgCost`、ledger display 必須一致。
+
+### Backup / Rollback Requirement
+
+- Migration 前必須匯出完整 backup。
+- Migration 後必須可比較 item count、quantity total、cash、transaction count。
+- 必須保留 legacy backup 可回復。
+
+### Release Boundary
+
+- 第一個 migration release 只能新增 adapter 與雙讀支援。
+- 不得在同一 release 移除 legacy 中文 key fallback。
+- Stable ID 不得宣告為 current implementation，直到 storage write path 與 backup migration 完成並受測。
+
+---
+
+## Track 2：Location Migration
+
+### Precondition
+
+- 定義 Location Registry。
+- 建立 legacy location name ↔ future locationId mapping。
+- 確認 system cities、自訂倉庫、LaborerIsland / laborer island 邊界。
+- 明確定義非空自訂倉庫刪除安全規則仍保留。
+
+### Adapter-First Rule
+
+- 先建立 location adapter。
+- Adapter 必須同時支援 legacy `qtyByCity` 與 future `qtyByLocation`。
+- 新 code 應透過 adapter 讀寫 location quantity，不直接替換 storage 欄位。
+
+### Test Requirement
+
+- Legacy `qtyByCity` inventory 可讀可轉移。
+- Future `qtyByLocation` sample 可讀。
+- 自訂倉庫更名與刪除安全限制不回歸。
+- 物流轉移不得改 cash、ledger 或 `globalAvgCost`。
+
+### Backup / Rollback Requirement
+
+- Migration 前必須保存含自訂倉庫與多城市庫存的 backup。
+- Migration 後必須驗證每個 location 的物理庫存數量一致。
+- 必須可回復 legacy `qtyByCity` backup。
+
+### Release Boundary
+
+- 第一個 location migration release 只能提供 adapter 與雙讀支援。
+- 不得直接刪除 `qtyByCity`。
+- 不得宣告 `qtyByLocation` 是 current implementation，直到 write path、backup 與 tests 完成。
+
+---
+
+## Track 3：Transaction / Event Migration
+
+### Precondition
+
+- 定義 canonical event payload。
+- 建立 legacy transaction ↔ canonical event mapping。
+- 明確區分 current legacy sale transactions 與 future `SELL_ITEM` event。
+- 確認 ledger reader、搜尋、reversal、backup import 都能處理 legacy transactions。
+
+### Adapter-First Rule
+
+- 先建立 ledger reader adapter。
+- Adapter 必須同時支援 legacy transaction 欄位與 future event payload。
+- Canonical event writer 必須集中，不得由 UI 任意寫入 storage。
+
+### Test Requirement
+
+- Legacy transactions 可顯示、搜尋、匯入。
+- 採購 reversal 仍保留原始交易並新增 adjustment。
+- 成品出售與工人島出售的 current behavior 不回歸。
+- 現金校正、注資、提領的 cash / debt / ledger 行為不回歸。
+- Future event samples 可被 reader adapter 正確顯示。
+
+### Backup / Rollback Requirement
+
+- Migration 前必須保存含大量 transactions 的 backup。
+- Migration 後必須驗證 transaction count、cash total、inventory impact 與 reversal 狀態。
+- 必須保留 legacy transaction backup 可回復。
+
+### Release Boundary
+
+- 第一個 event migration release 只能提供 reader adapter 與受控 writer boundary。
+- `SELL_ITEM` 不得宣告為 current implementation，直到 canonical event writer、reader、tests 與 backup migration 完成。
+- 不得在同一 release 移除 legacy transaction fallback。
+
+---
+
+## Final Removal Boundary
+
+Legacy fallback 只能在以下條件全部滿足後移除：
+
+- Adapter 已在至少一個 stable release 中運作。
+- Regression tests 覆蓋 legacy 與 future samples。
+- Backup migration 已受測。
+- Rollback path 已驗證。
+- Release notes 明確公告 breaking changes。
+
+未滿足以上條件前，所有 legacy storage key 與 transaction payload 都必須視為 supported current implementation。
