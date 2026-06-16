@@ -13,10 +13,11 @@ npm test
 ### Stable release baseline
 
 - 指令：`npm.cmd test`
-- 結果：**44 tests / 44 pass / 0 fail / 0 TODO**
+- 結果：**45 tests / 45 pass / 0 fail / 0 TODO**
 - 目前沒有 regression test TODO。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
 - 新增 covered scope: minimal read-only Transaction Reader Adapter mixed legacy/future transaction tolerance.
+- 新增 covered scope: minimal Ledger render/display compatibility with normalized transaction reader entries.
 - 新增 covered scope: minimal read-only Location Adapter legacy qtyByCity multi-location preservation.
 - 新增 covered scope: minimal read-only Item Identity Adapter missing legacy item mapping explicit failure.
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。

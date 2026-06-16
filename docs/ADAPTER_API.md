@@ -170,6 +170,10 @@ Minimal read-only implementation exists in `src/adapters/transactionReader.js`.
 
 This does not start migration, does not replace legacy transaction writers, and does not require Ledger UI to use this adapter yet. Canonical event payload remains future target.
 
+Ledger render/display path has minimal compatibility with normalized transaction reader entries.
+
+This is reader/display compatibility only. Ledger writers are unchanged, reversal / adjustment writer is unchanged, transaction payload remains legacy-compatible, and canonical event payload remains future target.
+
 **input**
 
 - legacy transaction，例如含 `type`、`item`、`quality`、`qty`、`total`、`unitPrice`、`location`。
@@ -213,6 +217,7 @@ This does not start migration, does not replace legacy transaction writers, and 
 - Canonical event payload 仍是 future target。
 - `SELL_ITEM` 仍不是 current implementation。
 - Minimal reader adapter 已存在，但不得宣告 ledger 已全面使用 adapter 或已完成 event payload migration。
+- Minimal Ledger render/display compatibility exists, but writer, reversal, adjustment and storage paths remain legacy-compatible.
 
 ### `normalizeLedgerEntry(input)`
 
