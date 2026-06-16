@@ -13,12 +13,13 @@ npm test
 ### Stable release baseline
 
 - 指令：`npm.cmd test`
-- 結果：**44 tests / 42 pass / 0 fail / 2 TODO**
-- 目前保留 2 個 regression test TODO 作為 migration 前置測試錨點。
+- 結果：**44 tests / 43 pass / 0 fail / 1 TODO**
+- 目前保留 1 個 regression test TODO 作為 migration 前置測試錨點。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
 - 新增 covered scope: minimal read-only Transaction Reader Adapter mixed legacy/future transaction tolerance.
+- 新增 covered scope: minimal read-only Location Adapter legacy qtyByCity multi-location preservation.
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
-- `ADAPTER_TEST_PLAN.md` 不屬於目前 41 tests baseline，不代表 adapter 或 migration 已開始。
+- `ADAPTER_TEST_PLAN.md` 不屬於目前 44 tests baseline，不代表 adapter 或 migration 已開始。
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。

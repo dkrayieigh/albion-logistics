@@ -85,7 +85,10 @@ Future adapter API draft。此 API 尚未存在。
 
 ### `normalizeLocationMap(input)`
 
-Future adapter API draft。此 API 尚未存在。
+Minimal read-only implementation exists in `src/adapters/locationAdapter.js`.
+
+This does not start migration, does not replace `qtyByCity`, and does not require backup import/export to use this adapter yet.
+Location Registry remains a future target. `qtyByLocation` remains a future target / sample support only.
 
 **input**
 
@@ -125,8 +128,8 @@ Future adapter API draft。此 API 尚未存在。
 **future implementation boundary**
 
 - `qtyByLocation` 與 Location Registry 仍是 future target。
-- Location adapter 尚未存在。
-- Migration 前後每個 location 物理數量一致，必須等 adapter / migration sample 建立後才可正式測試。
+- Minimal read-only location adapter exists, but no writer path or migration uses it yet.
+- D13 currently covers adapter normalization tolerance only; migration 前後每個 location 物理數量一致仍需等 migration sample 建立後才可正式測試。
 
 ### `resolveLocationQuantity(input)`
 

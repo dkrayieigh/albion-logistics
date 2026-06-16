@@ -166,6 +166,7 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 - **相容性影響：** 現有 `localStorage`、備份 JSON 與全部庫存讀寫均依賴 `qtyByCity`。
 - **直接修改風險：** High。若沒有 adapter 與 migration，舊資料會無法讀取或看似庫存歸零。
 - **測試狀態：** Partially tested。`tests/core-cost-regression.test.js` 已保護 legacy `qtyByCity` 在核心庫存、物流與成本流程中仍可用；這是相容性保護，不代表 `qtyByLocation` 遷移已完成。
+- **Adapter 狀態：** minimal read-only location adapter exists in `src/adapters/locationAdapter.js`。D13 已保護 legacy `qtyByCity` multi-location normalization tolerance；不代表 `qtyByLocation` migration、Location Registry migration 或 backup import/export migration 已完成。
 
 ### 2.2 Stable ID 與中文品名 key
 
@@ -230,6 +231,7 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 | 物流轉移不改成本、不改 cash、不新增 ledger | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流只做物理庫存平移。 |
 | 來源庫存不足時阻擋物流轉移 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流轉移預檢不造成狀態變更。 |
 | legacy 中文 item key + `qtyByCity` 仍可用 | current compatibility behavior | Tested | `tests/core-cost-regression.test.js` | 保護目前舊資料相容，不代表 Stable ID 遷移完成。 |
+| legacy `qtyByCity` multi-location normalization tolerance | minimal read-only location adapter exists | Tested | `tests/backup-regression.test.js` | `src/adapters/locationAdapter.js` 可保留 legacy 多地點數量且不 mutate input；不代表 `qtyByLocation` migration、Location Registry migration 或 backup import/export migration 已完成。 |
 | 採購刪除轉 adjustment | current implementation | Tested | `tests/ledger-data-safety.test.js` | 原始交易保留，新增調整交易。 |
 | 庫存不足時阻擋 purchase reversal | current implementation | Tested | `tests/ledger-data-safety.test.js` | 不新增 adjustment，不改狀態。 |
 | 同一筆採購不可 reversal 兩次 | current implementation | Tested | `tests/ledger-data-safety.test.js` | 包含 UI 重新渲染後不再顯示刪除入口。 |
