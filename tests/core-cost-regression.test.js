@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { resolveItemIdentity } from '../src/adapters/itemIdentity.js';
 
 const elements = new Map();
 
