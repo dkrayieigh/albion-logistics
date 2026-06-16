@@ -13,7 +13,7 @@ npm test
 ### Stable release baseline
 
 - 指令：`npm.cmd test`
-- 結果：**39 tests / 39 pass / 0 fail / 0 TODO**
+- 結果：**41 tests / 41 pass / 0 fail / 0 TODO**
 - 目前沒有 regression test TODO。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
 

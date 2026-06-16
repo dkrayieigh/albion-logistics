@@ -21,8 +21,8 @@ npm.cmd test
 
 穩定版 baseline：
 
-- 39 tests
-- 39 pass
+- 41 tests
+- 41 pass
 - 0 fail
 - 0 TODO
 
