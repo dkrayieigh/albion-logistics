@@ -2,6 +2,10 @@
 
 本文件定義成本、現金流、庫存、工人島產出與作業日誌的核心商業規則。
 
+> ⚠️ Current / future boundary：
+> 本文件同時包含 current implementation rules 與 future migration boundary。凡涉及 `qtyByLocation`、Stable ID、canonical event name 或新版 event payload 的內容，除非明確標註 current implementation，否則應視為 future target / migration boundary。
+> 不得因此改寫 legacy storage key、legacy transaction payload 或移除 legacy fallback。交易事件邊界請見 `TRANSACTION_EVENT_MODEL.md`，遷移順序請見 `MIGRATION_PLAN.md`。
+
 ## 0. 📖 領域名詞定義總則 (Domain Glossary)
 本系統的變數命名與邏輯必須嚴格遵守 Albion Online 的機制定義。
 

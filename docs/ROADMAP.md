@@ -8,6 +8,8 @@
 實際 current implementation 仍以 `src` 與 regression tests 為準。  
 若本文件與 `IMPLEMENTATION_GAP.md` 衝突，應先回到 `IMPLEMENTATION_GAP.md` 確認目前差異狀態。
 
+目前 stable regression baseline：39 tests / 39 pass / 0 fail / 0 TODO。
+
 ---
 
 ## Phase 0：現況保護與文件同步
@@ -33,15 +35,13 @@
   - 採購刪除轉 adjustment
   - 庫存不足時阻擋 reversal
   - 同一筆採購不可 reversal 兩次
-
-### 尚未完成
-
-- 製作材料 `globalAvgCost === null` 時阻擋消耗的 TODO test
-- 成品出售測試
-- 工人島物資出售測試
-- 備份匯入 / 匯出 schema 測試
-- 自訂倉庫更名 / 刪除測試
-- 現金校正 / 注資 / 提領測試
+- 覆蓋封版資料安全與出售流程：
+  - TEST-A07：材料 `globalAvgCost === null` 時阻擋製作
+  - 成品出售測試
+  - 工人島物資出售測試
+  - 備份匯入 / 匯出 regression test
+  - 自訂倉庫刪除測試
+  - 現金校正 / 注資 / 提領測試
 
 ---
 
@@ -78,15 +78,18 @@
 
 在開始重構前，補上會影響資料安全的 regression tests。
 
-### 優先順序
+### 已完成
 
-1. 材料 `globalAvgCost === null` 時阻擋製作
-2. 成品出售
-3. 工人島物資出售
-4. 備份匯入 / 匯出
-5. 自訂倉庫更名與刪除
-6. 現金校正
-7. Factory Reset
+- TEST-A07：材料 `globalAvgCost === null` 時阻擋製作。
+- 成品出售 regression test。
+- 工人島物資出售 regression test。
+- 備份匯入 / 匯出 regression test。
+- 自訂倉庫刪除 regression test。
+- 現金校正 / 注資 / 提領 regression test。
+
+### 仍待補強
+
+- Factory Reset regression test。
 
 ---
 
@@ -108,6 +111,7 @@
 - 不直接破壞舊資料。
 - 不一次性全域取代欄位。
 - 先讀取相容，再考慮寫入遷移。
+- 詳細 migration boundary 請見 `MIGRATION_PLAN.md`。
 
 ---
 
@@ -159,6 +163,7 @@
   - transaction 數量一致
   - `globalAvgCost` 一致
 - 必須保留備份與復原方式。
+- 詳細 migration track 與 release boundary 請見 `MIGRATION_PLAN.md`。
 
 ---
 

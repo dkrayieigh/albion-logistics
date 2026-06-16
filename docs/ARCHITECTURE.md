@@ -4,6 +4,12 @@
 用於管理 Albion Online 的製造批次、物流庫存、工人島產出與財務流水帳紀錄。
 **開發原則：** 嚴格遵守模組關注點分離（Separation of Concerns），各模組僅處理自身業務，禁止跨界修改。
 
+## 📌 Migration Boundary 文件
+
+- `ITEM_ID_MODEL.md`：Item ID / Stable ID migration boundary。
+- `TRANSACTION_EVENT_MODEL.md`：legacy transaction 與 future canonical event payload boundary。
+- `MIGRATION_PLAN.md`：Item ID、Location、Transaction/Event migration track 與 release boundary。
+
 ---
 
 ## 📦 核心模組職責邊界

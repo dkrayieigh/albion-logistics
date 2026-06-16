@@ -1,5 +1,9 @@
 # Albion Logistics ERP 事件目錄 (Event Catalog)
 
+> ⚠️ 本文件描述 future canonical event catalog / migration target。
+> Current implementation 仍可能寫入 legacy transaction，例如 `買材料`、`製作入庫`、`賣成品`、`工人島出售`。
+> 不得將 canonical payload 解讀為 current implementation；交易相容邊界請見 `TRANSACTION_EVENT_MODEL.md`。
+
 ## 🟢 Level 1：內部事件 (Internal Events)
 **權限約束：** 僅限於單一 UI 模組內部運作，**絕對禁止**修改 `Inventory` (總庫存)、`Cash` (現金) 與 `Operation Log` (作業日誌)。也不允許觸發均價重算。
 
@@ -155,6 +159,9 @@
 
 #### 事件名稱：`INVENTORY_ADJUSTMENT` (庫存盤點校正 / 歷史紀錄調整)
 **業務目的：** 透過新增一筆調整紀錄修正錯誤庫存、現金或作業日誌差異，保持資料流向單向且不可撤銷。
+
+> Cost adjustment boundary：一般 `INVENTORY_ADJUSTMENT` 不應被假設為可以任意修改 `globalAvgCost`。成本基準校正需參考 `TRANSACTION_EVENT_MODEL.md` 的 Cost Adjustment Boundary。
+
 **適用範圍**
 * 修正採購入庫、製作入庫、工人島匯入、城市庫存轉移等事件造成的錯誤。
 * UI 上的「刪除歷史紀錄」不得物理刪除原始紀錄，必須轉換為新增 `INVENTORY_ADJUSTMENT`。
@@ -192,3 +199,9 @@
    * 若未來需要校正成本基準，必須在文件中另行定義明確的成本校正事件，不得混入一般庫存調整。
 
 若目前交易紀錄尚未具備唯一 ID，`sourceTransactionId` 可暫以原始紀錄索引或快照資訊表示；是否導入正式 transaction id，待程式碼審查後決定。
+
+#### 事件名稱：`SELL_ITEM` (成品出售) — Future Target
+
+`SELL_ITEM` 不是 current implementation。目前成品出售是 legacy-compatible behavior，會寫入 legacy `賣成品` transaction；工人島物資出售會寫入 legacy `工人島出售` transaction。
+
+正式 `SELL_ITEM` payload、reader adapter 與 backup migration 尚未完成，邊界請見 `TRANSACTION_EVENT_MODEL.md`。

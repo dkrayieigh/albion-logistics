@@ -2,6 +2,10 @@
 **設計守則：**
 本文件定義了「實體庫存地點」、「地區加成屬性」與「動態製作變數」的三層分離架構。**絕對禁止**在 `Inventory` 或 `Location Registry` 中直接儲存 RRR（返還率）數值。所有 RRR 必須在 `CRAFT_COMPLETE` 事件發生時，透過 Local Production Bonus (LPB) 公式動態運算。
 
+> ⚠️ Migration boundary：Location ID、`qtyByLocation` 與 Location Registry 是 future target / migration target。
+> Current implementation 仍使用 legacy `qtyByCity` 與 custom location name key；`customLocations` 尚未全面遷移為 registry object。
+> 不得將本文件解讀為 `qtyByLocation` 已取代 `qtyByCity`。遷移順序請見 `MIGRATION_PLAN.md`。
+
 ## Current Implementation Note
 
 目前自訂倉庫仍以顯示名稱字串作為 legacy key。
@@ -12,7 +16,7 @@
 
 此修復不代表 Location ID migration 已完成。
 
-## 🟢 第一層：庫存儲存鍵值 (Location ID)
+## 🟢 第一層：庫存儲存鍵值 (Location ID) — Future Target
 庫存系統 (`state.inventory.qtyByLocation`) 僅記錄物品的實體存放點。
 所有事件 payload 與 state 寫入必須使用 Location ID，不得使用 UI 顯示名稱。
 
@@ -41,7 +45,7 @@
 - **合法範例：** `thetford`, `fort_sterling`, `bridgewatch`, `martlock`, `lymhurst`, `hideout_001`, `laborer_island`。
 - **⛔ 絕對禁止：** 使用顯示名稱（如 `"紫城"`, `"公會T8地堡"`）或夾帶加成屬性作為 Key。
 
-## 🟡 第二層：地點實體註冊表 (Location Registry)
+## 🟡 第二層：地點實體註冊表 (Location Registry) — Future Target
 記錄地點的「靜態物理屬性」。皇家城市固定不可變；自訂地堡記錄於 `state.customLocations`。
 
 **資料模型 (`state.customLocations[i]`)：**

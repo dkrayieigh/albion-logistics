@@ -92,7 +92,7 @@ npm test
   - 製作佇列可編輯數量、刪除項目、全選或個別勾選。
   - 購物清單會彙總勾選項目的材料、神器、鍊金材料與預估現金支出。
   - 執行製作時只處理已勾選項目。
-- **目前狀態：** `TEST-A07` 已從 TODO 轉為正式 regression test；材料數量充足但缺成本基準時，製作不得消耗材料、不得新增成品、不得扣 cash、不得新增 transaction，且 craftingQueue 必須保留。
+- **目前狀態：** `TEST-A07` 已轉為正式 regression test；材料數量充足但缺成本基準時，製作不得消耗材料、不得新增成品、不得扣 cash、不得新增 transaction，且 craftingQueue 必須保留。
 - **主要實作位置：** `src/components/crafting.js` 的 `openItemSelector()`、`searchItems()`、`updateShoppingListTotal()`、佇列編輯函式與 `submitCraftAll()`。
 - **文件狀態：** 搜尋與分類已補 current implementation docs；購物清單、佇列 UI 編輯與部分製作仍屬 known limitation。
 - **風險：** Low；購物清單與正式成本結算的關係需視為 Medium。
@@ -157,6 +157,8 @@ npm test
 
 以下項目不是單純缺少文件，而是目前規格與實作對相同資料或行為有不同定義。直接修改可能破壞既有存檔、交易紀錄或成本結果。
 
+Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.md`、`MIGRATION_PLAN.md`。
+
 ### 2.1 `qtyByLocation` 與 `qtyByCity`
 
 - **docs 規格：** `docs/DATA_MODEL.md` 與事件文件統一使用 `qtyByLocation`，Key 必須為 Location ID。
@@ -175,7 +177,7 @@ npm test
 
 ### 2.3 新版 event payload 與舊版 transaction 格式
 
-- **docs 規格：** 交易紀錄使用 `action`、`target`、`cashChange`、`assetValue`、`locationId`、`details` 等欄位，並把舊格式標為 Deprecated Draft。
+- **docs 規格：** 交易紀錄 target model 使用 `action`、`target`、`cashChange`、`assetValue`、`locationId`、`details` 等欄位；舊格式已改列為 current legacy transaction compatibility。
 - **src 現況：** 大部分新交易仍寫入 `type`、`item`、`quality`、`qty`、`total`、`unitPrice`、`location`。
 - **相容性影響：** Ledger 顯示、搜尋、採購撤銷、備份及測試依賴舊欄位。
 - **直接修改風險：** High。需要統一事件寫入點、讀取 adapter 與雙格式測試。
@@ -187,7 +189,7 @@ npm test
 - **src 現況：** 庫存渲染與校正等流程使用 `key.split('_')` 或類似方式取得物品名稱與階級。
 - **相容性影響：** 含底線的 Stable ID 或物品名稱可能被錯誤拆解；現有中文 Key 則暫時依賴此行為。
 - **直接修改風險：** High。必須先讓資料模型與呼叫介面能明確提供物品識別資料。
-- **測試狀態：** TODO / Untested。未來禁止拆解 `itemKey` 的規格尚未有可執行 regression test；目前不得將此項寫成 current implementation。
+- **測試狀態：** Untested / future boundary。未來禁止拆解 `itemKey` 的規格尚未有可執行 regression test；目前不得將此項寫成 current implementation。
 
 ### 2.5 一般庫存調整不得修改 globalAvgCost 與 UI 允許直接修改成本
 
