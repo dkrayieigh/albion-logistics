@@ -33,7 +33,7 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 |---|---|---|---|---|
 | legacy 中文 item key + `qtyByCity` 在核心流程仍可用 | Covered | High | 維持現有 regression test。 | 保護 current legacy-compatible implementation。 |
 | legacy 中文 key 特殊字元 / 底線不得被錯誤拆解 | Docs-only | High | 先保留為文件風險，待 adapter 設計前再拆成測試案例。 | 目前不得把禁止拆解 `itemKey` 寫成 current implementation。 |
-| mapping 缺失必須明確報錯 | Next test.todo | High | 下一階段可新增 `test.todo`，但本任務不新增。 | 需等 mapping 規格確認後再落地。 |
+| mapping 缺失必須明確報錯 | Covered | High | Covered by `tests/core-cost-regression.test.js` via read-only item identity adapter. | This covers missing mapping failure only; it does not migrate storage keys, item writers, or Stable ID catalog. |
 | mapping 衝突不得靜默覆寫 | Next test.todo | High | 下一階段可新增 `test.todo`，但本任務不新增。 | 需先定義衝突處理規則。 |
 | item identity adapter 雙讀 legacy 中文 key / Stable ID | Adapter-only | High | 等 item identity adapter module 建立後再寫正式 test。 | Adapter 尚未建立。 |
 | adapter 取得 `stableId` / `itemLevel`，不直接拆 `itemKey` | Adapter-only | High | 等 adapter API 定義後再寫正式 test。 | 屬 future adapter behavior。 |

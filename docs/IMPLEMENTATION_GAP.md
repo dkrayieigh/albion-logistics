@@ -231,6 +231,7 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 | 物流轉移不改成本、不改 cash、不新增 ledger | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流只做物理庫存平移。 |
 | 來源庫存不足時阻擋物流轉移 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流轉移預檢不造成狀態變更。 |
 | legacy 中文 item key + `qtyByCity` 仍可用 | current compatibility behavior | Tested | `tests/core-cost-regression.test.js` | 保護目前舊資料相容，不代表 Stable ID 遷移完成。 |
+| missing legacy item mapping explicit failure | minimal read-only item identity adapter exists | Tested | `tests/core-cost-regression.test.js` | `src/adapters/itemIdentity.js` 可在缺少 mapping 時明確失敗且不 mutate input；不代表 Stable ID migration、Stable ID catalog、storage key migration 或 legacy item key replacement 已完成。 |
 | legacy `qtyByCity` multi-location normalization tolerance | minimal read-only location adapter exists | Tested | `tests/backup-regression.test.js` | `src/adapters/locationAdapter.js` 可保留 legacy 多地點數量且不 mutate input；不代表 `qtyByLocation` migration、Location Registry migration 或 backup import/export migration 已完成。 |
 | 採購刪除轉 adjustment | current implementation | Tested | `tests/ledger-data-safety.test.js` | 原始交易保留，新增調整交易。 |
 | 庫存不足時阻擋 purchase reversal | current implementation | Tested | `tests/ledger-data-safety.test.js` | 不新增 adjustment，不改狀態。 |
