@@ -16,6 +16,8 @@ npm test
 - 結果：**41 tests / 41 pass / 0 fail / 0 TODO**
 - 目前沒有 regression test TODO。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
+- Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
+- `ADAPTER_TEST_PLAN.md` 不屬於目前 41 tests baseline，不代表 adapter 或 migration 已開始。
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。

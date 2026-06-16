@@ -36,6 +36,8 @@
 - rollback plan before release.
 - at least one compatible release before removing legacy fallback.
 
+Adapter 前置測試矩陣見 `ADAPTER_TEST_PLAN.md`。任何 migration track 開始前，必須先確認對應 compatibility tests 已完成，或已明確標註為 Adapter-only。這不代表 migration 已開始。
+
 ---
 
 ## Track 1：Item ID Migration
