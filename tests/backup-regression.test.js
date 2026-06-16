@@ -282,4 +282,21 @@ test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { c
   }
 });
 
-test.todo('adapter/migration precondition gap: importing a legacy qtyByCity multi-location backup must preserve every location quantity');
+test('adapter/migration red test: future location adapter preserves every legacy qtyByCity location quantity without mutating input', { concurrency: false }, () => {
+  const qtyByCity = {
+    Thetford: 100,
+    Martlock: 25,
+    '公會T8地堡': 7
+  };
+  const before = JSON.stringify(qtyByCity);
+
+  const normalized = normalizeLocationMap(qtyByCity);
+
+  assert.equal(JSON.stringify(qtyByCity), before);
+  assert.equal(normalized.sourceFormat, 'qtyByCity');
+  assert.deepEqual(normalized.quantities, qtyByCity);
+  assert.equal(normalized.quantities.Thetford, 100);
+  assert.equal(normalized.quantities.Martlock, 25);
+  assert.equal(normalized.quantities['公會T8地堡'], 7);
+  assert.deepEqual(normalized.unresolvedLocations, []);
+});
