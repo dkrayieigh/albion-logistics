@@ -60,7 +60,7 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 | 成品出售 current legacy transaction 行為 | Covered | High | 維持現有 regression test。 | Current behavior 使用 legacy `賣成品` transaction。 |
 | 工人島物資出售 current legacy transaction 行為 | Covered | High | 維持現有 regression test。 | Current behavior 使用 legacy `工人島出售` transaction。 |
 | legacy 中文 transaction 顯示 / 搜尋 | Next test.todo | High | 下一階段可新增 `test.todo`，但本任務不新增。 | 目前仍依賴 legacy transaction 欄位相容。 |
-| mixed type + `INVENTORY_ADJUSTMENT` ledger 不崩潰 | Next test.todo | High | 下一階段可新增 `test.todo`，但本任務不新增。 | 保護中文 type 與英文 adjustment 混用狀態。 |
+| mixed type + `INVENTORY_ADJUSTMENT` ledger 不崩潰 | Covered | High | Covered by `tests/ledger-data-safety.test.js` via read-only transaction reader adapter. | This covers adapter reader tolerance only; it does not migrate ledger writers or canonical event payload. |
 | reader adapter 雙讀 legacy transaction / canonical event | Adapter-only | High | 等 ledger reader adapter 建立後再寫正式 test。 | Adapter 尚未建立。 |
 | future event sample 可被 reader adapter 正確顯示 | Adapter-only | High | 等 reader adapter API 與 sample event fixture 定義後再寫正式 test。 | 屬 future reader adapter behavior。 |
 | `SELL_ITEM` 不得宣告為 current implementation | Docs-only | Medium | 持續以文件邊界與 release note 標註。 | 目前出售是 legacy-compatible behavior。 |

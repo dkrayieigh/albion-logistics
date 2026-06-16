@@ -239,6 +239,7 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 | 成品出售 | current implementation / legacy transaction | Tested | `tests/core-cost-regression.test.js` | 正式 `SELL_ITEM` event model 尚未完成。 |
 | 工人島物資出售 | current implementation / legacy transaction | Tested | `tests/core-cost-regression.test.js` | 正式出售事件規格尚未完成。 |
 | 現金餘額校正 / 注資 / 提領 | current implementation / partial UI binding unknown | Tested | `tests/ledger-data-safety.test.js` | `adjustWallet()` UI 入口仍需確認。 |
+| mixed legacy Chinese type + `INVENTORY_ADJUSTMENT` reader tolerance | minimal read-only adapter | Tested | `tests/ledger-data-safety.test.js` | `src/adapters/transactionReader.js` 可讀取混合 legacy / adjustment transactions 且不 mutate input；不代表 ledger writers 或 canonical event payload 已遷移。 |
 | Stable ID / `qtyByLocation` / 新版 event payload 遷移 | future spec | Untested | 無 | 不可寫成 current implementation。 |
 
 Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLocation` / canonical event payload 仍是 future spec，不得寫成 current implementation。

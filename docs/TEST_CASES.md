@@ -13,9 +13,10 @@ npm test
 ### Stable release baseline
 
 - 指令：`npm.cmd test`
-- 結果：**41 tests / 41 pass / 0 fail / 0 TODO**
-- 目前沒有 regression test TODO。
+- 結果：**44 tests / 42 pass / 0 fail / 2 TODO**
+- 目前保留 2 個 regression test TODO 作為 migration 前置測試錨點。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
+- 新增 covered scope: minimal read-only Transaction Reader Adapter mixed legacy/future transaction tolerance.
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
 - `ADAPTER_TEST_PLAN.md` 不屬於目前 41 tests baseline，不代表 adapter 或 migration 已開始。
 
