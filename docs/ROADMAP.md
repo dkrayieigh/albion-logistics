@@ -112,6 +112,7 @@
 - 不一次性全域取代欄位。
 - 先讀取相容，再考慮寫入遷移。
 - 詳細 migration boundary 請見 `MIGRATION_PLAN.md`。
+- Adapter API draft is tracked in `ADAPTER_API.md`.
 
 ---
 

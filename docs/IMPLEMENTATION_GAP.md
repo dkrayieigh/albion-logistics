@@ -157,7 +157,7 @@ npm test
 
 以下項目不是單純缺少文件，而是目前規格與實作對相同資料或行為有不同定義。直接修改可能破壞既有存檔、交易紀錄或成本結果。
 
-Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.md`、`MIGRATION_PLAN.md`。
+Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.md`、`MIGRATION_PLAN.md`、`ADAPTER_API.md`。
 
 ### 2.1 `qtyByLocation` 與 `qtyByCity`
 

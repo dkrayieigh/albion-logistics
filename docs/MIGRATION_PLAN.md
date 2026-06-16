@@ -38,6 +38,8 @@
 
 Adapter 前置測試矩陣見 `ADAPTER_TEST_PLAN.md`。任何 migration track 開始前，必須先確認對應 compatibility tests 已完成，或已明確標註為 Adapter-only。這不代表 migration 已開始。
 
+Adapter API draft: `ADAPTER_API.md`。該文件是 future API draft，不代表 migration 已開始，也不代表 adapter 已是 current implementation。
+
 ---
 
 ## Track 1：Item ID Migration

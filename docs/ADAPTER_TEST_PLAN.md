@@ -10,6 +10,8 @@ Stable ID、`qtyByLocation` 與 canonical event payload 仍是 future target / m
 
 本文件只作為未來 adapter / migration 前的測試規劃；本階段不新增正式 test，也不新增 `test.todo`。
 
+Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are planning anchors only and do not imply adapter implementation exists.
+
 ## Current Stable Baseline
 
 - 41 tests / 41 pass / 0 fail / 0 TODO。
