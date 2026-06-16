@@ -255,4 +255,57 @@ test('wallet adjustment with zero amount is blocked without state changes', { co
   assert.equal(toasts.at(-1)?.type, 'error');
 });
 
-test.todo('adapter/migration precondition gap: ledger reader must tolerate mixed legacy Chinese type values and INVENTORY_ADJUSTMENT without crashing');
+test('adapter/migration red test: future transaction reader adapter tolerates mixed legacy Chinese types and INVENTORY_ADJUSTMENT without mutating input', { concurrency: false }, () => {
+  const transactions = [
+    {
+      date: '2026-06-16',
+      type: '買材料',
+      item: '布料',
+      quality: '6.1',
+      qty: 500,
+      total: 3000000,
+      unitPrice: 6000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-16',
+      type: '製作入庫',
+      item: 'TestProduct',
+      quality: '6.1',
+      qty: 4,
+      total: 20000,
+      unitPrice: 5000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-16',
+      type: '賣成品',
+      item: 'TestProduct',
+      quality: '6.1',
+      qty: 4,
+      total: 40000,
+      unitPrice: 10000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-16',
+      type: 'INVENTORY_ADJUSTMENT',
+      item: '布料',
+      quality: '6.1',
+      qty: -500,
+      total: -3000000,
+      unitPrice: 6000,
+      location: 'Thetford',
+      details: 'delete reversal sourceSignature=legacy-sample'
+    }
+  ];
+  const before = JSON.stringify(transactions);
+
+  const entries = transactions.map(transaction => readTransaction(transaction));
+
+  assert.equal(JSON.stringify(transactions), before);
+  assert.equal(entries.length, transactions.length);
+  assert.deepEqual(entries.map(entry => entry.sourceFormat), ['legacy', 'legacy', 'legacy', 'legacy']);
+  assert.deepEqual(entries.map(entry => entry.displayType), ['買材料', '製作入庫', '賣成品', 'INVENTORY_ADJUSTMENT']);
+  assert.deepEqual(entries.map(entry => entry.raw), transactions);
+});
