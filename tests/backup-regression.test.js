@@ -281,3 +281,5 @@ test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { c
     });
   }
 });
+
+test.todo('adapter/migration precondition gap: importing a legacy qtyByCity multi-location backup must preserve every location quantity');

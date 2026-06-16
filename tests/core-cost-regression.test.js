@@ -869,3 +869,5 @@ test('legacy Chinese item key and qtyByCity remain usable for transport without 
   assert.equal(state.transactions.length, 1);
   assert.equal(state.transactions[0].type, '買材料');
 });
+
+test.todo('adapter/migration precondition gap: missing item mapping must fail explicitly without silently producing the wrong Stable ID or itemKey');

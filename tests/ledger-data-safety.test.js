@@ -254,3 +254,5 @@ test('wallet adjustment with zero amount is blocked without state changes', { co
   assert.equal(JSON.stringify(state), before);
   assert.equal(toasts.at(-1)?.type, 'error');
 });
+
+test.todo('adapter/migration precondition gap: ledger reader must tolerate mixed legacy Chinese type values and INVENTORY_ADJUSTMENT without crashing');
