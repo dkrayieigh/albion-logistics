@@ -445,6 +445,39 @@ test('laborer stock sale is blocked when quantity is zero', { concurrency: false
   assert.equal(toasts.at(-1)?.type, 'error');
 });
 
+test('laborer render table displays journal terminology while preserving legacy journal action key without mutating state', { concurrency: false }, () => {
+  resetState();
+  state.laborerInventory = {
+    '滿日記本': {
+      '6.0': 3,
+      '7.0': 2,
+      '8.0': 1
+    },
+    '布料': {
+      '6.1': 25
+    }
+  };
+  getElement('labor-tbody').rows = [];
+  getElement('labor-journal-tbody').rows = [];
+  const before = JSON.stringify(state.laborerInventory);
+
+  Laborer.renderLaborerTable();
+
+  assert.equal(JSON.stringify(state.laborerInventory), before);
+  const renderedJournalText = getElement('labor-journal-tbody').rows
+    .map(row => row.innerHTML)
+    .join('\n');
+
+  assert.match(renderedJournalText, /T6 日誌/);
+  assert.match(renderedJournalText, /T7 日誌/);
+  assert.match(renderedJournalText, /T8 日誌/);
+  assert.doesNotMatch(renderedJournalText, /T6 日記本/);
+  assert.doesNotMatch(renderedJournalText, /T7 日記本/);
+  assert.doesNotMatch(renderedJournalText, /T8 日記本/);
+  assert.match(renderedJournalText, /data-item="滿日記本"/);
+  assert.doesNotMatch(renderedJournalText, /data-item="滿日誌"/);
+});
+
 test('laborer import with null cost basis is blocked before any state change', { concurrency: false }, () => {
   resetState();
   const item = 'TestMaterial';
