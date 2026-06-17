@@ -6,6 +6,12 @@ let currentLaborAddQual = '8.0';
 export let currentLaborLogsPage = 1; 
 export const LABOR_ITEMS_PER_PAGE = 10; 
 let filteredLaborLogs = [];
+let currentEditLaborItem = '';
+let currentEditLaborQual = '';
+
+function getLaborerDisplayItem(item) {
+  return item === '滿日記本' ? '滿日誌' : item;
+}
 
 export function addLaborItemRow() {
   const list = document.getElementById('labor-dynamic-list'); const rId = 'lr-'+Date.now();
@@ -25,7 +31,7 @@ export function renderLaborerTable() {
     if(qty > 0) {
       const bc = `quality-badge quality-${parseInt(q.split('.')[0])||4}`;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td><span class="${bc}">T${q.split('.')[0]} 日記本</span></td><td style="font-weight:600; color:var(--accent-cyan); font-size:1.1rem;">${qty}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" data-action="edit-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">✏️ 編輯</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" data-action="sell-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">套現</button></td>`;
+      tr.innerHTML = `<td><span class="${bc}">T${q.split('.')[0]} 日誌</span></td><td style="font-weight:600; color:var(--accent-cyan); font-size:1.1rem;">${qty}</td><td><button class="btn btn-warning" style="padding:4px 8px; font-size:0.75rem;" data-action="edit-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">✏️ 編輯</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" data-action="sell-labor" data-item="滿日記本" data-q="${q}" data-qty="${qty}">套現</button></td>`;
       tbj.appendChild(tr);
     }
   });
@@ -56,7 +62,7 @@ export function submitLaborHarvest() {
   
   const curJ = state.laborerInventory['滿日記本']?.[hq] || 0;
   if (curJ < f) {
-    if(!confirm(`警告：滿日記本 (${hq}) 庫存不足 (僅剩 ${curJ})！\n這將導致庫存變成負數，確定要繼續收成嗎？`)) return;
+    if(!confirm(`警告：滿日誌 (${hq}) 庫存不足 (僅剩 ${curJ})！\n這將導致庫存變成負數，確定要繼續收成嗎？`)) return;
   }
   
   if(!state.laborerInventory['滿日記本']) state.laborerInventory['滿日記本'] = {};
@@ -68,7 +74,7 @@ export function submitLaborHarvest() {
     if(qt>0) { if(!state.laborerInventory[tp])state.laborerInventory[tp]={}; state.laborerInventory[tp][ql]=(state.laborerInventory[tp][ql]||0)+qt; ls.push(`${tp}(${ql})x${qt}`); }
   }
   state.laborerLogs.unshift({ date: new Date().toISOString().split('T')[0], filled: f, details: ls.join(', ')||'無資源產出' });
-  saveState(); window.showToast('收成成功並已扣除滿日記本庫存','success');
+  saveState(); window.showToast('收成成功並已扣除滿日誌庫存','success');
 }
 
 export function submitAddFilledJournals() {
@@ -76,7 +82,7 @@ export function submitAddFilledJournals() {
   if(qty<=0) return window.showToast('數量錯誤','error');
   if(!state.laborerInventory['滿日記本']) state.laborerInventory['滿日記本'] = {};
   state.laborerInventory['滿日記本'][q] = (state.laborerInventory['滿日記本'][q]||0) + qty;
-  saveState(); window.showToast('滿日記本入庫成功', 'success');
+  saveState(); window.showToast('滿日誌入庫成功', 'success');
 }
 
 export function filterLaborLogs() {
@@ -124,7 +130,9 @@ export function updateLaborQualityPills() {
 }
 
 export function openEditLaborModal(item, qual, qty) {
-  document.getElementById('edit-labor-name').innerText = `${item} (${qual})`;
+  currentEditLaborItem = item;
+  currentEditLaborQual = qual;
+  document.getElementById('edit-labor-name').innerText = `${getLaborerDisplayItem(item)} (${qual})`;
   document.getElementById('edit-labor-qty').value = qty;
   document.getElementById('edit-labor-modal').style.display='block';
 }
@@ -135,7 +143,7 @@ export function submitEditLabor() {
   const txt = document.getElementById('edit-labor-name').innerText;
   const match = txt.match(/(.+) \((.+)\)/);
   if(!match) return;
-  const item = match[1]; const qual = match[2];
+  const item = currentEditLaborItem || match[1]; const qual = currentEditLaborQual || match[2];
   if(!state.laborerInventory[item]) state.laborerInventory[item] = {};
   state.laborerInventory[item][qual] = q;
   saveState(); closeEditLaborModal(); window.showToast('工人島庫存已無痕校正', 'success');
