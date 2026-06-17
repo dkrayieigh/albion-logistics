@@ -372,3 +372,43 @@ test('adapter/integration red test: ledger render display path accepts normalize
   assert.match(renderedText, /賣成品/);
   assert.match(renderedText, /INVENTORY_ADJUSTMENT/);
 });
+
+test('transaction reader boundary: ledger display renders normalized current legacy type 賣成品 crafted sale without mutating payload', { concurrency: false }, () => {
+  const transaction = {
+    date: '2026-06-17',
+    type: '賣成品',
+    item: 'TestProduct',
+    quality: '6.1',
+    qty: 3,
+    total: 90000,
+    unitPrice: 30000,
+    location: 'Thetford'
+  };
+  const before = JSON.stringify(transaction);
+  const entry = readTransaction(transaction);
+
+  assert.equal(entry.sourceFormat, 'legacy');
+  assert.equal(entry.displayType, '賣成品');
+  assert.equal(entry.itemRef, 'TestProduct');
+  assert.equal(entry.quantity, 3);
+  assert.equal(entry.cashImpact, 90000);
+  assert.equal(entry.locationRef, 'Thetford');
+
+  state.transactions = [entry];
+  getElement('ledger-search').value = '';
+  getElement('ledger-tbody').rows = [];
+
+  Ledger.filterLedger();
+
+  assert.equal(JSON.stringify(transaction), before);
+  assert.equal(Object.hasOwn(transaction, 'action'), false);
+  assert.equal(getElement('ledger-tbody').rows.length, 1);
+  const renderedText = getElement('ledger-tbody').rows.map(row => row.innerHTML).join('\n');
+  assert.match(renderedText, /data-raw-type="賣成品"/);
+  assert.match(renderedText, /賣成品/);
+  assert.match(renderedText, /TestProduct/);
+  assert.match(renderedText, /6\.1/);
+  assert.match(renderedText, /3/);
+  assert.match(renderedText, /30,000/);
+  assert.match(renderedText, /90,000/);
+});
