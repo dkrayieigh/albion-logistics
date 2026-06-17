@@ -92,6 +92,10 @@ Minimal read-only implementation exists in `src/adapters/locationAdapter.js`.
 This does not start migration, does not replace `qtyByCity`, and does not require backup import/export to use this adapter yet.
 Location Registry remains a future target. `qtyByLocation` remains a future target / sample support only.
 
+Inventory render/display path has minimal compatibility with normalized Location Adapter entries.
+
+This is reader/display compatibility only. The `qtyByCity` writer is unchanged, `qtyByLocation` migration has not started, Location Registry has not been created, purchase / transport writers are unchanged, storage shape remains legacy-compatible, backup import/export paths are unchanged, and `globalAvgCost` behavior is unchanged.
+
 **input**
 
 - legacy quantity map，例如 `qtyByCity`。
@@ -131,6 +135,7 @@ Location Registry remains a future target. `qtyByLocation` remains a future targ
 
 - `qtyByLocation` 與 Location Registry 仍是 future target。
 - Minimal read-only location adapter exists, but no writer path or migration uses it yet.
+- Minimal Inventory render/display compatibility exists, but `qtyByCity` writer, purchase / transport writers, backup import/export, storage shape, Location Registry, `qtyByLocation` migration, and `globalAvgCost` behavior remain unchanged.
 - D13 currently covers adapter normalization tolerance only; migration 前後每個 location 物理數量一致仍需等 migration sample 建立後才可正式測試。
 
 ### `resolveLocationQuantity(input)`

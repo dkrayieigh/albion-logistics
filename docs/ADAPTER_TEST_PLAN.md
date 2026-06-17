@@ -46,6 +46,7 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 | 物流轉移不改 `globalAvgCost` / cash / ledger | Covered | High | 維持現有 regression test。 | 保護物流只做物理數量平移。 |
 | 非空自訂倉庫不得刪除 | Covered | High | 維持現有 regression test。 | 保護 legacy custom location name key 下的資料安全。 |
 | 多城市 `qtyByCity` backup 匯入後數量不變 | Covered | High | Covered by `tests/backup-regression.test.js` via read-only location adapter. | This covers adapter normalization tolerance only; it does not migrate backup import/export, storage keys, or Location Registry. |
+| Inventory render/display accepts normalized Location Adapter entries | Covered | High | Covered by `tests/core-cost-regression.test.js` and `src/components/inventory.js` display helper. | Reader/display only; does not migrate `qtyByCity` writers, `qtyByLocation`, storage, backup import/export, purchase/transport writers, or Location Registry. |
 | custom location name key 更名後庫存不遺失 | Docs-only | High | 先保留為文件風險，待更名行為邊界確認後再決定測試。 | 目前先記錄風險，不在本任務新增 test。 |
 | location adapter 雙讀 `qtyByCity` / `qtyByLocation` | Adapter-only | High | Minimal read-only adapter exists; broader dual-read regression remains future adapter-only coverage. | This does not migrate writers, backup import/export, storage keys, or Location Registry. |
 | migration 前後每個 location 物理數量一致 | Adapter-only | High | 等 adapter sample 與 migration plan 具體化後再寫正式 test。 | 需等 migration/adapter sample 建立後才能驗證。 |
