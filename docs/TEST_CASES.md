@@ -13,7 +13,7 @@ npm test
 ### Stable release baseline
 
 - 指令：`npm.cmd test`
-- 結果：**50 tests / 50 pass / 0 fail / 0 TODO**
+- 結果：**51 tests / 51 pass / 0 fail / 0 TODO**
 - 目前沒有 regression test TODO。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
 - 新增 covered scope: minimal read-only Transaction Reader Adapter mixed legacy/future transaction tolerance.
@@ -29,8 +29,10 @@ npm test
 - This does not implement canonical SELL_ITEM, change writers, or migrate transaction payloads.
 - 新增 covered scope: Crafted item sale state transition preserves location-specific inventory, cash increase, legacy transaction payload, insertion order, and globalAvgCost.
 - This does not implement canonical SELL_ITEM, change writers, or migrate transaction payloads.
+- 新增 covered scope: Crafted item sale invalid total is blocked without mutating inventory, cash, transactions, or globalAvgCost.
+- This does not implement canonical SELL_ITEM, change writers, or migrate transaction payloads.
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
-- `ADAPTER_TEST_PLAN.md` 不屬於目前 50 tests baseline，不代表 adapter 或 migration 已開始。
+- `ADAPTER_TEST_PLAN.md` 不屬於目前 51 tests baseline，不代表 adapter 或 migration 已開始。
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。
