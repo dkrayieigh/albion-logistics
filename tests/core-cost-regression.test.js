@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveItemIdentity } from '../src/adapters/itemIdentity.js';
+import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
 
 const elements = new Map();
 
@@ -869,6 +870,46 @@ test('legacy Chinese item key and qtyByCity remain usable for transport without 
   assert.equal(state.assets.cash, 777);
   assert.equal(state.transactions.length, 1);
   assert.equal(state.transactions[0].type, '買材料');
+});
+
+test('adapter/integration red test: inventory render display path preserves legacy qtyByCity quantities without mutating state or legacy action dataset', { concurrency: false }, () => {
+  resetState();
+  const key = 'TestProduct_6.1';
+  const legacyQtyByCity = {
+    Thetford: 100,
+    Martlock: 25,
+    '公會T8地堡': 7
+  };
+  const legacyActionDataset = [
+    {
+      action: 'render-inventory-display',
+      itemKey: key,
+      sourceFormat: 'qtyByCity'
+    }
+  ];
+  const legacyQtyBefore = JSON.stringify(legacyQtyByCity);
+  const actionDatasetBefore = JSON.stringify(legacyActionDataset);
+
+  state.customLocations = ['公會T8地堡'];
+  state.inventory[key] = {
+    locationEntry: normalizeLocationMap(legacyQtyByCity),
+    globalAvgCost: 5000
+  };
+  getElement('inventory-search').value = '';
+  getElement('inventory-city-cards').rows = [];
+
+  Inventory.renderInventoryTable();
+
+  assert.equal(JSON.stringify(legacyQtyByCity), legacyQtyBefore);
+  assert.equal(JSON.stringify(legacyActionDataset), actionDatasetBefore);
+  assert.equal(JSON.stringify(state.inventory[key].locationEntry.quantities), legacyQtyBefore);
+  const renderedText = getElement('inventory-city-cards').rows.map(row => row.innerHTML).join('\n');
+  assert.match(renderedText, /Thetford/);
+  assert.match(renderedText, /100/);
+  assert.match(renderedText, /Martlock/);
+  assert.match(renderedText, /25/);
+  assert.match(renderedText, /公會T8地堡/);
+  assert.match(renderedText, /7/);
 });
 
 test('adapter/migration red test: future item identity adapter fails explicitly on missing legacy item mapping without mutating input', { concurrency: false }, () => {

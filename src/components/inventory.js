@@ -2,6 +2,10 @@ import { SYSTEM_CITIES } from '../data/constants.js';
 import { escapeHTML, parseNum, formatSilver } from '../utils/formatters.js';
 import { state, saveState, currentBuyQuality, initDefaultState } from '../core/state.js';
 
+function getInventoryLocationQuantities(item) {
+  return item?.qtyByCity ?? item?.locationEntry?.quantities ?? {};
+}
+
 export function renderInventoryTable() {
   const ctn = document.getElementById('inventory-city-cards'); ctn.innerHTML = '';
   const qry = document.getElementById('inventory-search').value.toLowerCase();
@@ -10,7 +14,8 @@ export function renderInventoryTable() {
   cities.forEach(city => {
     let hasItem = false; let rows = '';
     for (let key in state.inventory) {
-      const qty = state.inventory[key].qtyByCity[city];
+      const itemState = state.inventory[key];
+      const qty = getInventoryLocationQuantities(itemState)[city];
       if (qty > 0) {
         const [item, q] = key.split('_');
         if (qry && !item.toLowerCase().includes(qry) && !q.toLowerCase().includes(qry)) continue;
@@ -19,7 +24,7 @@ export function renderInventoryTable() {
           <td><strong>${item}</strong></td>
           <td><span class="${bc}">${q}</span></td>
           <td style="font-weight:600; color:var(--accent-cyan); font-size:1.1rem;">${qty}</td>
-          <td style="font-weight:600;">${formatSilver(state.inventory[key].globalAvgCost)}</td>
+          <td style="font-weight:600;">${formatSilver(itemState.globalAvgCost)}</td>
           <td>
             <div style="display:flex;gap:5px;flex-direction:row;">
               <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" data-action="sell-crafted" data-item="${item}" data-q="${q}" data-city="${city}">💸 出售</button>
