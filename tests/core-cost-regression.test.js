@@ -331,6 +331,54 @@ test('crafted item sale state transition preserves legacy transaction payload an
   assert.equal(state.transactions[1].type, '買材料');
 });
 
+test('crafted item sale with invalid total is blocked without mutating state', { concurrency: false }, () => {
+  resetState();
+  state.assets.cash = 100000;
+  state.transactions = [
+    {
+      date: '2026-06-16',
+      type: '買材料',
+      item: 'TestMaterial',
+      quality: '6.1',
+      qty: 10,
+      total: 50000,
+      unitPrice: 5000,
+      location: 'Thetford'
+    }
+  ];
+
+  const key = 'TestProduct_6.1';
+  state.inventory[key] = {
+    globalAvgCost: 12000,
+    qtyByCity: {
+      Thetford: 5,
+      Martlock: 2
+    }
+  };
+
+  const beforeInventory = JSON.stringify(state.inventory);
+  const beforeCash = state.assets.cash;
+  const beforeTransactions = JSON.stringify(state.transactions);
+
+  Inventory.openSellCraftedModal('TestProduct', '6.1', 'Thetford');
+  getElement('sell-crafted-qty').value = '3';
+  getElement('sell-crafted-total').value = '0';
+  Inventory.submitSellCrafted();
+
+  assert.equal(JSON.stringify(state.inventory), beforeInventory);
+  assert.equal(state.assets.cash, beforeCash);
+  assert.equal(JSON.stringify(state.transactions), beforeTransactions);
+  assert.equal(state.inventory[key].globalAvgCost, 12000);
+  assert.equal(state.inventory[key].qtyByCity.Thetford, 5);
+  assert.equal(state.inventory[key].qtyByCity.Martlock, 2);
+
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0].type, '買材料');
+  assert.equal(state.transactions.some(t => t.type === '賣成品'), false);
+  assert.equal(Object.hasOwn(state.transactions[0], 'action'), false);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
 test('transaction reader boundary: reads current legacy type 賣成品 crafted sale transaction without mutating payload', { concurrency: false }, () => {
   const transaction = {
     date: '2026-06-17',
