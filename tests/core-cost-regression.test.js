@@ -279,6 +279,58 @@ test('crafted item sale reduces inventory, increases cash, and writes a sale tra
   assert.match(toasts.at(-1)?.message || '', /20,000/);
 });
 
+test('crafted item sale state transition preserves legacy transaction payload and location-specific inventory', { concurrency: false }, () => {
+  resetState();
+  state.assets.cash = 100000;
+  state.transactions = [
+    {
+      date: '2026-06-16',
+      type: '買材料',
+      item: 'TestMaterial',
+      quality: '6.1',
+      qty: 10,
+      total: 50000,
+      unitPrice: 5000,
+      location: 'Thetford'
+    }
+  ];
+
+  const key = 'TestProduct_6.1';
+  state.inventory[key] = {
+    globalAvgCost: 12000,
+    qtyByCity: {
+      Thetford: 5,
+      Martlock: 2
+    }
+  };
+
+  Inventory.openSellCraftedModal('TestProduct', '6.1', 'Thetford');
+  getElement('sell-crafted-qty').value = '3';
+  getElement('sell-crafted-total').value = '90000';
+  Inventory.submitSellCrafted();
+
+  assert.equal(state.inventory[key].qtyByCity.Thetford, 2);
+  assert.equal(state.inventory[key].qtyByCity.Martlock, 2);
+  assert.equal(state.assets.cash, 190000);
+  assert.equal(state.inventory[key].globalAvgCost, 12000);
+
+  assert.equal(state.transactions.length, 2);
+  assert.equal(state.transactions[0].type, '賣成品');
+  assert.equal(state.transactions[0].item, 'TestProduct');
+  assert.equal(state.transactions[0].quality, '6.1');
+  assert.equal(state.transactions[0].qty, 3);
+  assert.equal(state.transactions[0].total, 90000);
+  assert.equal(state.transactions[0].unitPrice, 30000);
+  assert.equal(state.transactions[0].location, 'Thetford');
+
+  assert.equal(Object.hasOwn(state.transactions[0], 'action'), false);
+  assert.equal(Object.hasOwn(state.transactions[0], 'cashChange'), false);
+  assert.equal(Object.hasOwn(state.transactions[0], 'assetValue'), false);
+  assert.equal(Object.hasOwn(state.transactions[0], 'locationId'), false);
+
+  assert.equal(state.transactions[1].type, '買材料');
+});
+
 test('transaction reader boundary: reads current legacy type 賣成品 crafted sale transaction without mutating payload', { concurrency: false }, () => {
   const transaction = {
     date: '2026-06-17',
