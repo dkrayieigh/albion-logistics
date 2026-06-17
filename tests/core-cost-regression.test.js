@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveItemIdentity } from '../src/adapters/itemIdentity.js';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
+import { readTransaction } from '../src/adapters/transactionReader.js';
 
 const elements = new Map();
 
@@ -276,6 +277,32 @@ test('crafted item sale reduces inventory, increases cash, and writes a sale tra
   assert.match(toasts.at(-1)?.message || '', /40,000/);
   assert.match(toasts.at(-1)?.message || '', /10,000/);
   assert.match(toasts.at(-1)?.message || '', /20,000/);
+});
+
+test('transaction reader boundary: reads current legacy type 賣成品 crafted sale transaction without mutating payload', { concurrency: false }, () => {
+  const transaction = {
+    date: '2026-06-17',
+    type: '賣成品',
+    item: 'TestProduct',
+    quality: '6.1',
+    qty: 3,
+    total: 90000,
+    unitPrice: 30000,
+    location: 'Thetford'
+  };
+  const before = JSON.stringify(transaction);
+
+  const entry = readTransaction(transaction);
+
+  assert.equal(JSON.stringify(transaction), before);
+  assert.equal(Object.hasOwn(transaction, 'action'), false);
+  assert.equal(entry.sourceFormat, 'legacy');
+  assert.equal(entry.displayType, '賣成品');
+  assert.equal(entry.itemRef, 'TestProduct');
+  assert.equal(entry.quantity, 3);
+  assert.equal(entry.cashImpact, 90000);
+  assert.equal(entry.locationRef, 'Thetford');
+  assert.equal(entry.raw, transaction);
 });
 
 test('crafted item sale reports unknown profit when cost basis is invalid', { concurrency: false }, () => {
