@@ -13,7 +13,7 @@ npm test
 ### Stable release baseline
 
 - 指令：`npm.cmd test`
-- 結果：**46 tests / 46 pass / 0 fail / 0 TODO**
+- 結果：**47 tests / 47 pass / 0 fail / 0 TODO**
 - 目前沒有 regression test TODO。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
 - 新增 covered scope: minimal read-only Transaction Reader Adapter mixed legacy/future transaction tolerance.
@@ -21,8 +21,10 @@ npm test
 - 新增 covered scope: minimal read-only Location Adapter legacy qtyByCity multi-location preservation.
 - 新增 covered scope: minimal Inventory render/display compatibility with normalized Location Adapter entries.
 - 新增 covered scope: minimal read-only Item Identity Adapter missing legacy item mapping explicit failure.
+- 新增 covered scope: Laborer render table displays journal terminology while preserving legacy action key.
+- This does not rename the legacy storage key 滿日記本 and does not start Laborer storage migration.
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
-- `ADAPTER_TEST_PLAN.md` 不屬於目前 46 tests baseline，不代表 adapter 或 migration 已開始。
+- `ADAPTER_TEST_PLAN.md` 不屬於目前 47 tests baseline，不代表 adapter 或 migration 已開始。
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。
