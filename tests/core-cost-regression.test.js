@@ -634,6 +634,61 @@ test('laborer stock sale reduces temporary inventory, increases cash, and writes
   assert.equal(toasts.at(-1)?.type, 'success');
 });
 
+test('laborer stock sale success preserves legacy payload, insertion order, and unrelated inventory', { concurrency: false }, () => {
+  resetState();
+  state.assets.cash = 100000;
+  const existingTransaction = {
+    date: '2026-06-17',
+    type: '買材料',
+    item: 'TestMaterial',
+    quality: '6.1',
+    qty: 10,
+    total: 50000,
+    unitPrice: 5000,
+    location: 'Thetford'
+  };
+  state.transactions = [existingTransaction];
+  state.laborerInventory = {
+    METALBAR: {
+      '6.1': 10,
+      '6.2': 3
+    },
+    CLOTH: {
+      '6.1': 8
+    },
+    '滿日記本': {
+      '6.0': 2
+    }
+  };
+  const beforeJournal = JSON.stringify(state.laborerInventory['滿日記本']);
+
+  Laborer.openSellLaborStockModal('METALBAR', '6.1', 10);
+  getElement('sell-qty').value = '4';
+  getElement('sell-price').value = '40000';
+  Laborer.submitSellLaborStock();
+
+  assert.equal(state.laborerInventory.METALBAR['6.1'], 6);
+  assert.equal(state.laborerInventory.METALBAR['6.2'], 3);
+  assert.equal(state.laborerInventory.CLOTH['6.1'], 8);
+  assert.equal(JSON.stringify(state.laborerInventory['滿日記本']), beforeJournal);
+  assert.equal(state.assets.cash, 140000);
+
+  assert.equal(state.transactions.length, 2);
+  assert.deepEqual(state.transactions[0], {
+    date: new Date().toISOString().split('T')[0],
+    type: '工人島出售',
+    item: 'METALBAR',
+    quality: '6.1',
+    qty: 4,
+    total: 40000,
+    unitPrice: 10000,
+    location: 'LaborerIsland'
+  });
+  assert.equal(Object.hasOwn(state.transactions[0], 'action'), false);
+  assert.equal(state.transactions[1], existingTransaction);
+  assert.equal(toasts.at(-1)?.type, 'success');
+});
+
 test('transaction reader boundary: reads current legacy type 工人島出售 laborer sale transaction without mutating payload', { concurrency: false }, () => {
   const transaction = {
     date: '2026-06-18',
