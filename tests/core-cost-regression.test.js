@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { resolveItemIdentity } from '../src/adapters/itemIdentity.js';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
 import { readTransaction } from '../src/adapters/transactionReader.js';
+import { TAX_RATE } from '../src/data/constants.js';
 
 const elements = new Map();
 
@@ -91,6 +92,15 @@ function resetState() {
   toasts = [];
   confirmResult = true;
   getElement('global-shopfee').value = '0';
+}
+
+function setGlobalShopFeeForTax(recipe, qty, quality, desiredTax) {
+  const { tier, enchant } = Crafting.getEnchantAndTier(quality);
+  const mainValue = recipe.mainBaseQty * Math.pow(2, tier + enchant);
+  const subValue = recipe.subBaseQty > 0 ? recipe.subBaseQty * Math.pow(2, tier + enchant) : 0;
+  const artifactValue = recipe.artifactVal > 0 ? recipe.artifactVal * Math.pow(2, tier - 4) * qty : 0;
+  const itemValue = (mainValue + subValue) * qty + artifactValue;
+  getElement('global-shopfee').value = String(desiredTax / (itemValue * TAX_RATE));
 }
 
 test('non-empty custom location cannot be deleted', { concurrency: false }, () => {
@@ -901,6 +911,7 @@ test('crafting consumes materials at current globalAvgCost without changing mate
     artifactQty: 1,
     alchemyName: null
   });
+  setGlobalShopFeeForTax(craftingQueue[0].recipe, craftingQueue[0].qty, quality, 100);
 
   Crafting.submitCraftAll();
 
@@ -956,6 +967,7 @@ test('TEST-A03: crafting applies WAC when finished goods already have inventory'
     artifactQty: 1,
     alchemyName: null
   });
+  setGlobalShopFeeForTax(craftingQueue[0].recipe, craftingQueue[0].qty, quality, 100);
 
   Crafting.submitCraftAll();
 
@@ -1108,6 +1120,124 @@ test('TEST-A07: crafting blocks material consumption when a required globalAvgCo
   assert.equal(toasts.at(-1)?.type, 'error');
   assert.match(toasts.at(-1)?.message || '', /成本|定錨/);
 });
+
+test('artifact equipment crafting fee multiplies artifact item value by quantity', { concurrency: false }, () => {
+  const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');
+  const qty = 19;
+  const quality = '5.3';
+  const shopFee = 690;
+  const expected = Math.round(((16 * Math.pow(2, 5 + 3) * qty) + (448 * Math.pow(2, 5 - 4) * qty)) * TAX_RATE * shopFee);
+  const oldBugValue = Math.round(((16 * Math.pow(2, 5 + 3) * qty) + (448 * Math.pow(2, 5 - 4))) * TAX_RATE * shopFee);
+
+  assert.equal(recipe.name, '審判者護甲');
+  assert.equal(recipe.artifactVal, 448);
+  assert.equal(recipe.artifactQty, 1);
+  assert.equal(Crafting.calculateCraftingFee(recipe, qty, quality, shopFee), expected);
+  assert.notEqual(Crafting.calculateCraftingFee(recipe, qty, quality, shopFee), oldBugValue);
+  assert.equal(oldBugValue, 61106);
+});
+
+test('submitCraftAll includes artifactPrice in crafted item globalAvgCost and transaction total', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');
+  const quality = '5.3';
+  const qty = 19;
+  const city = 'Bridgewatch';
+  const mainKey = '鋼條_5.3';
+  const outputKey = '審判者護甲_5.3';
+  const materialQty = 160;
+  const materialCost = materialQty * 34980;
+  const artifactCost = 200000 * qty;
+  const expectedTax = Crafting.calculateCraftingFee(recipe, qty, quality, 690);
+  const expectedTotal = materialCost + artifactCost + expectedTax;
+  const startingCash = 20000000;
+
+  state.assets.cash = startingCash;
+  state.inventory[mainKey] = {
+    qtyByCity: { ...qtyByCity(0), Bridgewatch: 170 },
+    globalAvgCost: 34980
+  };
+  state.inventory[outputKey] = {
+    qtyByCity: { ...qtyByCity(0), Bridgewatch: 0 },
+    globalAvgCost: null
+  };
+  getElement('global-shopfee').value = '690';
+  craftingQueue.push({
+    id: 9001,
+    checked: true,
+    recipe,
+    qty,
+    quality,
+    city,
+    focus: true,
+    mainKey,
+    mainQty: materialQty,
+    subKey: '_5.3',
+    subQty: 0,
+    tax: 0,
+    artifactPrice: 200000,
+    artifactQty: 1,
+    alchemyName: null
+  });
+
+  Crafting.submitCraftAll();
+
+  assert.equal(state.inventory[outputKey].globalAvgCost, Math.round(expectedTotal / qty));
+  assert.ok(state.inventory[outputKey].globalAvgCost > 295943);
+  assert.equal(state.transactions[0].total, expectedTotal);
+  assert.equal(state.transactions[0].unitPrice, Math.round(expectedTotal / qty));
+  assert.equal(startingCash - state.assets.cash, expectedTax + artifactCost);
+});
+
+test('submitCraftAll recalculates tax from current global-shopfee before commit', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');
+  const quality = '5.3';
+  const qty = 1;
+  const city = 'Bridgewatch';
+  const mainKey = '鋼條_5.3';
+  const outputKey = '審判者護甲_5.3';
+  const oldTax = Crafting.calculateCraftingFee(recipe, qty, quality, 100);
+  const newTax = Crafting.calculateCraftingFee(recipe, qty, quality, 690);
+  const materialCost = 16 * 34980;
+  const startingCash = 5000000;
+
+  state.assets.cash = startingCash;
+  state.inventory[mainKey] = {
+    qtyByCity: { ...qtyByCity(0), Bridgewatch: 16 },
+    globalAvgCost: 34980
+  };
+  state.inventory[outputKey] = {
+    qtyByCity: { ...qtyByCity(0), Bridgewatch: 0 },
+    globalAvgCost: null
+  };
+  craftingQueue.push({
+    id: 9002,
+    checked: true,
+    recipe,
+    qty,
+    quality,
+    city,
+    focus: true,
+    mainKey,
+    mainQty: 16,
+    subKey: '_5.3',
+    subQty: 0,
+    tax: oldTax,
+    artifactPrice: 0,
+    artifactQty: 1,
+    alchemyName: null
+  });
+  getElement('global-shopfee').value = '690';
+
+  Crafting.submitCraftAll();
+
+  assert.notEqual(oldTax, newTax);
+  assert.equal(state.transactions[0].total, materialCost + newTax);
+  assert.equal(startingCash - state.assets.cash, newTax);
+});
+
+test.todo('material requirement safe-stock boundary: define expected net consumption vs conservative start-stock requirement before changing return formula');
 
 test('TEST-A02: transport moves inventory without changing cost, cash, or ledger', { concurrency: false }, () => {
   resetState();

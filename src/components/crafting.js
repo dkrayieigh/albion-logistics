@@ -38,7 +38,7 @@ export function calculateCraftingFee(r, q, qual, sf) {
   const mv = Math.pow(2, tier+enchant); 
   const sv = r.subBaseQty > 0 ? Math.pow(2, tier+enchant) : 0; 
   const iv = (r.mainBaseQty*mv + r.subBaseQty*sv)*q; 
-  const av = r.artifactVal > 0 ? (r.artifactVal * Math.pow(2, tier-4)) : 0; 
+  const av = r.artifactVal > 0 ? (r.artifactVal * Math.pow(2, tier-4) * q) : 0;
   return Math.round((iv + av) * TAX_RATE * sf); 
 }
 
@@ -160,8 +160,8 @@ export function renderCraftingQueue() {
         <button class="btn btn-warning" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" data-action="edit-queue" data-id="${q.id}">✏️ 編輯<br><span style="font-size:0.8em;opacity:0.7;">Edit</span></button>
         <button class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" data-action="delete-queue" data-id="${q.id}">🗑️ 刪除<br><span style="font-size:0.8em;opacity:0.7;">Delete</span></button>
       </div>
-      ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.artifactName}${q.artifactQty > 1 ? ` (需: ${q.artifactQty})` : ''}</div><input type="text" class="format-num" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" class="queue-art-price" data-id="${q.id}"></div>` : ''}
-      ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">${q.alchemyTier} ${q.alchemyName} (需: ${q.alchemyBaseQty})</div><input type="text" class="format-num" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" class="queue-alc-price" data-id="${q.id}"></div>` : ''}
+      ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.artifactName}${q.artifactQty > 1 ? ` (需: ${q.artifactQty})` : ''}</div><input type="text" class="format-num queue-art-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" data-id="${q.id}"></div>` : ''}
+      ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">${q.alchemyTier} ${q.alchemyName} (需: ${q.alchemyBaseQty})</div><input type="text" class="format-num queue-alc-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" data-id="${q.id}"></div>` : ''}
     </td>`;
     tb.appendChild(tr);
   });
@@ -208,8 +208,12 @@ export function submitCraftAll() {
   const toCraft = craftingQueue.filter(x => x.checked);
   if (toCraft.length === 0) return window.showToast('沒有勾選任何項目！', 'error');
   let needed = {}; let totalCashNeeded = 0;
+  const sf = parseNum(document.getElementById('global-shopfee').value);
+  const freshTaxes = new Map();
   toCraft.forEach(q => {
-    totalCashNeeded += (q.tax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty);
+    const freshTax = calculateCraftingFee(q.recipe, q.qty, q.quality, sf);
+    freshTaxes.set(q.id, freshTax);
+    totalCashNeeded += (freshTax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty);
     if (q.alchemyName) totalCashNeeded += (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
     const mk = `${q.city}|${q.mainKey}`; needed[mk] = (needed[mk]||0) + q.mainQty;
     if(q.recipe.subBaseQty>0) { const sk = `${q.city}|${q.subKey}`; needed[sk] = (needed[sk]||0) + q.subQty; }
@@ -230,6 +234,7 @@ export function submitCraftAll() {
   }
   
   toCraft.forEach(q => {
+    q.tax = freshTaxes.get(q.id);
     state.inventory[q.mainKey].qtyByCity[q.city] -= q.mainQty;
     if(q.recipe.subBaseQty>0) state.inventory[q.subKey].qtyByCity[q.city] -= q.subQty;
     state.assets.cash -= (q.tax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty);
