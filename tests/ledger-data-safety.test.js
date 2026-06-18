@@ -256,6 +256,115 @@ test('wallet adjustment with zero amount is blocked without state changes', { co
   assert.equal(toasts.at(-1)?.type, 'error');
 });
 
+test('transaction reader canonical sample: future PURCHASE_ITEM payload can be normalized for reader display', { concurrency: false }, () => {
+  const transaction = {
+    date: '2026-06-18',
+    action: 'PURCHASE_ITEM',
+    target: '布料',
+    itemLevel: '6.1',
+    qty: 100,
+    cashChange: -600000,
+    assetValue: 600000,
+    locationId: 'Thetford'
+  };
+  const before = JSON.stringify(transaction);
+
+  const entry = readTransaction(transaction);
+
+  assert.equal(JSON.stringify(transaction), before);
+  assert.equal(Object.hasOwn(transaction, 'type'), false);
+  assert.equal(entry.sourceFormat, 'future');
+  assert.equal(entry.displayType, 'PURCHASE_ITEM');
+  assert.equal(entry.itemRef, '布料');
+  assert.equal(entry.quantity, 100);
+  assert.equal(entry.cashImpact, -600000);
+  assert.equal(entry.locationRef, 'Thetford');
+  assert.equal(entry.raw, transaction);
+});
+
+test('transaction reader canonical sample: future SELL_ITEM payload is reader-only and does not imply writer migration', { concurrency: false }, () => {
+  const transaction = {
+    date: '2026-06-18',
+    action: 'SELL_ITEM',
+    target: 'TestProduct',
+    itemLevel: '6.1',
+    qty: 3,
+    cashChange: 90000,
+    assetValue: -36000,
+    locationId: 'Thetford'
+  };
+  const before = JSON.stringify(transaction);
+
+  const entry = readTransaction(transaction);
+
+  assert.equal(JSON.stringify(transaction), before);
+  assert.equal(Object.hasOwn(transaction, 'type'), false);
+  assert.equal(entry.sourceFormat, 'future');
+  assert.equal(entry.displayType, 'SELL_ITEM');
+  assert.equal(entry.itemRef, 'TestProduct');
+  assert.equal(entry.quantity, 3);
+  assert.equal(entry.cashImpact, 90000);
+  assert.equal(entry.locationRef, 'Thetford');
+  assert.equal(entry.raw, transaction);
+});
+
+test('transaction reader canonical sample: mixed legacy and future transactions preserve order and readable entries', { concurrency: false }, () => {
+  const transactions = [
+    {
+      date: '2026-06-18',
+      type: '賣成品',
+      item: 'TestProduct',
+      quality: '6.1',
+      qty: 3,
+      total: 90000,
+      unitPrice: 30000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-18',
+      type: '工人島出售',
+      item: '布料',
+      quality: '6.1',
+      qty: 5,
+      total: 50000,
+      unitPrice: 10000,
+      location: '工人島'
+    },
+    {
+      date: '2026-06-18',
+      action: 'SELL_ITEM',
+      target: 'TestProduct',
+      itemLevel: '6.1',
+      qty: 3,
+      cashChange: 90000,
+      assetValue: -36000,
+      locationId: 'Thetford'
+    },
+    {
+      date: '2026-06-18',
+      type: 'INVENTORY_ADJUSTMENT',
+      item: '布料',
+      quality: '6.1',
+      qty: -100,
+      total: -600000,
+      unitPrice: 6000,
+      location: 'Thetford',
+      details: 'legacy adjustment sourceSignature=sample'
+    }
+  ];
+  const before = JSON.stringify(transactions);
+
+  const entries = transactions.map(transaction => readTransaction(transaction));
+
+  assert.equal(JSON.stringify(transactions), before);
+  assert.equal(entries.length, transactions.length);
+  assert.deepEqual(entries.map(entry => entry.sourceFormat), ['legacy', 'legacy', 'future', 'legacy']);
+  assert.deepEqual(entries.map(entry => entry.displayType), ['賣成品', '工人島出售', 'SELL_ITEM', 'INVENTORY_ADJUSTMENT']);
+  assert.deepEqual(entries.map(entry => entry.raw), transactions);
+  assert.deepEqual(entries.map(entry => entry.quantity), [3, 5, 3, -100]);
+  assert.deepEqual(entries.map(entry => entry.cashImpact), [90000, 50000, 90000, -600000]);
+});
+
 test('adapter/migration red test: future transaction reader adapter tolerates mixed legacy Chinese types and INVENTORY_ADJUSTMENT without mutating input', { concurrency: false }, () => {
   const transactions = [
     {
