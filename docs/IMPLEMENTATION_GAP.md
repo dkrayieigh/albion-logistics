@@ -51,10 +51,11 @@ Future boundary：
 - Backup/import/export 尚未更動。
 - Legacy `type: '賣成品'` fallback 不可移除。
 
-測試基準：
+歷史 checkpoint baseline：
 
 - `53 tests / 53 pass / 0 fail / 0 TODO`
 - 測試檔：`tests/core-cost-regression.test.js`、`tests/ledger-data-safety.test.js`
+- 最新 stable baseline 以 `TEST_CASES.md` 的 Stable release baseline 為準。
 
 ### 1.2 工人島物資出售
 

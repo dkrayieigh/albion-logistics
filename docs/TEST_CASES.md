@@ -16,6 +16,7 @@ npm test
 - 結果：**56 tests / 56 pass / 0 fail / 0 TODO**
 - 目前沒有 regression test TODO。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
+- 手測案例中的 `locationId` 是 future/location-model 對照標記；current UI/storage 仍可能使用 legacy city display key 或 `qtyByCity`。
 - 新增 covered scope: minimal read-only Transaction Reader Adapter mixed legacy/future transaction tolerance.
 - 新增 covered scope: minimal Ledger render/display compatibility with normalized transaction reader entries.
 - 新增 covered scope: minimal read-only Location Adapter legacy qtyByCity multi-location preservation.

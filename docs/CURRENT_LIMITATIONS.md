@@ -74,9 +74,9 @@
 - 稅務處理
 - 損益計算
 - ledger 欄位
-- 是否影響成本基準
+- canonical sale event 的 COGS / profit / cost-basis reference 尚未定義
 
-因此出售功能目前可作為 legacy-compatible behavior 使用，但不代表正式 `SELL_ITEM` event model 已完成。
+Current legacy sale behavior 不修改 `globalAvgCost`。因此出售功能目前可作為 legacy-compatible behavior 使用，但不代表正式 `SELL_ITEM` event model、canonical laborer sale event 或其 COGS / profit / cost-basis reference 已完成。
 
 ---
 

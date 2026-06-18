@@ -28,8 +28,8 @@
 ## 📦 總庫存模型 (Inventory Item)
 > Future target / migration target：本節保留 Stable ID 與 `qtyByLocation` 目標模型。current implementation 仍使用 legacy 中文 item key 與 `qtyByCity`。
 
-**⛔ Inventory Key 組成鐵律：**
-* 必須且只能是 ${StableId}_${itemLevel}（例如：METALBAR_6.2 或 WILDFIRE_STAFF_6.2）。
+**⛔ Inventory Key 組成目標：**
+* Future migration target 是 ${StableId}_${itemLevel}（例如：METALBAR_6.2 或 WILDFIRE_STAFF_6.2）；current implementation 仍可能使用中文 item key，不得據此直接改寫 storage。
 * 絕對禁止將裝備的優劣品質（如傑出、大師）加入 Key 中。相同階級與附魔的物品，無論品質為何，在材料庫存端皆視為同一種資產。
 **HasCostBasis 判定規則：**
 - `globalAvgCost === null`：尚未建立成本基準。
@@ -59,7 +59,7 @@
   "FULL_JOURNAL": { ... }
 }
 
-* **Stable ID 规范：** `laborerInventory` 第一層 Key 必須使用 Stable ID，而非顯示名稱或中文物品名。
+* **Stable ID 目標：** Future migration target 是讓 `laborerInventory` 第一層 Key 使用 Stable ID，而非顯示名稱或中文物品名；current implementation 仍需支援 legacy 中文 item key 與既有內部 key。
 * **匯入對接規則：**
   * `LABORER_IMPORT` payload 必須明確提供 `stableId` 與 `itemLevel`。
   * 系統使用 `stableId` 與 `itemLevel` 定位 `state.laborerInventory[stableId][itemLevel]`。

@@ -49,6 +49,8 @@
 **本系統嚴格採用：加權平均成本法 (Weighted Average Cost)。**
 絕不採用 FIFO（先進先出）、LIFO（後進先出）或批次成本追蹤。所有物品僅維護唯一一個 `globalAvgCost` 作為成本參考基準。
 
+詳細事件級成本權限以「Cost Basis 成本基準總則」為準；本節保留高層規則，不取代下方事件級邊界。
+
 - **採購入庫時 (`PURCHASE_ITEM`)：** 重新計算 `globalAvgCost`。此為系統中 **唯一** 允許透過公式改變現有均價的事件。
 - **物流轉移時 (`TRANSFER_ITEM`)：** 不改變 `globalAvgCost`。
 - **工人產出物匯入時 (`LABORER_IMPORT`)：** 只寫入 `qtyByLocation`，絕對不重新計算 `globalAvgCost`。
