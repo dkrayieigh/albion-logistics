@@ -103,6 +103,10 @@ function setGlobalShopFeeForTax(recipe, qty, quality, desiredTax) {
   getElement('global-shopfee').value = String(desiredTax / (itemValue * TAX_RATE));
 }
 
+function formatForRegex(value) {
+  return value.toLocaleString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 test('non-empty custom location cannot be deleted', { concurrency: false }, () => {
   resetState();
   const location = '測試倉庫';
@@ -1238,6 +1242,64 @@ test('submitCraftAll recalculates tax from current global-shopfee before commit'
 });
 
 test.todo('material requirement safe-stock boundary: define expected net consumption vs conservative start-stock requirement before changing return formula');
+
+test('checked queue display separates shop fee, artifact cost, alchemy cost, and cash total without material cost', { concurrency: false }, () => {
+  resetState();
+  const recipe = {
+    name: 'CashDisplayProduct',
+    main: 'DisplayMaterial',
+    sub: '',
+    mainBaseQty: 1,
+    subBaseQty: 0,
+    artifactVal: 0
+  };
+  const qty = 3;
+  const quality = '4.0';
+  const shopFee = 690;
+  const expectedShopFee = Crafting.calculateCraftingFee(recipe, qty, quality, shopFee);
+  const expectedArtifactCost = 200 * 2 * qty;
+  const expectedAlchemyCost = 50 * 4 * qty;
+  const expectedCashCost = expectedShopFee + expectedArtifactCost + expectedAlchemyCost;
+  const materialCostThatMustNotAppear = 999 * 9999;
+
+  getElement('global-shopfee').value = String(shopFee);
+  craftingQueue.push({
+    id: 9101,
+    checked: true,
+    recipe,
+    qty,
+    quality,
+    city: LOCATION,
+    mainKey: 'DisplayMaterial_4.0',
+    mainQty: 999,
+    subKey: '_4.0',
+    subQty: 0,
+    tax: 0,
+    artifactPrice: 200,
+    artifactQty: 2,
+    alchemyName: 'Test Alchemy',
+    alchemyTier: 'T3',
+    alchemyBaseQty: 4,
+    alchemyPrice: 50
+  });
+
+  Crafting.updateShoppingListTotal();
+
+  const cashDisplay = getElement('queue-total-cost').innerHTML;
+  assert.match(cashDisplay, /店鋪使用費/);
+  assert.match(cashDisplay, /Shop Fee/);
+  assert.match(cashDisplay, /神器成本/);
+  assert.match(cashDisplay, /Artifact Cost/);
+  assert.match(cashDisplay, /鍊金成本/);
+  assert.match(cashDisplay, /Alchemy Cost/);
+  assert.match(cashDisplay, /本次製作現金支出/);
+  assert.match(cashDisplay, /Craft Cash Cost/);
+  assert.match(cashDisplay, new RegExp(formatForRegex(expectedShopFee)));
+  assert.match(cashDisplay, new RegExp(formatForRegex(expectedArtifactCost)));
+  assert.match(cashDisplay, new RegExp(formatForRegex(expectedAlchemyCost)));
+  assert.match(cashDisplay, new RegExp(formatForRegex(expectedCashCost)));
+  assert.doesNotMatch(cashDisplay, new RegExp(formatForRegex(materialCostThatMustNotAppear)));
+});
 
 test('TEST-A02: transport moves inventory without changing cost, cash, or ledger', { concurrency: false }, () => {
   resetState();

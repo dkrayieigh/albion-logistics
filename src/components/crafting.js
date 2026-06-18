@@ -169,13 +169,17 @@ export function renderCraftingQueue() {
 
 export function updateShoppingListTotal() {
   const sf = parseNum(document.getElementById('global-shopfee').value);
-  let aggregated = {}; let totalCash = 0;
+  let aggregated = {};
+  let shopFeeTotal = 0;
+  let artifactCostTotal = 0;
+  let alchemyCostTotal = 0;
   craftingQueue.forEach(q => {
     if(!q.checked) return;
     q.tax = calculateCraftingFee(q.recipe, q.qty, q.quality, sf);
-    totalCash += (q.tax + (q.artifactPrice || 0) * (q.artifactQty || 1) * q.qty);
+    shopFeeTotal += q.tax;
+    artifactCostTotal += (q.artifactPrice || 0) * (q.artifactQty || 1) * q.qty;
     if (q.alchemyName) {
-        totalCash += (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
+        alchemyCostTotal += (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
         const ak = `${q.city}|${q.alchemyTier} ${q.alchemyName}`; aggregated[ak] = (aggregated[ak]||0) + (q.alchemyBaseQty * q.qty);
     }
     const k = `${q.city}|${q.mainKey}`; aggregated[k] = (aggregated[k]||0) + q.mainQty;
@@ -201,7 +205,14 @@ export function updateShoppingListTotal() {
     }
     listHTML += '</ul>'; sc.innerHTML = listHTML;
   }
-  document.getElementById('queue-total-cost').innerText = formatSilver(totalCash);
+  const cashCostTotal = shopFeeTotal + artifactCostTotal + alchemyCostTotal;
+  document.getElementById('queue-total-cost').innerHTML = `
+    <div style="display:grid; gap:4px; text-align:right;">
+      <div><span style="color:var(--text-secondary);">店鋪使用費 / Shop Fee:</span> <strong>${formatSilver(shopFeeTotal)}</strong></div>
+      <div><span style="color:var(--text-secondary);">神器成本 / Artifact Cost:</span> <strong>${formatSilver(artifactCostTotal)}</strong></div>
+      <div><span style="color:var(--text-secondary);">鍊金成本 / Alchemy Cost:</span> <strong>${formatSilver(alchemyCostTotal)}</strong></div>
+      <div style="color:var(--accent-cyan);"><span>本次製作現金支出 / Craft Cash Cost:</span> <strong>${formatSilver(cashCostTotal)}</strong></div>
+    </div>`;
 }
 
 export function submitCraftAll() {
