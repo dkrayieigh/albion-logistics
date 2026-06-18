@@ -634,6 +634,32 @@ test('laborer stock sale reduces temporary inventory, increases cash, and writes
   assert.equal(toasts.at(-1)?.type, 'success');
 });
 
+test('transaction reader boundary: reads current legacy type 工人島出售 laborer sale transaction without mutating payload', { concurrency: false }, () => {
+  const transaction = {
+    date: '2026-06-18',
+    type: '工人島出售',
+    item: '布料',
+    quality: '6.1',
+    qty: 5,
+    total: 50000,
+    unitPrice: 10000,
+    location: '工人島'
+  };
+  const before = JSON.stringify(transaction);
+
+  const entry = readTransaction(transaction);
+
+  assert.equal(JSON.stringify(transaction), before);
+  assert.equal(Object.hasOwn(transaction, 'action'), false);
+  assert.equal(entry.sourceFormat, 'legacy');
+  assert.equal(entry.displayType, '工人島出售');
+  assert.equal(entry.itemRef, '布料');
+  assert.equal(entry.quantity, 5);
+  assert.equal(entry.cashImpact, 50000);
+  assert.equal(entry.locationRef, '工人島');
+  assert.equal(entry.raw, transaction);
+});
+
 test('laborer stock sale is blocked when temporary inventory is insufficient', { concurrency: false }, () => {
   resetState();
   const item = 'METALBAR';
