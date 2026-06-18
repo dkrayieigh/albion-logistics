@@ -31,6 +31,31 @@ npm test
 - **風險：** Medium → Low / Docs debt。
 - **封版狀態：** 非阻斷。
 
+## Sell Item / 成品出售 current behavior checkpoint
+
+D33-D49 已完成 Sell Item / 成品出售 current behavior protection checkpoint。此 checkpoint 只描述 current legacy-compatible behavior，不代表 canonical `SELL_ITEM`、transaction payload migration、writer migration 或 storage migration 已開始。
+
+已保護 current behavior：
+
+- Legacy `type: '賣成品'` transaction 可被 `transactionReader` 讀取。
+- Normalized legacy sale reader entry 可被 Ledger display 顯示。
+- Current crafted sale writer 會扣 selected-location inventory，不扣其他 location，增加 cash，寫入 legacy transaction payload，保持 transaction insertion order，且不重算 `globalAvgCost`。
+- Failure path 已覆蓋 invalid total no-mutation、selected-location insufficient inventory no-mutation、negative quantity no-mutation。
+
+Future boundary：
+
+- Canonical `SELL_ITEM` 尚未實作。
+- Transaction payload migration 尚未開始。
+- Writer migration 尚未開始。
+- Storage migration 尚未開始。
+- Backup/import/export 尚未更動。
+- Legacy `type: '賣成品'` fallback 不可移除。
+
+測試基準：
+
+- `53 tests / 53 pass / 0 fail / 0 TODO`
+- 測試檔：`tests/core-cost-regression.test.js`、`tests/ledger-data-safety.test.js`
+
 ### 1.2 工人島物資出售
 
 - **目前行為：** 可出售工人島暫存物資，成功時扣除 `laborerInventory`、增加 cash，並新增 `工人島出售` transaction。
