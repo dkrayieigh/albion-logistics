@@ -412,3 +412,43 @@ test('transaction reader boundary: ledger display renders normalized current leg
   assert.match(renderedText, /30,000/);
   assert.match(renderedText, /90,000/);
 });
+
+test('transaction reader boundary: ledger display renders normalized current legacy type 工人島出售 laborer sale without mutating payload', { concurrency: false }, () => {
+  const transaction = {
+    date: '2026-06-18',
+    type: '工人島出售',
+    item: '布料',
+    quality: '6.1',
+    qty: 5,
+    total: 50000,
+    unitPrice: 10000,
+    location: '工人島'
+  };
+  const before = JSON.stringify(transaction);
+  const entry = readTransaction(transaction);
+
+  assert.equal(entry.sourceFormat, 'legacy');
+  assert.equal(entry.displayType, '工人島出售');
+  assert.equal(entry.itemRef, '布料');
+  assert.equal(entry.quantity, 5);
+  assert.equal(entry.cashImpact, 50000);
+  assert.equal(entry.locationRef, '工人島');
+
+  state.transactions = [entry];
+  getElement('ledger-search').value = '';
+  getElement('ledger-tbody').rows = [];
+
+  Ledger.filterLedger();
+
+  assert.equal(JSON.stringify(transaction), before);
+  assert.equal(Object.hasOwn(transaction, 'action'), false);
+  assert.equal(getElement('ledger-tbody').rows.length, 1);
+  const renderedText = getElement('ledger-tbody').rows.map(row => row.innerHTML).join('\n');
+  assert.match(renderedText, /data-raw-type="工人島出售"/);
+  assert.match(renderedText, /工人島出售/);
+  assert.match(renderedText, /布料/);
+  assert.match(renderedText, /6\.1/);
+  assert.match(renderedText, /5/);
+  assert.match(renderedText, /10,000/);
+  assert.match(renderedText, /50,000/);
+});
