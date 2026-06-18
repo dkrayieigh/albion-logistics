@@ -365,6 +365,83 @@ test('transaction reader canonical sample: mixed legacy and future transactions 
   assert.deepEqual(entries.map(entry => entry.cashImpact), [90000, 50000, 90000, -600000]);
 });
 
+test('transaction reader boundary: general INVENTORY_ADJUSTMENT is readable without implying cost basis adjustment', { concurrency: false }, () => {
+  const transaction = {
+    date: '2026-06-18',
+    type: 'INVENTORY_ADJUSTMENT',
+    item: '布料',
+    quality: '6.1',
+    qty: -50,
+    total: -300000,
+    unitPrice: 6000,
+    location: 'Thetford',
+    details: 'legacy inventory correction; not a cost basis adjustment'
+  };
+  const before = JSON.stringify(transaction);
+
+  const entry = readTransaction(transaction);
+
+  assert.equal(JSON.stringify(transaction), before);
+  assert.equal(entry.sourceFormat, 'legacy');
+  assert.equal(entry.displayType, 'INVENTORY_ADJUSTMENT');
+  assert.equal(entry.itemRef, '布料');
+  assert.equal(entry.quantity, -50);
+  assert.equal(entry.cashImpact, -300000);
+  assert.equal(entry.locationRef, 'Thetford');
+  assert.equal(entry.raw, transaction);
+  assert.equal(Object.hasOwn(transaction, 'globalAvgCost'), false);
+  assert.equal(Object.hasOwn(transaction, 'costBasis'), false);
+});
+
+test('purchase reversal keeps original transaction and adjustment without retroactively recalculating globalAvgCost', { concurrency: false }, () => {
+  resetState(1000);
+  state.inventory[INVENTORY_KEY].globalAvgCost = 43210;
+  const original = state.transactions[0];
+
+  clickDelete(0);
+
+  assert.equal(state.transactions.length, 2);
+  assert.ok(state.transactions.includes(original));
+  assert.equal(state.transactions[0].type, 'INVENTORY_ADJUSTMENT');
+  assert.equal(state.transactions[0].item, ITEM);
+  assert.equal(state.transactions[0].quality, QUALITY);
+  assert.equal(state.transactions[0].qty, -500);
+  assert.equal(state.transactions[0].total, -3000000);
+  assert.equal(state.transactions[0].unitPrice, 6000);
+  assert.equal(state.transactions[0].location, LOCATION);
+  assert.match(state.transactions[0].details, /sourceSignature=/);
+  assert.equal(state.inventory[INVENTORY_KEY].qtyByCity[LOCATION], 500);
+  assert.equal(state.assets.cash, 3000000);
+  assert.equal(state.inventory[INVENTORY_KEY].globalAvgCost, 43210);
+});
+
+test('transaction reader boundary: legacy cost correction fallback is readable without declaring a future cost-basis event', { concurrency: false }, () => {
+  const transaction = {
+    date: '2026-06-18',
+    type: '成本校正',
+    item: '布料',
+    quality: '6.1',
+    qty: 1,
+    total: 12000,
+    unitPrice: 12000,
+    location: 'Thetford',
+    details: 'legacy cost correction sample'
+  };
+  const before = JSON.stringify(transaction);
+
+  const entry = readTransaction(transaction);
+
+  assert.equal(JSON.stringify(transaction), before);
+  assert.equal(entry.sourceFormat, 'legacy');
+  assert.equal(entry.displayType, '成本校正');
+  assert.equal(entry.itemRef, '布料');
+  assert.equal(entry.quantity, 1);
+  assert.equal(entry.cashImpact, 12000);
+  assert.equal(entry.locationRef, 'Thetford');
+  assert.equal(entry.raw, transaction);
+  assert.equal(Object.hasOwn(transaction, 'action'), false);
+});
+
 test('adapter/migration red test: future transaction reader adapter tolerates mixed legacy Chinese types and INVENTORY_ADJUSTMENT without mutating input', { concurrency: false }, () => {
   const transactions = [
     {
