@@ -235,6 +235,151 @@ test('TEST-B04: legacy JSON-string backup imports without losing transactions', 
   assert.equal(JSON.parse(localStorage.getItem(STORAGE_KEYS.transactions)).length, 150);
 });
 
+test('D63: legacy Chinese item key backup import preserves qtyByCity, globalAvgCost, and cash', { concurrency: false }, () => {
+  resetMocks();
+  const inventory = {
+    '布料_6.1': {
+      qtyByCity: {
+        Thetford: 120,
+        Martlock: 5
+      },
+      globalAvgCost: 12345
+    }
+  };
+  const assets = { cash: 7654321, debt: 0 };
+  const transactions = [];
+
+  importBackup({ inventory, assets, transactions });
+
+  assert.equal(reloadCount, 1);
+  const importedInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.inventory));
+  const importedAssets = JSON.parse(localStorage.getItem(STORAGE_KEYS.assets));
+  assert.equal(Object.hasOwn(importedInventory, '布料_6.1'), true);
+  assert.deepEqual(importedInventory['布料_6.1'].qtyByCity, inventory['布料_6.1'].qtyByCity);
+  assert.equal(Object.hasOwn(importedInventory['布料_6.1'], 'qtyByLocation'), false);
+  assert.equal(importedInventory['布料_6.1'].globalAvgCost, 12345);
+  assert.equal(importedAssets.cash, 7654321);
+
+  loadState();
+  assert.equal(state.inventory['布料_6.1'].qtyByCity.Thetford, 120);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity.Martlock, 5);
+  assert.equal(state.inventory['布料_6.1'].globalAvgCost, 12345);
+  assert.equal(state.assets.cash, 7654321);
+});
+
+test('D63: legacy customLocations string backup import preserves custom warehouse qtyByCity', { concurrency: false }, () => {
+  resetMocks();
+  const customLocation = '公會T8地堡';
+  const inventory = {
+    '布料_6.1': {
+      qtyByCity: {
+        Thetford: 10,
+        [customLocation]: 7
+      },
+      globalAvgCost: 6000
+    }
+  };
+  const assets = { cash: 100000, debt: 0 };
+  const transactions = [];
+  const customLocations = [customLocation];
+
+  importBackup({ inventory, assets, transactions, customLocations });
+
+  assert.equal(reloadCount, 1);
+  const importedInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.inventory));
+  const importedCustomLocations = JSON.parse(localStorage.getItem(STORAGE_KEYS.customLocations));
+  assert.deepEqual(importedCustomLocations, customLocations);
+  assert.equal(typeof importedCustomLocations[0], 'string');
+  assert.equal(Object.hasOwn(importedCustomLocations[0], 'id'), false);
+  assert.equal(importedInventory['布料_6.1'].qtyByCity[customLocation], 7);
+  assert.equal(Object.hasOwn(importedInventory['布料_6.1'], 'qtyByLocation'), false);
+
+  loadState();
+  assert.deepEqual(state.customLocations, customLocations);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity[customLocation], 7);
+});
+
+test('D63: large legacy transaction backup import preserves count and legacy transaction fields', { concurrency: false }, () => {
+  resetMocks();
+  const legacySamples = [
+    {
+      date: '2026-06-18',
+      type: '買材料',
+      item: '布料',
+      quality: '6.1',
+      qty: 100,
+      total: 600000,
+      unitPrice: 6000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-18',
+      type: '賣成品',
+      item: 'TestProduct',
+      quality: '6.1',
+      qty: 3,
+      total: 90000,
+      unitPrice: 30000,
+      location: 'Thetford'
+    },
+    {
+      date: '2026-06-18',
+      type: '工人島出售',
+      item: '布料',
+      quality: '6.1',
+      qty: 5,
+      total: 50000,
+      unitPrice: 10000,
+      location: '工人島'
+    },
+    {
+      date: '2026-06-18',
+      type: 'INVENTORY_ADJUSTMENT',
+      item: '布料',
+      quality: '6.1',
+      qty: -100,
+      total: -600000,
+      unitPrice: 6000,
+      location: 'Thetford',
+      details: 'legacy adjustment sourceSignature=sample'
+    }
+  ];
+  const transactions = Array.from({ length: 180 }, (_, index) => ({
+    ...legacySamples[index % legacySamples.length],
+    id: index + 1
+  }));
+  const inventory = {};
+  const assets = { cash: 0, debt: 0 };
+
+  importBackup({ inventory, assets, transactions });
+
+  assert.equal(reloadCount, 1);
+  const importedTransactions = JSON.parse(localStorage.getItem(STORAGE_KEYS.transactions));
+  assert.equal(importedTransactions.length, 180);
+  assert.deepEqual(importedTransactions, transactions);
+  assert.deepEqual(
+    [...new Set(importedTransactions.map(transaction => transaction.type))],
+    ['買材料', '賣成品', '工人島出售', 'INVENTORY_ADJUSTMENT']
+  );
+  for (const transaction of importedTransactions) {
+    assert.equal(typeof transaction.type, 'string');
+    assert.equal(Object.hasOwn(transaction, 'item'), true);
+    assert.equal(Object.hasOwn(transaction, 'quality'), true);
+    assert.equal(Object.hasOwn(transaction, 'qty'), true);
+    assert.equal(Object.hasOwn(transaction, 'total'), true);
+    assert.equal(Object.hasOwn(transaction, 'unitPrice'), true);
+    assert.equal(Object.hasOwn(transaction, 'location'), true);
+    assert.equal(Object.hasOwn(transaction, 'action'), false);
+    assert.equal(Object.hasOwn(transaction, 'cashChange'), false);
+    assert.equal(Object.hasOwn(transaction, 'assetValue'), false);
+    assert.equal(Object.hasOwn(transaction, 'locationId'), false);
+  }
+
+  loadState();
+  assert.equal(state.transactions.length, 180);
+  assert.deepEqual(state.transactions.slice(0, 4), transactions.slice(0, 4));
+});
+
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
   const validAssets = { cash: 3000000, debt: 0 };
