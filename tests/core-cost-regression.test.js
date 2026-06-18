@@ -908,8 +908,10 @@ test('crafting consumes materials at current globalAvgCost without changing mate
     city: LOCATION,
     mainKey,
     mainQty: 4,
+    actualMainQty: 4,
     subKey,
     subQty: 2,
+    actualSubQty: 2,
     tax: 100,
     artifactPrice: 0,
     artifactQty: 1,
@@ -964,8 +966,10 @@ test('TEST-A03: crafting applies WAC when finished goods already have inventory'
     city: LOCATION,
     mainKey,
     mainQty: 4,
+    actualMainQty: 4,
     subKey,
     subQty: 2,
+    actualSubQty: 2,
     tax: 100,
     artifactPrice: 0,
     artifactQty: 1,
@@ -1024,8 +1028,10 @@ test('TEST-A05: insufficient materials block crafting before any state change', 
     city: LOCATION,
     mainKey,
     mainQty: 4,
+    actualMainQty: 4,
     subKey,
     subQty: 2,
+    actualSubQty: 2,
     tax: 100,
     artifactPrice: 0,
     artifactQty: 1,
@@ -1093,8 +1099,10 @@ test('TEST-A07: crafting blocks material consumption when a required globalAvgCo
     city: LOCATION,
     mainKey,
     mainQty: 4,
+    actualMainQty: 4,
     subKey,
     subQty: 2,
+    actualSubQty: 2,
     tax: 100,
     artifactPrice: 0,
     artifactQty: 1,
@@ -1176,8 +1184,10 @@ test('submitCraftAll includes artifactPrice in crafted item globalAvgCost and tr
     focus: true,
     mainKey,
     mainQty: materialQty,
+    actualMainQty: materialQty,
     subKey: '_5.3',
     subQty: 0,
+    actualSubQty: 0,
     tax: 0,
     artifactPrice: 200000,
     artifactQty: 1,
@@ -1225,8 +1235,10 @@ test('submitCraftAll recalculates tax from current global-shopfee before commit'
     focus: true,
     mainKey,
     mainQty: 16,
+    actualMainQty: 16,
     subKey: '_5.3',
     subQty: 0,
+    actualSubQty: 0,
     tax: oldTax,
     artifactPrice: 0,
     artifactQty: 1,
@@ -1241,7 +1253,167 @@ test('submitCraftAll recalculates tax from current global-shopfee before commit'
   assert.equal(startingCash - state.assets.cash, newTax);
 });
 
+test('material consumption helper distinguishes expected consumption, conservative consumption, and safe start stock', { concurrency: false }, () => {
+  const result = Crafting.calculateMaterialConsumption(16, 20, 0.479);
+
+  assert.equal(result.expectedNetConsumption, 167);
+  assert.equal(result.conservativeNetConsumption, 180);
+  assert.equal(result.safeStartStock, 187);
+  assert.notEqual(result.expectedNetConsumption, result.safeStartStock);
+});
+
 test.todo('material requirement safe-stock boundary: define expected net consumption vs conservative start-stock requirement before changing return formula');
+
+test('queue material display uses full expected consumption and safe start stock labels', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');
+  const qty = 20;
+  const quality = '5.3';
+  const city = 'Bridgewatch';
+  const consumption = Crafting.calculateMaterialConsumption(recipe.mainBaseQty, qty, 0.479);
+
+  craftingQueue.push({
+    id: 9201,
+    checked: true,
+    recipe,
+    qty,
+    quality,
+    city,
+    focus: true,
+    mainKey: '鋼條_5.3',
+    mainQty: consumption.expectedNetConsumption,
+    actualMainQty: consumption.expectedNetConsumption,
+    subKey: '_5.3',
+    subQty: 0,
+    actualSubQty: 0,
+    tax: 0,
+    artifactPrice: 0,
+    artifactQty: 1,
+    alchemyName: null
+  });
+
+  Crafting.updateShoppingListTotal();
+
+  const materialDisplay = getElement('shopping-list-content').innerHTML;
+  assert.match(materialDisplay, /預估消耗/);
+  assert.match(materialDisplay, /保守備料/);
+  assert.match(materialDisplay, /167/);
+  assert.match(materialDisplay, /187/);
+  assert.doesNotMatch(materialDisplay, /x 167/);
+});
+
+test('submitCraftAll uses actual material consumed for material deduction and crafted cost', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');
+  const quality = '5.3';
+  const qty = 19;
+  const city = 'Bridgewatch';
+  const mainKey = '鋼條_5.3';
+  const outputKey = '審判者護甲_5.3';
+  const expectedConsumption = Crafting.calculateMaterialConsumption(recipe.mainBaseQty, qty, 0.479).expectedNetConsumption;
+  const actualConsumption = 160;
+  const materialCost = actualConsumption * 34980;
+  const expectedMaterialCost = expectedConsumption * 34980;
+  const artifactCost = 200000 * qty;
+  const expectedTax = Crafting.calculateCraftingFee(recipe, qty, quality, 690);
+  const expectedTotal = materialCost + artifactCost + expectedTax;
+  const startingCash = 20000000;
+
+  state.assets.cash = startingCash;
+  state.inventory[mainKey] = {
+    qtyByCity: { ...qtyByCity(0), Bridgewatch: 170 },
+    globalAvgCost: 34980
+  };
+  state.inventory[outputKey] = {
+    qtyByCity: { ...qtyByCity(0), Bridgewatch: 0 },
+    globalAvgCost: null
+  };
+  getElement('global-shopfee').value = '690';
+  craftingQueue.push({
+    id: 9202,
+    checked: true,
+    recipe,
+    qty,
+    quality,
+    city,
+    focus: true,
+    mainKey,
+    mainQty: expectedConsumption,
+    actualMainQty: actualConsumption,
+    subKey: '_5.3',
+    subQty: 0,
+    actualSubQty: 0,
+    tax: 0,
+    artifactPrice: 200000,
+    artifactQty: 1,
+    alchemyName: null
+  });
+
+  Crafting.submitCraftAll();
+
+  assert.equal(expectedConsumption, 159);
+  assert.notEqual(materialCost, expectedMaterialCost);
+  assert.equal(state.inventory[mainKey].qtyByCity.Bridgewatch, 10);
+  assert.equal(state.transactions[0].total, expectedTotal);
+  assert.equal(state.transactions[0].unitPrice, Math.round(expectedTotal / qty));
+  assert.equal(state.inventory[outputKey].globalAvgCost, Math.round(expectedTotal / qty));
+  assert.equal(startingCash - state.assets.cash, expectedTax + artifactCost);
+});
+
+test('invalid actual material consumed blocks submit without mutating state', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');
+  const quality = '5.3';
+  const qty = 1;
+  const city = 'Bridgewatch';
+  const mainKey = '鋼條_5.3';
+  const outputKey = '審判者護甲_5.3';
+  state.assets.cash = 1000000;
+  state.inventory[mainKey] = {
+    qtyByCity: { ...qtyByCity(0), Bridgewatch: 20 },
+    globalAvgCost: 34980
+  };
+  state.inventory[outputKey] = {
+    qtyByCity: { ...qtyByCity(0), Bridgewatch: 0 },
+    globalAvgCost: null
+  };
+  craftingQueue.push({
+    id: 9203,
+    checked: true,
+    recipe,
+    qty,
+    quality,
+    city,
+    focus: true,
+    mainKey,
+    mainQty: 8,
+    actualMainQty: '',
+    subKey: '_5.3',
+    subQty: 0,
+    actualSubQty: 0,
+    tax: 0,
+    artifactPrice: 0,
+    artifactQty: 1,
+    alchemyName: null
+  });
+  const before = JSON.stringify({
+    assets: state.assets,
+    inventory: state.inventory,
+    transactions: state.transactions,
+    craftingQueue
+  });
+
+  Crafting.submitCraftAll();
+
+  assert.equal(JSON.stringify({
+    assets: state.assets,
+    inventory: state.inventory,
+    transactions: state.transactions,
+    craftingQueue
+  }), before);
+  assert.equal(toasts.at(-1)?.type, 'error');
+  assert.match(toasts.at(-1)?.message || '', /實際消耗|非負整數/);
+});
 
 test('checked queue display separates shop fee, artifact cost, alchemy cost, and cash total without material cost', { concurrency: false }, () => {
   resetState();
@@ -1272,8 +1444,10 @@ test('checked queue display separates shop fee, artifact cost, alchemy cost, and
     city: LOCATION,
     mainKey: 'DisplayMaterial_4.0',
     mainQty: 999,
+    actualMainQty: 999,
     subKey: '_4.0',
     subQty: 0,
+    actualSubQty: 0,
     tax: 0,
     artifactPrice: 200,
     artifactQty: 2,
@@ -1294,6 +1468,10 @@ test('checked queue display separates shop fee, artifact cost, alchemy cost, and
   assert.match(cashDisplay, /Alchemy Cost/);
   assert.match(cashDisplay, /本次製作現金支出/);
   assert.match(cashDisplay, /Craft Cash Cost/);
+  assert.match(cashDisplay, /justify-content:space-between/);
+  assert.match(cashDisplay, /font-size:0\.85rem/);
+  assert.match(cashDisplay, /font-weight:700/);
+  assert.doesNotMatch(cashDisplay, /text-align:center/);
   assert.match(cashDisplay, new RegExp(formatForRegex(expectedShopFee)));
   assert.match(cashDisplay, new RegExp(formatForRegex(expectedArtifactCost)));
   assert.match(cashDisplay, new RegExp(formatForRegex(expectedAlchemyCost)));

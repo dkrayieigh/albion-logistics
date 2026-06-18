@@ -42,6 +42,31 @@ export function calculateCraftingFee(r, q, qual, sf) {
   return Math.round((iv + av) * TAX_RATE * sf); 
 }
 
+export function calculateMaterialConsumption(baseQty, qty, rra) {
+  const grossQty = baseQty * qty;
+  const expectedReturn = Math.floor(grossQty * rra);
+  const expectedNetConsumption = grossQty - expectedReturn;
+  const perCraftMinReturn = Math.floor(baseQty * rra);
+  const perCraftMaxNetConsumption = baseQty - perCraftMinReturn;
+  const conservativeNetConsumption = perCraftMaxNetConsumption * qty;
+  const safeStartStock = qty > 0 ? baseQty + perCraftMaxNetConsumption * (qty - 1) : 0;
+
+  return {
+    expectedNetConsumption,
+    conservativeNetConsumption,
+    safeStartStock
+  };
+}
+
+function parseActualConsumed(value) {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) return value;
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || !/^[\d,]+$/.test(raw)) return null;
+  const parsed = parseNum(raw);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
 export function getAlchemyRequirement(tier) {
   const t = parseInt(tier);
   if (t === 4) return { tier: 'T3', qty: 1 };
@@ -104,8 +129,8 @@ export function runCraftingCalculator() {
   const q = parseNum(document.getElementById('craft-qty').value); const qual = currentCraftQuality; const city = document.getElementById('craft-city').value;
   const foc = document.getElementById('craft-focus').checked;
   const rra = getRRA(r.category, city, foc); document.getElementById('rra-badge').innerText = `返還率: ${(rra*100).toFixed(1)}%`;
-  let returnQty = Math.floor(r.mainBaseQty * q * rra); const amc = r.mainBaseQty * q - returnQty;
-  let returnSubQty = Math.floor(r.subBaseQty * q * rra); const asc = r.subBaseQty * q - returnSubQty;
+  const mainConsumption = calculateMaterialConsumption(r.mainBaseQty, q, rra); const amc = mainConsumption.expectedNetConsumption;
+  const subConsumption = calculateMaterialConsumption(r.subBaseQty, q, rra); const asc = subConsumption.expectedNetConsumption;
   document.getElementById('out-main-qty').innerText = `${amc} / ${r.mainBaseQty*q}`; document.getElementById('out-sub-qty').innerText = r.subBaseQty>0 ? `${asc} / ${r.subBaseQty*q}` : '0';
   
   const oml = document.getElementById('out-main-label'); if(oml) oml.innerHTML = `預估消耗 ${r.main}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.main]||''} Consumption</span>`;
@@ -130,8 +155,8 @@ export function addToCraftingQueue() {
   const foc = document.getElementById('craft-focus').checked;
   
   const mk = `${r.main}_${qual}`; const sk = `${r.sub}_${qual}`; const rra = getRRA(r.category, city, foc);
-  let returnQty = Math.floor(r.mainBaseQty * q * rra); const amc = r.mainBaseQty * q - returnQty;
-  let returnSubQty = Math.floor(r.subBaseQty * q * rra); const asc = r.subBaseQty * q - returnSubQty;
+  const mainConsumption = calculateMaterialConsumption(r.mainBaseQty, q, rra); const amc = mainConsumption.expectedNetConsumption;
+  const subConsumption = calculateMaterialConsumption(r.subBaseQty, q, rra); const asc = subConsumption.expectedNetConsumption;
   
   let alcTier = null; let alcQty = 0; let alcPrice = 0;
   if (r.alchemyName) {
@@ -140,7 +165,7 @@ export function addToCraftingQueue() {
       const alcEl = document.getElementById('craft-alchemy-cost'); if (alcEl) alcPrice = parseNum(alcEl.value);
   }
   
-  craftingQueue.push({ id: Math.floor(Date.now() + Math.random() * 1000), checked: true, recipe: r, qty: q, quality: qual, city: city, focus: foc, mainKey: mk, mainQty: amc, subKey: sk, subQty: asc, tax: 0, artifactPrice: 0, artifactName: r.artifactVal > 0 || r.artifactName ? r.artifactName : null, artifactQty: r.artifactQty || 1, alchemyName: r.alchemyName, alchemyTier: alcTier, alchemyBaseQty: alcQty, alchemyPrice: alcPrice });
+  craftingQueue.push({ id: Math.floor(Date.now() + Math.random() * 1000), checked: true, recipe: r, qty: q, quality: qual, city: city, focus: foc, mainKey: mk, mainQty: amc, actualMainQty: amc, subKey: sk, subQty: asc, actualSubQty: asc, tax: 0, artifactPrice: 0, artifactName: r.artifactVal > 0 || r.artifactName ? r.artifactName : null, artifactQty: r.artifactQty || 1, alchemyName: r.alchemyName, alchemyTier: alcTier, alchemyBaseQty: alcQty, alchemyPrice: alcPrice });
   renderCraftingQueue(); updateShoppingListTotal(); window.showToast('已加入佇列', 'success');
 }
 
@@ -148,18 +173,25 @@ export function renderCraftingQueue() {
   const tb = document.getElementById('crafting-queue-tbody'); tb.innerHTML='';
   craftingQueue.forEach(q => {
     const tr = document.createElement('tr'); const bc = `quality-badge quality-${parseInt(q.quality.split('.')[0])||4}`;
+    const rra = getRRA(q.recipe.category, q.city, q.focus);
+    const mainConsumption = calculateMaterialConsumption(q.recipe.mainBaseQty, q.qty, rra);
+    const subConsumption = calculateMaterialConsumption(q.recipe.subBaseQty, q.qty, rra);
+    if (q.actualMainQty === undefined) q.actualMainQty = q.mainQty;
+    if (q.actualSubQty === undefined) q.actualSubQty = q.subQty;
     tr.innerHTML = `
     <td><input type="checkbox" ${q.checked ? 'checked' : ''} class="queue-check" data-id="${q.id}"></td>
     <td style="white-space:nowrap;"><strong>T${parseInt(q.quality.split(".")[0])||4} ${q.recipe.name}</strong> ${q.focus?"✨":""}<br><span style="font-size:0.8em; opacity:0.7; color:var(--text-secondary);">${q.recipe.id}</span></td>
     <td><span class="${bc}">${q.quality}</span></td>
     <td style="color:var(--accent-cyan); font-weight:bold;">${q.qty}</td>
     <td>${SYSTEM_CITIES[q.city]?.name||q.city}</td>
-    <td style="white-space:nowrap; font-size:0.8rem; line-height:1.4;">${q.recipe.main}: ${q.mainQty}<br>${q.recipe.subBaseQty>0?`${q.recipe.sub}: ${q.subQty}`:''}</td>
+    <td style="white-space:nowrap; font-size:0.8rem; line-height:1.4;">${q.recipe.main}<br><span style="color:var(--text-secondary);">預估消耗：${mainConsumption.expectedNetConsumption}</span><br><span style="color:var(--text-secondary);">保守備料：${mainConsumption.safeStartStock}</span>${q.recipe.subBaseQty>0?`<br>${q.recipe.sub}<br><span style="color:var(--text-secondary);">預估消耗：${subConsumption.expectedNetConsumption}</span><br><span style="color:var(--text-secondary);">保守備料：${subConsumption.safeStartStock}</span>`:''}</td>
     <td style="display:flex; flex-direction:column; gap:8px;">
       <div style="display:flex; gap:5px; align-items:center;">
         <button class="btn btn-warning" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" data-action="edit-queue" data-id="${q.id}">✏️ 編輯<br><span style="font-size:0.8em;opacity:0.7;">Edit</span></button>
         <button class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" data-action="delete-queue" data-id="${q.id}">🗑️ 刪除<br><span style="font-size:0.8em;opacity:0.7;">Delete</span></button>
       </div>
+      <div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.recipe.main} 實際消耗</div><input type="text" class="format-num queue-actual-main-qty" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="實際消耗" value="${q.actualMainQty ?? ''}" data-id="${q.id}"></div>
+      ${q.recipe.subBaseQty > 0 ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.recipe.sub} 實際消耗</div><input type="text" class="format-num queue-actual-sub-qty" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="實際消耗" value="${q.actualSubQty ?? ''}" data-id="${q.id}"></div>` : ''}
       ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.artifactName}${q.artifactQty > 1 ? ` (需: ${q.artifactQty})` : ''}</div><input type="text" class="format-num queue-art-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" data-id="${q.id}"></div>` : ''}
       ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">${q.alchemyTier} ${q.alchemyName} (需: ${q.alchemyBaseQty})</div><input type="text" class="format-num queue-alc-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" data-id="${q.id}"></div>` : ''}
     </td>`;
@@ -180,10 +212,24 @@ export function updateShoppingListTotal() {
     artifactCostTotal += (q.artifactPrice || 0) * (q.artifactQty || 1) * q.qty;
     if (q.alchemyName) {
         alchemyCostTotal += (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
-        const ak = `${q.city}|${q.alchemyTier} ${q.alchemyName}`; aggregated[ak] = (aggregated[ak]||0) + (q.alchemyBaseQty * q.qty);
+        const ak = `${q.city}|${q.alchemyTier} ${q.alchemyName}`;
+        if (!aggregated[ak]) aggregated[ak] = { expected: 0, safeStart: 0 };
+        aggregated[ak].expected += q.alchemyBaseQty * q.qty;
+        aggregated[ak].safeStart += q.alchemyBaseQty * q.qty;
     }
-    const k = `${q.city}|${q.mainKey}`; aggregated[k] = (aggregated[k]||0) + q.mainQty;
-    if(q.recipe.subBaseQty>0) { const sk = `${q.city}|${q.subKey}`; aggregated[sk] = (aggregated[sk]||0) + q.subQty; }
+    const rra = getRRA(q.recipe.category, q.city, q.focus);
+    const mainConsumption = calculateMaterialConsumption(q.recipe.mainBaseQty, q.qty, rra);
+    const k = `${q.city}|${q.mainKey}`;
+    if (!aggregated[k]) aggregated[k] = { expected: 0, safeStart: 0 };
+    aggregated[k].expected += mainConsumption.expectedNetConsumption;
+    aggregated[k].safeStart += mainConsumption.safeStartStock;
+    if(q.recipe.subBaseQty>0) {
+      const subConsumption = calculateMaterialConsumption(q.recipe.subBaseQty, q.qty, rra);
+      const sk = `${q.city}|${q.subKey}`;
+      if (!aggregated[sk]) aggregated[sk] = { expected: 0, safeStart: 0 };
+      aggregated[sk].expected += subConsumption.expectedNetConsumption;
+      aggregated[sk].safeStart += subConsumption.safeStartStock;
+    }
   });
   
   const sc = document.getElementById('shopping-list-content');
@@ -200,18 +246,18 @@ export function updateShoppingListTotal() {
       listHTML += `<li style="display:flex; align-items:center; gap:5px; margin-bottom:5px; line-height:1.2;">
         <span style="color:var(--text-secondary); white-space:nowrap;">[${SYSTEM_CITIES[city]?.name||city}]</span> 
         <strong style="flex:1; ${mat.includes(' ') ? 'color:var(--accent-yellow);' : ''}">${matDisplay}</strong> 
-        <span style="color:var(--accent-cyan); font-weight:bold;"> x ${aggregated[k]}</span>
+        <span style="color:var(--accent-cyan); font-weight:bold;">預估消耗：${aggregated[k].expected}<br>保守備料：${aggregated[k].safeStart}</span>
       </li>`;
     }
     listHTML += '</ul>'; sc.innerHTML = listHTML;
   }
   const cashCostTotal = shopFeeTotal + artifactCostTotal + alchemyCostTotal;
   document.getElementById('queue-total-cost').innerHTML = `
-    <div style="display:grid; gap:4px; text-align:right;">
-      <div><span style="color:var(--text-secondary);">店鋪使用費 / Shop Fee:</span> <strong>${formatSilver(shopFeeTotal)}</strong></div>
-      <div><span style="color:var(--text-secondary);">神器成本 / Artifact Cost:</span> <strong>${formatSilver(artifactCostTotal)}</strong></div>
-      <div><span style="color:var(--text-secondary);">鍊金成本 / Alchemy Cost:</span> <strong>${formatSilver(alchemyCostTotal)}</strong></div>
-      <div style="color:var(--accent-cyan);"><span>本次製作現金支出 / Craft Cash Cost:</span> <strong>${formatSilver(cashCostTotal)}</strong></div>
+    <div style="display:grid; gap:4px; min-width:260px;">
+      <div style="display:flex; justify-content:space-between; gap:12px; font-size:0.85rem; font-weight:400;"><span style="color:var(--text-secondary);">店鋪使用費 / Shop Fee</span><span>${formatSilver(shopFeeTotal)}</span></div>
+      <div style="display:flex; justify-content:space-between; gap:12px; font-size:0.85rem; font-weight:400;"><span style="color:var(--text-secondary);">神器成本 / Artifact Cost</span><span>${formatSilver(artifactCostTotal)}</span></div>
+      <div style="display:flex; justify-content:space-between; gap:12px; font-size:0.85rem; font-weight:400;"><span style="color:var(--text-secondary);">鍊金成本 / Alchemy Cost</span><span>${formatSilver(alchemyCostTotal)}</span></div>
+      <div style="display:flex; justify-content:space-between; gap:12px; margin-top:4px; padding-top:4px; border-top:1px solid var(--border-glass); color:var(--accent-cyan); font-size:1rem; font-weight:700;"><span>本次製作現金支出 / Craft Cash Cost</span><span>${formatSilver(cashCostTotal)}</span></div>
     </div>`;
 }
 
@@ -221,18 +267,30 @@ export function submitCraftAll() {
   let needed = {}; let totalCashNeeded = 0;
   const sf = parseNum(document.getElementById('global-shopfee').value);
   const freshTaxes = new Map();
+  const actualConsumed = new Map();
   toCraft.forEach(q => {
     const freshTax = calculateCraftingFee(q.recipe, q.qty, q.quality, sf);
     freshTaxes.set(q.id, freshTax);
     totalCashNeeded += (freshTax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty);
     if (q.alchemyName) totalCashNeeded += (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
-    const mk = `${q.city}|${q.mainKey}`; needed[mk] = (needed[mk]||0) + q.mainQty;
-    if(q.recipe.subBaseQty>0) { const sk = `${q.city}|${q.subKey}`; needed[sk] = (needed[sk]||0) + q.subQty; }
+    const mainActual = parseActualConsumed(q.actualMainQty);
+    const subActual = q.recipe.subBaseQty > 0 ? parseActualConsumed(q.actualSubQty) : 0;
+    actualConsumed.set(q.id, { main: mainActual, sub: subActual });
+    if (mainActual === null) return;
+    if (q.recipe.subBaseQty > 0 && subActual === null) return;
+    const mk = `${q.city}|${q.mainKey}`; needed[mk] = (needed[mk]||0) + mainActual;
+    if(q.recipe.subBaseQty>0) { const sk = `${q.city}|${q.subKey}`; needed[sk] = (needed[sk]||0) + subActual; }
   });
+
+  for (const q of toCraft) {
+    const actual = actualConsumed.get(q.id);
+    if (!actual || actual.main === null) return window.showToast(`${q.mainKey.replace('_',' ')} 實際消耗必須是非負整數！`, 'error');
+    if (q.recipe.subBaseQty > 0 && actual.sub === null) return window.showToast(`${q.subKey.replace('_',' ')} 實際消耗必須是非負整數！`, 'error');
+  }
   
   for(let k in needed) {
     const [city, mat] = k.split('|'); const av = state.inventory[mat]?.qtyByCity[city] || 0;
-    if (av < needed[k]) return window.showToast(`短缺警告：${SYSTEM_CITIES[city]?.name||city} 的 ${mat.replace('_',' ')} 需要 ${needed[k]}，但庫存僅有 ${av}！`, 'error');
+    if (av < needed[k]) return window.showToast(`短缺警告：${SYSTEM_CITIES[city]?.name||city} 的 ${mat.replace('_',' ')} 實際消耗 ${needed[k]}，但庫存僅有 ${av}！`, 'error');
   }
 
   for (const q of toCraft) {
@@ -246,13 +304,16 @@ export function submitCraftAll() {
   
   toCraft.forEach(q => {
     q.tax = freshTaxes.get(q.id);
-    state.inventory[q.mainKey].qtyByCity[q.city] -= q.mainQty;
-    if(q.recipe.subBaseQty>0) state.inventory[q.subKey].qtyByCity[q.city] -= q.subQty;
+    const actual = actualConsumed.get(q.id);
+    q.actualMainQty = actual.main;
+    q.actualSubQty = actual.sub;
+    state.inventory[q.mainKey].qtyByCity[q.city] -= actual.main;
+    if(q.recipe.subBaseQty>0) state.inventory[q.subKey].qtyByCity[q.city] -= actual.sub;
     state.assets.cash -= (q.tax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty);
     if (q.alchemyName) state.assets.cash -= (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty;
     
-    const mkCost = q.mainQty * (state.inventory[q.mainKey]?.globalAvgCost||0);
-    const skCost = q.recipe.subBaseQty>0 ? (q.subQty * (state.inventory[q.subKey]?.globalAvgCost||0)) : 0;
+    const mkCost = actual.main * (state.inventory[q.mainKey]?.globalAvgCost||0);
+    const skCost = q.recipe.subBaseQty>0 ? (actual.sub * (state.inventory[q.subKey]?.globalAvgCost||0)) : 0;
     const tCost = mkCost + skCost + q.tax + (q.artifactPrice||0) * (q.artifactQty || 1) * q.qty + (q.alchemyName ? (q.alchemyPrice || 0) * (q.alchemyBaseQty || 0) * q.qty : 0);
     
     const ok = `${q.recipe.name}_${q.quality}`; if(!state.inventory[ok]) initDefaultState();
@@ -362,8 +423,8 @@ export function submitEditQueueQty() {
   const nq = parseInt(document.getElementById('edit-queue-qty-input').value);
   if(!isNaN(nq) && nq > 0) {
     q.qty = nq; const rra = getRRA(q.recipe.category, q.city, q.focus);
-    let returnQty = Math.floor(q.recipe.mainBaseQty * nq * rra); q.mainQty = q.recipe.mainBaseQty * nq - returnQty;
-    let returnSubQty = Math.floor(q.recipe.subBaseQty * nq * rra); q.subQty = q.recipe.subBaseQty * nq - returnSubQty;
+    const mainConsumption = calculateMaterialConsumption(q.recipe.mainBaseQty, nq, rra); q.mainQty = mainConsumption.expectedNetConsumption; q.actualMainQty = q.mainQty;
+    const subConsumption = calculateMaterialConsumption(q.recipe.subBaseQty, nq, rra); q.subQty = subConsumption.expectedNetConsumption; q.actualSubQty = q.subQty;
     renderCraftingQueue(); updateShoppingListTotal(); window.showToast('數量已更新', 'success');
   }
   closeEditQueueQtyModal();
@@ -383,6 +444,8 @@ export function confirmEditQueueQty() { submitEditQueueQty(); }
 export function removeFromQueue(id) { openDeleteConfirmModal(id); }
 export function confirmDeleteQueue() { submitDeleteQueue(); }
 export function toggleQueueItem(id, checked) { const q = craftingQueue.find(x => x.id === id); if(q) q.checked = checked; updateShoppingListTotal(); }
+export function updateQueueActualMainQty(id, val) { const q = craftingQueue.find(x => x.id === id); if(!q) return; q.actualMainQty = val; }
+export function updateQueueActualSubQty(id, val) { const q = craftingQueue.find(x => x.id === id); if(!q) return; q.actualSubQty = val; }
 export function updateQueueArtPrice(id, val) { const q = craftingQueue.find(x => x.id === id); if(!q) return; q.artifactPrice = parseNum(val); updateShoppingListTotal(); }
 export function updateQueueAlcPrice(id, val) { const q = craftingQueue.find(x => x.id === id); if(!q) return; q.alchemyPrice = parseNum(val); updateShoppingListTotal(); }
 export function adjustEditModalQty(amt) { const inp = document.getElementById('edit-queue-qty-input'); let val = parseInt(inp.value) || 0; val += amt; if (val < 1) val = 1; inp.value = val; }
@@ -445,6 +508,12 @@ export function initCraftingEvents() {
       } else if (e.target.classList.contains('queue-alc-price')) {
         const id = parseInt(e.target.getAttribute('data-id'));
         updateQueueAlcPrice(id, e.target.value);
+      } else if (e.target.classList.contains('queue-actual-main-qty')) {
+        const id = parseInt(e.target.getAttribute('data-id'));
+        updateQueueActualMainQty(id, e.target.value);
+      } else if (e.target.classList.contains('queue-actual-sub-qty')) {
+        const id = parseInt(e.target.getAttribute('data-id'));
+        updateQueueActualSubQty(id, e.target.value);
       }
     });
   }
