@@ -66,6 +66,32 @@ Future boundary：
 - **風險：** Medium → Low / Docs debt。
 - **封版狀態：** 非阻斷。
 
+## Laborer Sale / 工人島物資出售 current behavior checkpoint
+
+D51-D59 已完成 Laborer Sale / 工人島物資出售 current behavior protection checkpoint。此 checkpoint 只描述 current legacy-compatible behavior，不代表 canonical laborer sale event、transaction payload migration、writer migration 或 storage migration 已開始。
+
+已保護 current behavior：
+
+- Legacy `type: '工人島出售'` transaction 可被 `transactionReader` 讀取。
+- Normalized legacy laborer sale reader entry 可被 Ledger display 顯示。
+- Current laborer sale writer 會扣 selected `laborerInventory` item/quality，保留 unrelated laborer inventory，增加 cash，寫入 legacy `type: '工人島出售'` transaction payload，正確計算 `unitPrice`，保持 transaction insertion order，並保留 legacy storage key `滿日記本`。
+- 已明確保護 user-facing「日誌」display terminology 與 legacy key `滿日記本` 的邊界。
+
+Future boundary：
+
+- Canonical laborer sale event 尚未實作。
+- Transaction payload migration 尚未開始。
+- Writer migration 尚未開始。
+- Storage migration 尚未開始。
+- Backup/import/export 尚未更動。
+- Legacy `type: '工人島出售'` fallback 不可移除。
+- Legacy storage key `滿日記本` 不可直接改名為 `滿日誌`。
+
+測試基準：
+
+- `56 tests / 56 pass / 0 fail / 0 TODO`
+- 測試檔：`tests/core-cost-regression.test.js`、`tests/ledger-data-safety.test.js`
+
 ### 1.3 銷售估價工具
 
 - **目前行為：** 支援成品銷售的單價與總價互算、扣除 6.5% 後的收入預估，以及總預估市值的 90% 與 85% 參考價。
