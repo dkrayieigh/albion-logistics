@@ -159,6 +159,18 @@ D78 已將 Location Registry business rules 寫入 future target / migration bou
 - Migration validation invariants 已定義：inventory item count、each item/location quantity、global quantity totals、`globalAvgCost`、cash、transaction count、custom location count、unresolved mapping count。Any mismatch blocks migration and requires rollback to legacy backup。
 - Compatibility release boundary：first compatible release may add registry model draft/read-only mapping adapter while preserving literal legacy names、`qtyByCity` 與 fallback；不得 switch purchase/transport writers、write `qtyByLocation`、rewrite `localStorage`、rewrite backup schema 或 remove fallback。
 
+## D79 Special legacy location identity boundary
+
+D79 已補充 special legacy location identity boundary。此 checkpoint 只定義 `LaborerIsland` 與 `Hideout` 的 current legacy-compatible behavior、future Location Registry classification 與 migration blocker，不代表 `SYSTEM_CITIES`、`loadState()`、`initDefaultState()`、`normalizeLocationMap()`、writer/storage、backup import/export 或 migration code 已修改。
+
+- `LaborerIsland` current behavior：保留 exact legacy key `LaborerIsland`；不是 current `SYSTEM_CITIES`；不是 current `customLocations` entry；future classification 為 `system-special`，future fixed `locationId` 為 `laborer_island`。
+- `Hideout` current behavior：deprecated legacy compatibility key；current `loadState()` 有既有 legacy compatibility normalization exception；不代表 future rename semantics。
+- Future registry boundary：fixed ID list includes `laborer_island` and excludes `Hideout`；`Hideout` must not resolve to a permanent registry ID and must not silently create a custom location。
+- Remaining blocker：special legacy key classification tests not created。
+- Remaining blocker：`Hideout` current mutation is not covered by registry-boundary regression coverage。
+- Remaining blocker：`LaborerIsland` fixed mapping is not covered by resolver coverage。
+- Writer/storage migration remains blocked；不得寫回 `qtyByLocation`、不得取代 `qtyByCity`、不得建立 Location Registry storage、不得修改 purchase/transport writers、不得移除 legacy fallback。
+
 ### 1.3 銷售估價工具
 
 - **目前行為：** 支援遊戲估價單價 / 總價同步、90% / 85% P2P 參考價、實售單價 / 總價同步，並顯示 Total Cost、Est. GP、Unit GP 與 GP %；若 `globalAvgCost` unknown，顯示成本未知，不顯示假毛利。Legacy sale writer payload 維持不變。

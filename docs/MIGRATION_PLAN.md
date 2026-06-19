@@ -85,6 +85,8 @@ Adapter API draft: `ADAPTER_API.md`。該文件是 future API draft，不代表 
 - 定義 Location Registry。
 - 建立 legacy location name ↔ future locationId mapping。
 - 確認 system cities、自訂倉庫、LaborerIsland / laborer island 邊界。
+- 定義 `LaborerIsland` special legacy key mapping：current exact legacy key remains `LaborerIsland`；future fixed special system ID is `laborer_island`；writer/storage migration remains not started。
+- 定義 `Hideout` deprecated legacy key gate：future registry must not assign permanent ID `hideout` / `Hideout`；residual `Hideout` must be unresolved / deprecated legacy key and block migration until handled。
 - 明確定義非空自訂倉庫刪除安全規則仍保留。
 - 定義 Location identity business rules：`locationId` immutable、`displayName` mutable、rename preserves `locationId`。
 - 定義 fixed system IDs：`thetford`、`martlock`、`bridgewatch`、`lymhurst`、`fort_sterling`、`caerleon`、`brecilien`。

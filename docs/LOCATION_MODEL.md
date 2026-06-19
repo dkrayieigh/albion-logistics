@@ -76,6 +76,7 @@ Future target 仍是 Location Registry + stable `locationId`。在 Location Regi
 - `fort_sterling`
 - `caerleon`
 - `brecilien`
+- `laborer_island`
 
 System locations rules：
 
@@ -83,6 +84,36 @@ System locations rules：
 - System location ID 不可 rename。
 - Display labels 可以 localization。
 - System location ID 不得從 UI text 動態推導。
+
+#### Special Legacy Locations
+
+This section defines special legacy location identity boundaries. It describes current legacy-compatible behavior and future Location Registry classification only. It does not change current storage, writers, `SYSTEM_CITIES`, `loadState()`, `initDefaultState()`, `normalizeLocationMap()`, backup import/export, or migration status.
+
+##### `LaborerIsland`
+
+- Current implementation uses exact legacy key `LaborerIsland`.
+- Current implementation initializes inventory `qtyByCity` entries with `LaborerIsland: 0`.
+- `LaborerIsland` is not part of current `SYSTEM_CITIES`.
+- `LaborerIsland` is not a current `customLocations` entry.
+- Future Location Registry classification is `system-special`.
+- Future fixed `locationId` is `laborer_island`.
+- It is not a custom location and must not be user-created, renamed, or deleted.
+- Display label may be localized in the future, but current storage remains exact legacy key `LaborerIsland`.
+- The future `laborer_island` ID does not mean any writer/storage migration has started.
+
+##### `Hideout`
+
+- Current implementation treats `Hideout` as a deprecated legacy compatibility key.
+- `Hideout` is not part of current `SYSTEM_CITIES`.
+- Current `loadState()` contains a legacy compatibility exception that can normalize old `Hideout` data.
+- That `loadState()` exception is current legacy compatibility behavior only.
+- Future Location Registry must not assign a permanent fixed `locationId` named `hideout` or `Hideout`.
+- `Hideout` must not be treated as a permanent system registry entry.
+- Future resolver behavior must not silently create a custom location for residual `Hideout`.
+- If residual `Hideout` appears during future registry migration validation, it must be reported as unresolved / deprecated legacy key and block migration until handled.
+- The current legacy transaction-location rewrite exception must not be generalized into future rename semantics. Future custom-location rename must not rewrite historical raw transaction payload.
+
+Future fixed ID list includes `laborer_island` and excludes `Hideout`.
 
 #### Custom locations
 

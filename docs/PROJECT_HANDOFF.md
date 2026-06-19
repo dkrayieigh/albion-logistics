@@ -2,13 +2,28 @@
 
 ## Handoff Status
 
-- Latest checkpoint: D78 Location Registry business rules
-- Latest master commit: `8195ba078f5a1cb8330a7dd1b364dbfdc4623969`
-- Commit title: `docs: close location read-only adapter checkpoint`
+- Latest checkpoint: D79 Special legacy location identity boundary
+- Latest master commit: D78 commit SHA pending handoff refresh
+- Commit title: D78 commit title pending handoff refresh
 - Baseline: `117 tests / 117 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
-This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D78. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D79. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+
+## D79 Special Legacy Location Identity Boundary
+
+- D78 Location Registry business rules are complete as future target / migration boundary.
+- D79 identifies two special legacy location keys that must be handled before Location Registry migration can proceed: `LaborerIsland` and `Hideout`.
+- `LaborerIsland` remains current exact legacy storage key, is not current `SYSTEM_CITIES`, and is not current `customLocations`.
+- Future `LaborerIsland` classification is `system-special` with fixed `locationId` `laborer_island`.
+- The future `laborer_island` ID does not mean writer/storage migration has started.
+- `Hideout` remains a deprecated legacy compatibility key.
+- Current `loadState()` legacy compatibility normalization for `Hideout` is an existing exception only; it must not be treated as future Location Registry rename semantics.
+- Future registry mapping must not assign permanent ID `hideout` / `Hideout`, must not silently create a custom location for residual `Hideout`, and must report residual `Hideout` as unresolved / deprecated legacy key.
+- Future custom-location rename must not rewrite historical raw transaction payload.
+- Migration execution remains not started.
+- Writer/storage migration remains blocked.
+- Likely next step: D80 tests-only mapping contract for special legacy location identity. Do not start D80 from this handoff.
 
 ## D78 Location Registry Business Rules
 
