@@ -93,7 +93,7 @@ This section defines special legacy location identity boundaries. It describes c
 
 - Current implementation uses exact legacy key `LaborerIsland`.
 - Current implementation initializes inventory `qtyByCity` entries with `LaborerIsland: 0`.
-- `LaborerIsland` is not part of current `SYSTEM_CITIES`.
+- `LaborerIsland` is a current `SYSTEM_CITIES` entry and a reserved legacy `qtyByCity` key.
 - `LaborerIsland` is not a current `customLocations` entry.
 - Future Location Registry classification is `system-special`.
 - Future fixed `locationId` is `laborer_island`.
@@ -104,7 +104,7 @@ This section defines special legacy location identity boundaries. It describes c
 ##### `Hideout`
 
 - Current implementation treats `Hideout` as a deprecated legacy compatibility key.
-- `Hideout` is not part of current `SYSTEM_CITIES`.
+- `Hideout` remains a current `SYSTEM_CITIES` compatibility entry, but it is also a deprecated legacy key handled specially by `loadState()`.
 - Current `loadState()` contains a legacy compatibility exception that can normalize old `Hideout` data.
 - That `loadState()` exception is current legacy compatibility behavior only.
 - Future Location Registry must not assign a permanent fixed `locationId` named `hideout` or `Hideout`.

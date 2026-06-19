@@ -14,7 +14,8 @@ This document is a handoff checkpoint for the current legacy-compatible stabiliz
 
 - D78 Location Registry business rules are complete as future target / migration boundary.
 - D79 identifies two special legacy location keys that must be handled before Location Registry migration can proceed: `LaborerIsland` and `Hideout`.
-- `LaborerIsland` remains current exact legacy storage key, is not current `SYSTEM_CITIES`, and is not current `customLocations`.
+- `LaborerIsland` remains a current `SYSTEM_CITIES` entry and exact legacy storage key, but it is not a current `customLocations` entry.
+- `Hideout` remains present in current `SYSTEM_CITIES` for compatibility, but must not become a permanent future registry ID.
 - Future `LaborerIsland` classification is `system-special` with fixed `locationId` `laborer_island`.
 - The future `laborer_island` ID does not mean writer/storage migration has started.
 - `Hideout` remains a deprecated legacy compatibility key.
