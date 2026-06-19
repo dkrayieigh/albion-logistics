@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { resolveItemIdentity } from '../src/adapters/itemIdentity.js';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
 import { readTransaction } from '../src/adapters/transactionReader.js';
@@ -410,6 +411,37 @@ test('estimated total value updates estimated unit', { concurrency: false }, () 
   assert.equal(getElement('sell-crafted-estimate-unit').value, '527,000');
 });
 
+test('sale popup uses game valuation labels', { concurrency: false }, () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /遊戲估價單價/);
+  assert.match(html, /Est\. Unit Value/);
+  assert.match(html, /遊戲估價總價/);
+  assert.match(html, /Est\. Total Value/);
+  assert.doesNotMatch(html, /預估市值單價|Estimated Unit Value|預估市值總價|Estimated Total Value/);
+});
+
+test('profit summary uses bilingual compact labels', { concurrency: false }, () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /成本狀態 \/ Status/);
+  assert.match(html, /成本總額 \/ Total Cost/);
+  assert.match(html, /預估毛利 \/ Est\. GP/);
+  assert.match(html, /單件毛利 \/ Unit GP/);
+  assert.match(html, /毛利率 \/ GP %/);
+  assert.match(html, /sale-summary-grid/);
+  assert.match(html, /white-space:nowrap/);
+});
+
+test('sale confirmation button uses compact label and separate inventory wallet hint', { concurrency: false }, () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /確認完成 \| Confirm/);
+  assert.doesNotMatch(html, /確認完成交易 \(更新庫存與錢包\)/);
+  assert.match(html, /完成後將同步更新您的庫存與錢包餘額/);
+  assert.match(html, /Inventory and wallet balances will be updated\./);
+});
+
 test('P2P valuation reference total generates 90% and 85% references without setting actual sale price', { concurrency: false }, () => {
   resetState();
   const item = 'TestProduct';
@@ -445,7 +477,8 @@ test('sale popup shows cost and profit summary from globalAvgCost', { concurrenc
   getElement('sell-crafted-total').value = '10800000';
   Inventory.onSellPriceChange('total');
 
-  assert.equal(getElement('sell-cost-status').innerText, '成本基準已建立');
+  assert.equal(getElement('sell-cost-status').innerText, '✅');
+  assert.equal(getElement('sell-cost-status').title, '成本基準已建立');
   assert.equal(getElement('sell-cost-total').innerText, '9,908,500');
   assert.equal(getElement('sell-profit-total').innerText, '891,500');
   assert.equal(getElement('sell-profit-unit').innerText, '44,575');
@@ -467,11 +500,12 @@ test('unknown cost basis shows unknown status without fake numeric profit', { co
   getElement('sell-crafted-total').value = '10800000';
   Inventory.onSellPriceChange('total');
 
-  assert.equal(getElement('sell-cost-status').innerText, '成本基準未知');
-  assert.equal(getElement('sell-cost-total').innerText, '成本基準未知');
-  assert.equal(getElement('sell-profit-total').innerText, '成本基準未知');
-  assert.equal(getElement('sell-profit-unit').innerText, '成本基準未知');
-  assert.equal(getElement('sell-profit-margin').innerText, '成本基準未知');
+  assert.equal(getElement('sell-cost-status').innerText, '⚠️');
+  assert.equal(getElement('sell-cost-status').title, '成本基準未知');
+  assert.equal(getElement('sell-cost-total').innerText, '未知');
+  assert.equal(getElement('sell-profit-total').innerText, '未知');
+  assert.equal(getElement('sell-profit-unit').innerText, '未知');
+  assert.equal(getElement('sell-profit-margin').innerText, '未知');
   assert.doesNotMatch(getElement('sell-estimator-result').innerHTML, /NaN|Infinity/);
 });
 
@@ -495,6 +529,13 @@ test('fixed tax estimate is no longer primary sale popup display', { concurrency
   assert.match(summaryHtml, /sell-profit-total/);
   assert.match(summaryHtml, /sell-profit-margin/);
   assert.doesNotMatch(summaryHtml, /0\.935|10,098,000|tax/i);
+});
+
+test('runEstimator no longer contains or renders fixed tax estimate', { concurrency: false }, () => {
+  const source = readFileSync(new URL('../src/components/inventory.js', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(source, /0\.935/);
+  assert.doesNotMatch(source, /扣除稅額預估/);
 });
 
 test('sale writer remains legacy payload while valuation UI readiness tests are added', { concurrency: false }, () => {

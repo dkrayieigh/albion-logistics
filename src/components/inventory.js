@@ -300,21 +300,23 @@ export function refreshSaleValuationSummary() {
   const saleTotal = parseNum(document.getElementById('sell-crafted-total')?.value || '') || 0;
   const avgCost = inv?.globalAvgCost;
   const hasCostBasis = typeof avgCost === 'number' && !Number.isNaN(avgCost);
-  const costStatusText = hasCostBasis ? '成本基準已建立' : '成本基準未知';
-  const costTotalText = hasCostBasis && qty > 0 ? formatSilver(avgCost * qty) : '成本基準未知';
-  const profitText = hasCostBasis && saleTotal > 0 && qty > 0 ? formatSilver(saleTotal - avgCost * qty) : '成本基準未知';
-  const profitUnitText = hasCostBasis && saleTotal > 0 && qty > 0 ? formatSilver(Math.round((saleTotal - avgCost * qty) / qty)) : '成本基準未知';
-  const marginText = hasCostBasis && saleTotal > 0 && qty > 0 ? `${((saleTotal - avgCost * qty) / saleTotal * 100).toFixed(2)}%` : '成本基準未知';
+  const costStatusLabel = hasCostBasis ? '成本基準已建立' : '成本基準未知';
+  const costStatusText = hasCostBasis ? '✅' : '⚠️';
+  const unknownText = '未知';
+  const costTotalText = hasCostBasis && qty > 0 ? formatSilver(avgCost * qty) : unknownText;
+  const profitText = hasCostBasis && saleTotal > 0 && qty > 0 ? formatSilver(saleTotal - avgCost * qty) : unknownText;
+  const profitUnitText = hasCostBasis && saleTotal > 0 && qty > 0 ? formatSilver(Math.round((saleTotal - avgCost * qty) / qty)) : unknownText;
+  const marginText = hasCostBasis && saleTotal > 0 && qty > 0 ? `${((saleTotal - avgCost * qty) / saleTotal * 100).toFixed(2)}%` : unknownText;
   const result = document.getElementById('sell-estimator-result');
 
   if (result) {
     result.innerHTML = `
-      <div style="display:grid; grid-template-columns:1fr auto; gap:6px 12px; align-items:center;">
-        <span>成本狀態</span><strong id="sell-cost-status">${costStatusText}</strong>
-        <span>成本總額</span><strong id="sell-cost-total">${costTotalText}</strong>
-        <span>預估毛利</span><strong id="sell-profit-total">${profitText}</strong>
-        <span>單件毛利</span><strong id="sell-profit-unit">${profitUnitText}</strong>
-        <span>毛利率</span><strong id="sell-profit-margin">${marginText}</strong>
+      <div class="sale-summary-grid">
+        <span class="sale-summary-label">成本狀態 / Status</span><strong class="sale-summary-value" id="sell-cost-status" title="${costStatusLabel}" aria-label="${costStatusLabel}">${costStatusText}</strong>
+        <span class="sale-summary-label">成本總額 / Total Cost</span><strong class="sale-summary-value" id="sell-cost-total">${costTotalText}</strong>
+        <span class="sale-summary-label">預估毛利 / Est. GP</span><strong class="sale-summary-value" id="sell-profit-total">${profitText}</strong>
+        <span class="sale-summary-label">單件毛利 / Unit GP</span><strong class="sale-summary-value" id="sell-profit-unit">${profitUnitText}</strong>
+        <span class="sale-summary-label">毛利率 / GP %</span><strong class="sale-summary-value" id="sell-profit-margin">${marginText}</strong>
       </div>`;
   }
   const costStatus = document.getElementById('sell-cost-status');
@@ -322,7 +324,11 @@ export function refreshSaleValuationSummary() {
   const profitTotalEl = document.getElementById('sell-profit-total');
   const profitUnitEl = document.getElementById('sell-profit-unit');
   const profitMarginEl = document.getElementById('sell-profit-margin');
-  if (costStatus) costStatus.innerText = costStatusText;
+  if (costStatus) {
+    costStatus.innerText = costStatusText;
+    costStatus.title = costStatusLabel;
+    costStatus.setAttribute?.('aria-label', costStatusLabel);
+  }
   if (costTotalEl) costTotalEl.innerText = costTotalText;
   if (profitTotalEl) profitTotalEl.innerText = profitText;
   if (profitUnitEl) profitUnitEl.innerText = profitUnitText;
@@ -331,13 +337,6 @@ export function refreshSaleValuationSummary() {
 
 export function runEstimator() {
   refreshSaleValuationSummary();
-  return;
-  const tEl = document.getElementById('sell-crafted-total');
-  const est = document.getElementById('sell-estimator-result');
-  if (tEl && est) {
-     const t = parseNum(tEl.value);
-     est.innerText = `扣除稅額預估: ${(t * 0.935).toLocaleString()}`;
-  }
 }
 
 export function onSellPriceChange(type) {
