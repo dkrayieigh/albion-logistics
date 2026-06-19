@@ -117,6 +117,14 @@ D69-D70 已完成 crafting material planning safe-start aggregation 與 zero-TOD
 - 測試檔：`tests/core-cost-regression.test.js`
 - 未開始任何 migration；current implementation 仍使用中文 item key、`qtyByCity`、legacy transaction payload、legacy `customLocations` strings、legacy laborer key `滿日記本` 與 legacy fallbacks。
 
+## D72 Location adapter-only readiness checkpoint
+
+D72 migration readiness review 判定：migration execution readiness fail，adapter-only stabilization readiness pass。下一條 stabilization track 選定為 Location read-only adapter broader regression coverage。
+
+- Location adapter broader dual-read coverage remains gap：legacy `qtyByCity` direct/wrapper input、future `qtyByLocation` wrapper input、invalid/non-finite quantity unresolved reporting、zero/negative finite quantity preservation、multi-location preservation、input immutability、literal location key preservation、custom location string support。
+- Writer/storage migration remains blocked：不得寫回 `qtyByLocation`、不得取代 `qtyByCity`、不得建立 Location Registry storage、不得修改 purchase/transport writers、不得移除 legacy fallback。
+- 此 checkpoint 不代表 `qtyByLocation` current implementation、Location Registry current implementation 或 migration 已開始。
+
 ### 1.3 銷售估價工具
 
 - **目前行為：** 支援遊戲估價單價 / 總價同步、90% / 85% P2P 參考價、實售單價 / 總價同步，並顯示 Total Cost、Est. GP、Unit GP 與 GP %；若 `globalAvgCost` unknown，顯示成本未知，不顯示假毛利。Legacy sale writer payload 維持不變。

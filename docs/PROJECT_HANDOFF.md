@@ -2,13 +2,34 @@
 
 ## Handoff Status
 
-- Latest checkpoint: D70 close
-- Latest master commit: `c5d8d490f1bd106b6371a29915478fc0fc7c32bb`
-- Commit title: `fix: aggregate crafting safe stock by material`
+- Latest checkpoint: D72 migration readiness review complete
+- Latest master commit: `63607692b0a10801ec527710135d1117296bf952`
+- Commit title: `docs: sync zero-todo stabilization baseline`
 - Baseline: `99 tests / 99 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
-This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D70. It summarizes current stable behavior, covered safety nets, future targets, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D72. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+
+## D72 Migration Readiness Review
+
+- Latest baseline remains `99 tests / 99 pass / 0 fail / 0 TODO`.
+- Migration execution readiness: fail.
+- Adapter-only stabilization readiness: pass.
+- Next selected track: Location read-only adapter broader regression coverage.
+- Next step: D74 tests-only Location adapter coverage.
+- Item ID track is blocked by missing mapping catalog and conflict rules.
+- Transaction/Event track is blocked by incomplete canonical semantics and reversal mapping.
+- Location track may continue only with broader read-only tests.
+
+Location read-only track boundary:
+
+- The current Location Adapter accepts legacy `qtyByCity`-style maps.
+- The current Location Adapter accepts future `qtyByLocation` wrapper input.
+- It returns `sourceFormat`, `quantities`, and `unresolvedLocations`.
+- It does not write storage.
+- It does not define or create Location Registry storage.
+- It does not change purchase or transport writers.
+- It does not replace `qtyByCity`, add a `qtyByLocation` writer, or remove legacy fallback.
 
 ## D61-D70 Stabilization Summary
 

@@ -14,9 +14,27 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 
 ## Current Stable Baseline
 
-- 56 tests / 56 pass / 0 fail / 0 TODO。
+- 99 tests / 99 pass / 0 fail / 0 TODO。
+- This is the latest master stabilization baseline.
 - 此 baseline 保護 current legacy-compatible implementation。
 - 此 baseline 不代表 Stable ID / `qtyByLocation` / canonical event payload migration 已完成。
+- 此 baseline 不代表 migration 已開始。
+
+## Current Minimal Adapter Status
+
+- Item Identity：minimal read-only adapter exists in `src/adapters/itemIdentity.js`。
+- Location Adapter：minimal dual-read normalizer exists in `src/adapters/locationAdapter.js`。
+- Transaction Reader：minimal mixed-format reader exists in `src/adapters/transactionReader.js`。
+- 以上狀態只代表 reader/normalizer compatibility；writer/storage migration 尚未開始。
+
+## D72 Readiness Decision
+
+- Migration execution readiness：fail。
+- Adapter-only stabilization readiness：pass。
+- Next selected track：Location read-only adapter broader regression coverage。
+- Item ID track blocked by missing mapping catalog and conflict rules。
+- Transaction/Event track blocked by incomplete canonical semantics and reversal mapping。
+- Location track may continue only with broader read-only tests. It must not write storage, replace `qtyByCity`, create Location Registry storage, modify purchase/transport writers, or remove legacy fallback.
 
 ## Test Status Legend
 
@@ -26,6 +44,9 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 | Docs-only | 目前只記錄在文件中，不新增 test。 |
 | Next test.todo | 下一階段可考慮加入 `test.todo`，但本任務不新增。 |
 | Adapter-only | 必須等 adapter module 建立後才能寫正式 test。 |
+| Adapter-only planned | adapter/normalizer 已存在或可讀取，但下一步只允許補 read-only regression coverage。 |
+| Migration-blocked | 需等 mapping、canonical semantics、backup/rollback 或 migration boundary 完成後才能進入。 |
+| Writer/storage migration not started | 明確標示目前不得改 writer、storage schema、payload 或 fallback。 |
 
 ## Item ID Compatibility
 
@@ -40,6 +61,8 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 
 ## Location Compatibility
 
+Next selected track after D72：Location read-only adapter broader regression coverage。此 track 只允許補 read-only adapter tests，不代表 `qtyByLocation` migration、Location Registry、storage rewrite、backup import/export rewrite、purchase/transport writer migration 或 legacy fallback removal 已開始。
+
 | 測試項目 | 狀態 | 風險 | 下一步處理方式 | 備註 |
 |---|---|---|---|---|
 | legacy `qtyByCity` 可用於核心庫存、物流、成本流程 | Covered | High | 維持現有 regression test。 | 保護 current storage compatibility。 |
@@ -48,8 +71,17 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 | 多城市 `qtyByCity` backup 匯入後數量不變 | Covered | High | Covered by `tests/backup-regression.test.js` via read-only location adapter. | This covers adapter normalization tolerance only; it does not migrate backup import/export, storage keys, or Location Registry. |
 | Inventory render/display accepts normalized Location Adapter entries | Covered | High | Covered by `tests/core-cost-regression.test.js` and `src/components/inventory.js` display helper. | Reader/display only; does not migrate `qtyByCity` writers, `qtyByLocation`, storage, backup import/export, purchase/transport writers, or Location Registry. |
 | custom location name key 更名後庫存不遺失 | Docs-only | High | 先保留為文件風險，待更名行為邊界確認後再決定測試。 | 目前先記錄風險，不在本任務新增 test。 |
-| location adapter 雙讀 `qtyByCity` / `qtyByLocation` | Adapter-only | High | Minimal read-only adapter exists; broader dual-read regression remains future adapter-only coverage. | This does not migrate writers, backup import/export, storage keys, or Location Registry. |
-| migration 前後每個 location 物理數量一致 | Adapter-only | High | 等 adapter sample 與 migration plan 具體化後再寫正式 test。 | 需等 migration/adapter sample 建立後才能驗證。 |
+| legacy `qtyByCity` wrapper / direct map normalization | Adapter-only planned | High | D74 tests-only candidate。 | Broader read-only coverage only; adapter output does not imply storage migration. |
+| future `qtyByLocation` normalization | Adapter-only planned | High | D74 tests-only candidate。 | Future wrapper can be normalized by read-only adapter, but `qtyByLocation` is not current storage. |
+| invalid / non-finite quantities reported as unresolved | Adapter-only planned | High | D74 tests-only candidate。 | Invalid values should be reported through `unresolvedLocations`, not silently repaired. |
+| zero and negative finite quantities preserved | Adapter-only planned | High | D74 tests-only candidate。 | Read-only adapter must not self-correct finite numeric values. |
+| multiple locations preserved | Adapter-only planned | High | D74 tests-only candidate。 | All literal location keys must remain present in adapter output. |
+| input object not mutated | Adapter-only planned | High | D74 tests-only candidate。 | Adapter must remain read-only. |
+| same location names remain literal keys | Adapter-only planned | High | D74 tests-only candidate。 | No Location Registry lookup or ID conversion is implied. |
+| custom location strings remain supported | Adapter-only planned | High | D74 tests-only candidate。 | Legacy custom location names remain literal keys. |
+| adapter output does not imply storage migration | Writer/storage migration not started | High | Keep as boundary assertion for D74 and later reviews. | Do not write back `qtyByLocation`, replace `qtyByCity`, create Location Registry in storage, modify purchase/transport writers, or remove legacy fallback. |
+| location adapter 雙讀 `qtyByCity` / `qtyByLocation` | Adapter-only planned | High | Minimal read-only adapter exists; broader dual-read regression is the selected Location track. | This does not migrate writers, backup import/export, storage keys, or Location Registry. |
+| migration 前後每個 location 物理數量一致 | Migration-blocked | High | 等 adapter sample、backup/rollback validation 與 migration plan 具體化後再寫正式 test。 | 需等 migration/adapter sample 建立後才能驗證；D73 不啟動 migration。 |
 
 ## Transaction / Event Compatibility
 
