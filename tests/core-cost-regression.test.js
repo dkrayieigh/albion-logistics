@@ -336,6 +336,100 @@ test('crafted item sale reduces inventory, increases cash, and writes a sale tra
   assert.match(toasts.at(-1)?.message || '', /20,000/);
 });
 
+test('actual sale unit price updates actual sale total', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 495425
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '20';
+  getElement('sell-crafted-price').value = '540000';
+  Inventory.onSellPriceChange('unit');
+
+  assert.equal(getElement('sell-crafted-total').value, '10,800,000');
+});
+
+test('actual sale total updates actual sale unit price', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 495425
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '20';
+  getElement('sell-crafted-total').value = '10800000';
+  Inventory.onSellPriceChange('total');
+
+  assert.equal(getElement('sell-crafted-price').value, '540,000');
+});
+
+test('P2P valuation reference total generates 90% and 85% references without setting actual sale price', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 495425
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-estimate').value = '10540000';
+  Inventory.onSellEstimateChange();
+
+  assert.equal(getElement('sell-bench-90').innerText, '9,486,000');
+  assert.equal(getElement('sell-bench-85').innerText, '8,959,000');
+  assert.equal(getElement('sell-crafted-total').value, '');
+  assert.equal(getElement('sell-crafted-price').value, '');
+});
+
+test.todo('sale valuation UI display support: popup should show cost basis, cost total, estimated profit, profit per item, and profit margin from globalAvgCost instead of tax-only estimate');
+
+test.todo('sale valuation UI display support: popup should show cost basis unknown and avoid numeric profit margin when globalAvgCost is null');
+
+test.todo('sale valuation UI display support: sale popup should replace fixed tax estimate with cost and profit summary for P2P mode');
+
+test('sale writer remains legacy payload while valuation UI readiness tests are added', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 495425
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '20';
+  getElement('sell-crafted-total').value = '10800000';
+  Inventory.submitSellCrafted();
+
+  assert.equal(state.transactions.length, 1);
+  assert.deepEqual(state.transactions[0], {
+    date: new Date().toISOString().split('T')[0],
+    type: '賣成品',
+    item,
+    quality,
+    qty: 20,
+    total: 10800000,
+    unitPrice: 540000,
+    location: LOCATION
+  });
+  assert.equal(Object.hasOwn(state.transactions[0], 'action'), false);
+  assert.equal(Object.hasOwn(state.transactions[0], 'cashChange'), false);
+  assert.equal(Object.hasOwn(state.transactions[0], 'assetValue'), false);
+  assert.equal(Object.hasOwn(state.transactions[0], 'locationId'), false);
+});
+
 test('crafted item sale state transition preserves legacy transaction payload and location-specific inventory', { concurrency: false }, () => {
   resetState();
   state.assets.cash = 100000;
