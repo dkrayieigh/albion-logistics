@@ -5,7 +5,7 @@
 > Stable ID、`qtyByLocation` 與 canonical transaction payload 都是 future target / migration target。
 > Current implementation 仍保留 legacy `qtyByCity`、中文 item key 與 legacy transaction 欄位；不得解讀為已全面使用 Stable ID、`qtyByLocation` 或 `action` / `target` / `cashChange` / `locationId`。
 > 本文件不是 current implementation 的完整快照，不得據此直接重寫現有存檔或 production code。
-> 修改 src 前必須先參考 `IMPLEMENTATION_GAP.md`、`CURRENT_LIMITATIONS.md`、`RELEASE_STABILIZATION.md`、`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.md` 與 `MIGRATION_PLAN.md`。
+> 修改 src 前必須先參考 `IMPLEMENTATION_GAP.md`、`CURRENT_LIMITATIONS.md`、`TEST_CASES.md`、`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.md` 與 `MIGRATION_PLAN.md`。
 > 配方加成判斷應優先依賴 category，不應依賴 UI 顯示名稱字串比對
 
 ## 🌳 狀態樹根結構(Root State)

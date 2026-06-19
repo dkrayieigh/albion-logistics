@@ -1,0 +1,5 @@
+# Archived Documentation
+
+此目錄只保存歷史文件，不代表 current implementation、active specification 或目前測試 baseline。
+
+任何 current 狀態應以 `docs/IMPLEMENTATION_GAP.md`、`docs/TEST_CASES.md` 與現行 regression tests 為準。

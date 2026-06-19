@@ -12,4 +12,4 @@
 
 current src behavior 是相容性基準，但不是絕對真理。
 不得把 future target 寫成 current implementation。
-完整 AI 工作規則以 repository AGENTS.md 或任務指令為準。
+完整 AI 工作規則以目前任務指令、Codex 個人化規則與本專案 active docs 為準。
