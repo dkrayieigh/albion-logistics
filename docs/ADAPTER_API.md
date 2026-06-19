@@ -169,9 +169,9 @@ Future helper draft，可在 `normalizeLocationMap()` 之上查詢單一地點�
 
 ### `resolveLocationIdentity(input)`
 
-Future Location Registry mapping API draft。此 API 尚未存在。
+Minimal read-only implementation exists in `src/adapters/locationIdentity.js`.
 
-This remains a future API draft. It does not change `normalizeLocationMap()`, current writers, storage keys, backup import/export, or Location Registry migration status.
+This remains a future identity API draft and current read-only resolver boundary. It does not persist a Location Registry, does not change `normalizeLocationMap()`, does not connect to current writers, does not change storage keys, does not change backup import/export, and does not start Location Registry migration.
 
 **input**
 
@@ -200,6 +200,8 @@ This remains a future API draft. It does not change `normalizeLocationMap()`, cu
 - no fuzzy matching。
 - no silent custom location creation。
 - residual deprecated legacy key `Hideout` must become unresolved / `deprecatedLegacyKey: true`。
+- malformed mapping entries must become unresolved。
+- system mappings cannot be overridden by custom mapping。
 - migration must stop while unresolved mappings remain。
 
 **must not mutate state**
@@ -212,10 +214,11 @@ This remains a future API draft. It does not change `normalizeLocationMap()`, cu
 **must support legacy data**
 
 - Exact system name maps to fixed future system ID。
-- Exact legacy key `LaborerIsland` may resolve to future fixed special system ID `laborer_island` after registry mapping exists。
+- Exact legacy key `LaborerIsland` resolves to future fixed special system ID `laborer_island` in the current read-only resolver。
 - Exact custom name maps to existing future custom ID only after a mapping exists。
 - Legacy literal names must remain readable before migration。
 - Deprecated legacy key `Hideout` must remain readable as legacy compatibility data, but must not resolve to a permanent registry ID。
+- Unknown names、fuzzy matches、normalized-name conflicts、malformed mappings must resolve as unresolved。
 
 **future implementation boundary**
 
@@ -224,6 +227,7 @@ This remains a future API draft. It does not change `normalizeLocationMap()`, cu
 - `LaborerIsland` future mapping to `laborer_island` does not mean writer/storage migration has started。
 - `Hideout` must not resolve to a permanent registry ID, must not silently create a custom location, and must be reported as unresolved / deprecated legacy key if it remains during future migration validation。
 - Current `loadState()` legacy compatibility exceptions must not be generalized into future rename semantics. Future rename must not rewrite historical raw transaction payload。
+- Current writers, inventory display, state load/save, backup import/export, `customLocations`, and storage schema do not use `resolveLocationIdentity()`。
 - This API draft does not start migration, does not make Location Registry current implementation, and does not make writer/storage readiness pass.
 
 ### `validateLocationMigration(input)`

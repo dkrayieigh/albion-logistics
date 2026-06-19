@@ -14,7 +14,7 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 
 ## Current Stable Baseline
 
-- 117 tests / 117 pass / 0 fail / 0 TODO。
+- 130 tests / 130 pass / 0 fail / 0 TODO。
 - This is the latest master stabilization baseline.
 - 此 baseline 保護 current legacy-compatible implementation。
 - 此 baseline 不代表 Stable ID / `qtyByLocation` / canonical event payload migration 已完成。
@@ -24,6 +24,7 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 
 - Item Identity：minimal read-only adapter exists in `src/adapters/itemIdentity.js`。
 - Location Adapter：minimal dual-read normalizer exists in `src/adapters/locationAdapter.js`。
+- Location Identity Resolver：minimal read-only resolver exists in `src/adapters/locationIdentity.js`。
 - Transaction Reader：minimal mixed-format reader exists in `src/adapters/transactionReader.js`。
 - 以上狀態只代表 reader/normalizer compatibility；writer/storage migration 尚未開始。
 
@@ -43,6 +44,16 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 - Migration execution remains not started。
 - Future `qtyByLocation` sample readability is adapter-only compatibility. It does not mean `qtyByLocation` is current storage or accepted migrated backup schema.
 - Backup tests protect current legacy-compatible shape. They do not start backup migration.
+
+## D81 Location Identity Resolver Checkpoint
+
+- Location identity mapping contract and minimal read-only resolver implementation：PASS。
+- Current covered behavior：exact system city mapping、`LaborerIsland` to `laborer_island`、residual `Hideout` unresolved with `deprecatedLegacyKey`、explicit custom mapping only、unknown unresolved、malformed mapping unresolved、normalized-name conflict detection、no fuzzy matching、input/mapping immutability、system mapping precedence over custom mapping。
+- Location Registry persistence does not exist。
+- `qtyByLocation` is not current storage。
+- `customLocations` remains `string[]`。
+- No writer, inventory/state path, backup importer/exporter, or migration uses `resolveLocationIdentity()`。
+- Writer/storage migration remains blocked。
 
 ## Test Status Legend
 
@@ -89,6 +100,15 @@ Next selected track after D72：Location read-only adapter broader regression co
 | same location names remain literal keys | Covered | High | Maintain D74-D76 read-only regression coverage. | No Location Registry lookup or ID conversion is implied. |
 | custom location strings remain supported | Covered | High | Maintain D74-D76 backup and adapter coverage. | Legacy custom location names remain literal keys and `customLocations` remains a string array. |
 | legacy backup import/loadState/adapter preservation | Covered | High | Maintain D76 backup regression coverage. | Covers multi-item/multi-location `qtyByCity`, system/custom literal keys, `globalAvgCost`, zero quantities, `loadState`, and adapter read after import; does not migrate backup shape. |
+| location identity resolver exact system city mapping | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | Resolves fixed system city display names to future IDs without persisting a registry. |
+| location identity resolver `LaborerIsland` mapping | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | Resolves exact legacy key `LaborerIsland` to `laborer_island`; this does not migrate writers or storage. |
+| location identity resolver residual `Hideout` deprecated boundary | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | Residual `Hideout` is unresolved with `deprecatedLegacyKey`; it must not become a permanent registry ID or silently create a custom location. |
+| location identity resolver explicit custom mapping only | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | Custom location names resolve only through explicit mapping; no silent custom creation. |
+| location identity resolver normalized-name conflict detection | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | Conflicting normalized names become unresolved. |
+| location identity resolver unknown and fuzzy names unresolved | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | Unknown names and fuzzy matches remain unresolved. |
+| location identity resolver input and mapping immutability | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | Resolver must not mutate input or mapping table. |
+| location identity resolver malformed mapping unresolved | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | Malformed mapping entries become unresolved instead of creating IDs. |
+| location identity resolver system precedence | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | System mapping cannot be overridden by custom mapping. |
 | adapter output does not imply storage migration | Writer/storage migration not started | High | Keep as boundary assertion for D74 and later reviews. | Do not write back `qtyByLocation`, replace `qtyByCity`, create Location Registry in storage, modify purchase/transport writers, or remove legacy fallback. |
 | location adapter 雙讀 `qtyByCity` / `qtyByLocation` | Covered | High | D74-D76 read-only checkpoint complete. | This does not migrate writers, backup import/export, storage keys, or Location Registry. |
 | migration 前後每個 location 物理數量一致 | Migration-blocked | High | 等 adapter sample、backup/rollback validation 與 migration plan 具體化後再寫正式 test。 | 需等 migration/adapter sample 建立後才能驗證；D73 不啟動 migration。 |

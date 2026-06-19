@@ -2,20 +2,33 @@
 
 ## Handoff Status
 
-- Latest checkpoint: D79 Special legacy location identity boundary
-- Latest master commit: D78 commit SHA pending handoff refresh
-- Commit title: D78 commit title pending handoff refresh
-- Baseline: `117 tests / 117 pass / 0 fail / 0 TODO`
+- Latest checkpoint: D82 docs sync / D81 Location identity resolver close
+- Latest master commit: Current master includes D81 read-only resolver commit
+- Commit title: Current master includes D81 read-only resolver commit
+- Baseline: `130 tests / 130 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
-This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D79. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D82 docs sync / D81 resolver close. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+
+## D82 Location Identity Resolver Docs Sync
+
+- D80-D81 Location identity mapping contract and minimal read-only resolver implementation are complete.
+- Current baseline: `130 tests / 130 pass / 0 fail / 0 TODO`.
+- Current read-only implementation: `src/adapters/locationIdentity.js` exposes `resolveLocationIdentity()`.
+- Covered behavior: exact system city mapping, `LaborerIsland` -> `laborer_island`, residual `Hideout` unresolved with `deprecatedLegacyKey`, explicit custom mapping only, unknown unresolved, malformed mapping unresolved, normalized-name conflict detection, no fuzzy matching, input/mapping immutability, and system mapping precedence over custom mapping.
+- Location Registry persistence does not exist.
+- `qtyByLocation` is not current storage.
+- `customLocations` remains `string[]`.
+- No writer, inventory/state path, backup importer/exporter, or migration uses `resolveLocationIdentity()`.
+- Next boundary: do not connect resolver output to writer/storage directly; future work must remain adapter-first with tests and backup/rollback gates before any storage mutation.
+- Do not start D83 from this handoff.
 
 ## D79 Special Legacy Location Identity Boundary
 
 - D78 Location Registry business rules are complete as future target / migration boundary.
 - D79 identifies two special legacy location keys that must be handled before Location Registry migration can proceed: `LaborerIsland` and `Hideout`.
-- `LaborerIsland` remains a current `SYSTEM_CITIES` entry and exact legacy storage key, but it is not a current `customLocations` entry.
-- `Hideout` remains present in current `SYSTEM_CITIES` for compatibility, but must not become a permanent future registry ID.
+- `LaborerIsland` remains current exact legacy storage key and is not a current `customLocations` entry.
+- `Hideout` remains a deprecated legacy compatibility key and must not become a permanent future registry ID.
 - Future `LaborerIsland` classification is `system-special` with fixed `locationId` `laborer_island`.
 - The future `laborer_island` ID does not mean writer/storage migration has started.
 - `Hideout` remains a deprecated legacy compatibility key.
@@ -56,7 +69,7 @@ Compatibility release boundary:
 
 ## D77 Location Read-Only Checkpoint
 
-- Latest baseline: `117 tests / 117 pass / 0 fail / 0 TODO`.
+- Historical D77 baseline: `117 tests / 117 pass / 0 fail / 0 TODO`.
 - Location read-only adapter checkpoint: pass.
 - Location writer/storage migration readiness: fail.
 - Migration execution remains not started.
@@ -155,7 +168,7 @@ Location read-only track boundary:
 ### Current Behavior Safety Net
 
 - D1-D60 historical regression baseline protected 56 tests with no failures and no TODO tests.
-- Latest master baseline is now `117 tests / 117 pass / 0 fail / 0 TODO`.
+- Latest master baseline is now `130 tests / 130 pass / 0 fail / 0 TODO`.
 - Core cost and inventory behaviors remain covered in `tests/core-cost-regression.test.js`.
 - Ledger display and transaction reader safety remain covered in `tests/ledger-data-safety.test.js`.
 - Backup import/export and compatibility safety remain covered in `tests/backup-regression.test.js`.
