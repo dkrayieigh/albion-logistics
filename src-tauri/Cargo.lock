@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "albion-logistics"
-version = "4.1.2"
+version = "0.4.3"
 dependencies = [
  "serde",
  "serde_json",
