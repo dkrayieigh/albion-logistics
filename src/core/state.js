@@ -11,11 +11,11 @@ export const state = {
 };
 
 export const craftingQueue = [];
-export let currentCraftQuality = '4.0';
-export let currentBuyQuality = '4.0';
+export let currentCraftQuality = '';
+export let currentBuyQuality = '';
 
-export function setCurrentCraftQuality(val) { currentCraftQuality = val; }
-export function setCurrentBuyQuality(val) { currentBuyQuality = val; }
+export function setCurrentCraftQuality(val) { currentCraftQuality = val || ''; }
+export function setCurrentBuyQuality(val) { currentBuyQuality = val || ''; }
 
 // 不再依賴 window 全域變數，改用 CustomEvent 發送廣播
 function callUIUpdate() {

@@ -76,6 +76,7 @@ export function submitTransport() {
 // ==== BUY MATERIALS ====
 export function submitPurchase() {
   const item = document.getElementById('buy-item').value; const qual = currentBuyQuality;
+  if (!qual) return window.showToast('請先選擇品質', 'error');
   const qty = parseNum(document.getElementById('buy-qty').value); const tc = parseNum(document.getElementById('buy-total-price').value); const city = document.getElementById('buy-city').value;
   if(qty<=0||tc<=0) return window.showToast('數量總價錯誤', 'error');
   state.assets.cash -= tc; const key = `${item}_${qual}`; if(!state.inventory[key]) initDefaultState(); 

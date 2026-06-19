@@ -36,6 +36,14 @@ function resetSystemData() {
 // 供 Crafting 與 App 共用的品質藥丸渲染
 function renderQualityPillsGroup(containerId, activeQuality, callback) {
   const ctn = document.getElementById(containerId); ctn.innerHTML = '';
+  if (!activeQuality) {
+    const hint = document.createElement('div');
+    hint.innerText = '請選擇品質';
+    hint.style.fontSize = '0.85rem';
+    hint.style.color = 'var(--accent-yellow)';
+    hint.style.marginBottom = '8px';
+    ctn.appendChild(hint);
+  }
   QUAL_GROUPS.forEach(g => {
     const d = document.createElement('div'); d.style.marginBottom = '10px';
     const title = document.createElement('div'); title.innerText = g.label; title.style.fontSize = '0.85rem'; title.style.color = 'var(--accent-cyan)'; title.style.marginBottom = '4px';

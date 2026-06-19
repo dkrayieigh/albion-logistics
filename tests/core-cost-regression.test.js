@@ -64,7 +64,7 @@ globalThis.window = {
 const Inventory = await import('../src/components/inventory.js');
 const Laborer = await import('../src/components/laborer.js');
 const Crafting = await import('../src/components/crafting.js');
-const { state, craftingQueue, setCurrentBuyQuality } = await import('../src/core/state.js');
+const { state, craftingQueue, setCurrentBuyQuality, setCurrentCraftQuality } = await import('../src/core/state.js');
 
 const LOCATION = 'Thetford';
 
@@ -91,6 +91,8 @@ function resetState() {
   elements.clear();
   toasts = [];
   confirmResult = true;
+  setCurrentBuyQuality('');
+  setCurrentCraftQuality('');
   getElement('global-shopfee').value = '0';
 }
 
@@ -150,6 +152,47 @@ test('empty custom location can be deleted without affecting other state', { con
   assert.equal(state.assets.cash, 12345);
   assert.equal(toasts.at(-1)?.type, 'success');
   assert.notEqual(JSON.stringify(state.inventory), inventoryBefore);
+});
+
+test('purchase without explicit quality is blocked without mutation', { concurrency: false }, () => {
+  resetState();
+  const before = JSON.stringify(state);
+
+  getElement('buy-item').value = 'NoQualityMaterial';
+  getElement('buy-qty').value = '10';
+  getElement('buy-total-price').value = '1000';
+  getElement('buy-city').value = LOCATION;
+
+  Inventory.submitPurchase();
+
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(state.inventory['NoQualityMaterial_4.0'], undefined);
+  assert.equal(state.transactions.length, 0);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
+test('purchase after explicit quality selection uses selected quality', { concurrency: false }, () => {
+  resetState();
+  const item = 'SelectedQualityMaterial';
+  const quality = '5.3';
+  const key = `${item}_${quality}`;
+  state.assets.cash = 5000;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(0),
+    globalAvgCost: null
+  };
+  setCurrentBuyQuality(quality);
+  getElement('buy-item').value = item;
+  getElement('buy-qty').value = '2';
+  getElement('buy-total-price').value = '1000';
+  getElement('buy-city').value = LOCATION;
+
+  Inventory.submitPurchase();
+
+  assert.equal(state.inventory[key].qtyByCity[LOCATION], 2);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0].quality, quality);
+  assert.equal(state.inventory[`${item}_4.0`], undefined);
 });
 
 test('purchase recalculates WAC, adds inventory, deducts cash, and writes a ledger record', { concurrency: false }, () => {
@@ -1264,11 +1307,41 @@ test('material consumption helper distinguishes expected consumption, conservati
 
 test.todo('aggregated safe-start stock for multiple queue rows sharing one material needs business rule before implementation');
 
-test('queue actual consumed inputs start blank', { concurrency: false }, () => {
+test('crafting without explicit quality is blocked before queue mutation', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.artifactVal === 448 && item.mainBaseQty === 16);
+  const beforeQueueLength = craftingQueue.length;
+
+  getElement('craft-recipe').value = recipe.name;
+  getElement('craft-qty').value = '20';
+  getElement('craft-city').value = 'Bridgewatch';
+  getElement('craft-focus').checked = true;
+
+  Crafting.addToCraftingQueue();
+
+  assert.equal(craftingQueue.length, beforeQueueLength);
+  assert.equal(craftingQueue.some(item => item.quality === '4.0'), false);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
+test('crafting calculator does not throw when quality is unselected', { concurrency: false }, () => {
   resetState();
   const recipe = Crafting.RECIPES.find(item => item.artifactVal === 448 && item.mainBaseQty === 16);
 
-  setCurrentBuyQuality('5.3');
+  getElement('craft-recipe').value = recipe.name;
+  getElement('craft-qty').value = '20';
+  getElement('craft-city').value = 'Bridgewatch';
+  getElement('craft-focus').checked = true;
+
+  assert.doesNotThrow(() => Crafting.runCraftingCalculator());
+  assert.equal(craftingQueue.length, 0);
+});
+
+test('crafting after explicit quality selection uses selected quality and blank actual consumed input', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.artifactVal === 448 && item.mainBaseQty === 16);
+
+  setCurrentCraftQuality('5.3');
   getElement('craft-recipe').value = recipe.name;
   getElement('craft-qty').value = '20';
   getElement('craft-city').value = 'Bridgewatch';
@@ -1277,6 +1350,8 @@ test('queue actual consumed inputs start blank', { concurrency: false }, () => {
   Crafting.addToCraftingQueue();
 
   assert.equal(craftingQueue.length, 1);
+  assert.equal(craftingQueue[0].quality, '5.3');
+  assert.match(craftingQueue[0].mainKey, /_5\.3$/);
   assert.equal(craftingQueue[0].mainQty, 167);
   assert.equal(craftingQueue[0].actualMainQty, '');
   assert.equal(craftingQueue[0].actualSubQty, 0);

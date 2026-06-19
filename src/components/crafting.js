@@ -127,6 +127,13 @@ export function onRecipeChange() {
 export function runCraftingCalculator() {
   const rn = document.getElementById('craft-recipe').value; const r = RECIPES.find(x => x.name === rn); if (!r) return;
   const q = parseNum(document.getElementById('craft-qty').value); const qual = currentCraftQuality; const city = document.getElementById('craft-city').value;
+  if (!qual) {
+    const rraBadge = document.getElementById('rra-badge');
+    if (rraBadge) rraBadge.innerText = '請選擇品質';
+    const alcGroup = document.getElementById('alchemy-group');
+    if (alcGroup) alcGroup.style.display = 'none';
+    return;
+  }
   const foc = document.getElementById('craft-focus').checked;
   const rra = getRRA(r.category, city, foc); document.getElementById('rra-badge').innerText = `返還率: ${(rra*100).toFixed(1)}%`;
   const mainConsumption = calculateMaterialConsumption(r.mainBaseQty, q, rra); const amc = mainConsumption.expectedNetConsumption;
@@ -152,6 +159,7 @@ export function addToCraftingQueue() {
   const rn = document.getElementById('craft-recipe').value; const r = RECIPES.find(x => x.name === rn); if (!r) return window.showToast('裝備錯誤', 'error');
   const q = parseNum(document.getElementById('craft-qty').value); if(q<=0) return window.showToast('數量必須大於0', 'error');
   const qual = currentCraftQuality; const city = document.getElementById('craft-city').value;
+  if (!qual) return window.showToast('請先選擇品質', 'error');
   const foc = document.getElementById('craft-focus').checked;
   
   const mk = `${r.main}_${qual}`; const sk = `${r.sub}_${qual}`; const rra = getRRA(r.category, city, foc);
