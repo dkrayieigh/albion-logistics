@@ -428,11 +428,10 @@ test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { c
   }
 });
 
-test('adapter/migration red test: future location adapter preserves every legacy qtyByCity location quantity without mutating input', { concurrency: false }, () => {
+test('location adapter read-only: legacy direct location map normalizes without migration', { concurrency: false }, () => {
   const qtyByCity = {
-    Thetford: 100,
-    Martlock: 25,
-    '公會T8地堡': 7
+    Thetford: 120,
+    Martlock: 5
   };
   const before = JSON.stringify(qtyByCity);
 
@@ -441,8 +440,140 @@ test('adapter/migration red test: future location adapter preserves every legacy
   assert.equal(JSON.stringify(qtyByCity), before);
   assert.equal(normalized.sourceFormat, 'qtyByCity');
   assert.deepEqual(normalized.quantities, qtyByCity);
-  assert.equal(normalized.quantities.Thetford, 100);
-  assert.equal(normalized.quantities.Martlock, 25);
-  assert.equal(normalized.quantities['公會T8地堡'], 7);
   assert.deepEqual(normalized.unresolvedLocations, []);
+});
+
+test('location adapter read-only: future qtyByLocation wrapper normalizes as future sample only', { concurrency: false }, () => {
+  const input = {
+    qtyByLocation: {
+      thetford: 120,
+      martlock: 5
+    }
+  };
+  const before = JSON.stringify(input);
+
+  const normalized = normalizeLocationMap(input);
+
+  assert.equal(JSON.stringify(input), before);
+  assert.equal(normalized.sourceFormat, 'qtyByLocation');
+  assert.deepEqual(normalized.quantities, input.qtyByLocation);
+  assert.deepEqual(normalized.unresolvedLocations, []);
+});
+
+test('location adapter read-only: invalid and non-finite quantities are reported unresolved without throwing', { concurrency: false }, () => {
+  const input = {
+    ValidLocation: 1,
+    NaNLocation: NaN,
+    InfiniteLocation: Infinity,
+    StringNumberLocation: '5',
+    NullLocation: null,
+    ObjectLocation: { qty: 5 }
+  };
+
+  const normalized = normalizeLocationMap(input);
+
+  assert.deepEqual(normalized.quantities, { ValidLocation: 1 });
+  assert.deepEqual(normalized.unresolvedLocations, [
+    'NaNLocation',
+    'InfiniteLocation',
+    'StringNumberLocation',
+    'NullLocation',
+    'ObjectLocation'
+  ]);
+});
+
+test('location adapter read-only: zero and negative finite quantities are preserved', { concurrency: false }, () => {
+  const input = {
+    ZeroLocation: 0,
+    NegativeLocation: -5
+  };
+
+  const normalized = normalizeLocationMap(input);
+
+  assert.deepEqual(normalized.quantities, input);
+  assert.deepEqual(normalized.unresolvedLocations, []);
+});
+
+test('location adapter read-only: multiple literal location keys are preserved without location id conversion', { concurrency: false }, () => {
+  const input = {
+    Thetford: 1,
+    '公會T8地堡': 2,
+    'Warehouse A / 測試': 3,
+    'Bridgewatch Market #2': 4
+  };
+
+  const normalized = normalizeLocationMap(input);
+
+  assert.deepEqual(Object.keys(normalized.quantities), Object.keys(input));
+  assert.deepEqual(normalized.quantities, input);
+  assert.equal(Object.hasOwn(normalized.quantities, 'locationId'), false);
+  assert.deepEqual(normalized.unresolvedLocations, []);
+});
+
+test('location adapter read-only: input objects are not mutated and output quantities are copies', { concurrency: false }, () => {
+  const directInput = {
+    Thetford: 120,
+    Martlock: 5
+  };
+  const wrappedInput = {
+    qtyByLocation: {
+      thetford: 120,
+      martlock: 5
+    }
+  };
+  const directBefore = JSON.stringify(directInput);
+  const wrappedBefore = JSON.stringify(wrappedInput);
+
+  const directNormalized = normalizeLocationMap(directInput);
+  const wrappedNormalized = normalizeLocationMap(wrappedInput);
+
+  assert.equal(JSON.stringify(directInput), directBefore);
+  assert.equal(JSON.stringify(wrappedInput), wrappedBefore);
+  assert.notEqual(directNormalized.quantities, directInput);
+  assert.notEqual(wrappedNormalized.quantities, wrappedInput.qtyByLocation);
+  assert.deepEqual(directNormalized.quantities, directInput);
+  assert.deepEqual(wrappedNormalized.quantities, wrappedInput.qtyByLocation);
+});
+
+test('location adapter read-only: unresolvedLocations preserves invalid key insertion order', { concurrency: false }, () => {
+  const input = {
+    FirstInvalid: '1',
+    ValidLocation: 1,
+    SecondInvalid: Infinity,
+    ThirdInvalid: null
+  };
+
+  const normalized = normalizeLocationMap(input);
+
+  assert.deepEqual(normalized.quantities, { ValidLocation: 1 });
+  assert.deepEqual(normalized.unresolvedLocations, ['FirstInvalid', 'SecondInvalid', 'ThirdInvalid']);
+});
+
+test('location adapter read-only: empty null and undefined input normalize to empty qtyByCity contract', { concurrency: false }, () => {
+  for (const input of [{}, null, undefined]) {
+    const normalized = normalizeLocationMap(input);
+
+    assert.equal(normalized.sourceFormat, 'qtyByCity');
+    assert.deepEqual(normalized.quantities, {});
+    assert.deepEqual(normalized.unresolvedLocations, []);
+  }
+});
+
+test.todo('location adapter should normalize legacy qtyByCity wrapper without treating qtyByCity as a literal location key');
+
+test('location adapter read-only: boundary does not touch storage writers or registry paths', { concurrency: false }, () => {
+  const source = normalizeLocationMap.toString();
+  const input = {
+    qtyByCity: {
+      Thetford: 120,
+      CustomWarehouse: 5
+    }
+  };
+  const before = JSON.stringify(input);
+
+  normalizeLocationMap(input);
+
+  assert.equal(JSON.stringify(input), before);
+  assert.equal(Object.hasOwn(input, 'qtyByCity'), true);
+  assert.doesNotMatch(source, /localStorage|saveState|LocationRegistry|purchase|transport|submitPurchase|submitTransport/i);
 });
