@@ -3,8 +3,8 @@
 ## Handoff Status
 
 - Latest checkpoint: D82 docs sync / D81 Location identity resolver close
-- Latest master commit: Current master includes D81 read-only resolver commit
-- Commit title: Current master includes D81 read-only resolver commit
+- Latest master commit: `48ed0f0d37d95293fa770dc96544db005689c816`
+- Commit title: `docs: close location identity resolver checkpoint`
 - Baseline: `130 tests / 130 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
@@ -37,7 +37,7 @@ This document is a handoff checkpoint for the current legacy-compatible stabiliz
 - Future custom-location rename must not rewrite historical raw transaction payload.
 - Migration execution remains not started.
 - Writer/storage migration remains blocked.
-- Likely next step: D80 tests-only mapping contract for special legacy location identity. Do not start D80 from this handoff.
+- Historical next step at D79 was D80 tests-only mapping contract; D80-D81 are now complete.
 
 ## D78 Location Registry Business Rules
 

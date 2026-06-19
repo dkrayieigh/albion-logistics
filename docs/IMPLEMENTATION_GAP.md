@@ -163,7 +163,7 @@ D78 已將 Location Registry business rules 寫入 future target / migration bou
 
 D79 已補充 special legacy location identity boundary。此 checkpoint 只定義 `LaborerIsland` 與 `Hideout` 的 current legacy-compatible behavior、future Location Registry classification 與 migration blocker，不代表 `SYSTEM_CITIES`、`loadState()`、`initDefaultState()`、`normalizeLocationMap()`、writer/storage、backup import/export 或 migration code 已修改。
 
-- `LaborerIsland` current behavior：保留 exact legacy key `LaborerIsland`；不是 current `SYSTEM_CITIES`；不是 current `customLocations` entry；future classification 為 `system-special`，future fixed `locationId` 為 `laborer_island`。
+- `LaborerIsland` current behavior：保留 exact legacy key `LaborerIsland`；是 current `SYSTEM_CITIES` compatibility entry 與 reserved legacy `qtyByCity` key；不是 current `customLocations` entry；future classification 為 `system-special`，future fixed `locationId` 為 `laborer_island`。
 - `Hideout` current behavior：deprecated legacy compatibility key；current `loadState()` 有既有 legacy compatibility normalization exception；不代表 future rename semantics。
 - Future registry boundary：fixed ID list includes `laborer_island` and excludes `Hideout`；`Hideout` must not resolve to a permanent registry ID and must not silently create a custom location。
 - Historical D79 blocker：special legacy key classification tests were not created yet；D80-D81 已補 read-only resolver mapping contract coverage。
