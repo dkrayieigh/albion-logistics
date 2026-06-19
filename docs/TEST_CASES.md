@@ -13,11 +13,16 @@ npm test
 ### Stable release baseline
 
 - 指令：`npm.cmd test`
-- 結果：**99 tests / 99 pass / 0 fail / 0 TODO**
+- 結果：**117 tests / 117 pass / 0 fail / 0 TODO**
 - 這是 latest master stabilization baseline；v0.4.3 release baseline 屬於歷史 release checkpoint，不代表目前最新 master baseline。
 - 目前沒有 regression test TODO。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
 - 手測案例中的 `locationId` 是 future/location-model 對照標記；current UI/storage 仍可能使用 legacy city display key 或 `qtyByCity`。
+- 新增 covered scope: Location read-only adapter legacy direct map and `qtyByCity` wrapper normalization.
+- 新增 covered scope: Location read-only adapter future `qtyByLocation` sample normalization as adapter-only compatibility, not current storage support.
+- 新增 covered scope: Location read-only adapter invalid/non-finite unresolved reporting, zero/negative finite preservation, literal/custom key preservation, input immutability, and output copy behavior.
+- 新增 covered scope: legacy backup location preservation through import, `loadState`, and adapter read, including multi-item/multi-location `qtyByCity`, custom location string arrays, `globalAvgCost`, and zero quantity preservation.
+- This does not implement `qtyByLocation` storage, Location Registry, backup migration, purchase/transport writer migration, or legacy fallback removal.
 - 新增 covered scope: crafting material planning aggregates expected consumption and safe-start stock by material key + city.
 - 新增 covered scope: crafting accounting uses user-entered actual material consumption; blank/invalid actual consumption blocks before mutation.
 - 新增 covered scope: purchase and crafting require explicit quality selection and no longer default to `4.0`.
@@ -48,7 +53,7 @@ npm test
 - 新增 covered scope: Laborer sale success state transition preserves legacy payload, transaction insertion order, cash increase, selected inventory deduction, unrelated inventory, and legacy storage key 滿日記本.
 - This does not implement a canonical event, change writers, migrate transaction payloads, or rename legacy storage key 滿日記本.
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
-- `ADAPTER_TEST_PLAN.md` 不屬於目前 99 tests baseline，不代表 adapter 或 migration 已開始。
+- `ADAPTER_TEST_PLAN.md` 不屬於目前 117 tests baseline，不代表 adapter 或 migration 已開始。
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。

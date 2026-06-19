@@ -14,7 +14,7 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 
 ## Current Stable Baseline
 
-- 99 tests / 99 pass / 0 fail / 0 TODO。
+- 117 tests / 117 pass / 0 fail / 0 TODO。
 - This is the latest master stabilization baseline.
 - 此 baseline 保護 current legacy-compatible implementation。
 - 此 baseline 不代表 Stable ID / `qtyByLocation` / canonical event payload migration 已完成。
@@ -35,6 +35,14 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 - Item ID track blocked by missing mapping catalog and conflict rules。
 - Transaction/Event track blocked by incomplete canonical semantics and reversal mapping。
 - Location track may continue only with broader read-only tests. It must not write storage, replace `qtyByCity`, create Location Registry storage, modify purchase/transport writers, or remove legacy fallback.
+
+## D77 Location Read-Only Checkpoint
+
+- Location read-only adapter checkpoint：PASS。
+- Location writer/storage migration readiness：FAIL。
+- Migration execution remains not started。
+- Future `qtyByLocation` sample readability is adapter-only compatibility. It does not mean `qtyByLocation` is current storage or accepted migrated backup schema.
+- Backup tests protect current legacy-compatible shape. They do not start backup migration.
 
 ## Test Status Legend
 
@@ -71,16 +79,18 @@ Next selected track after D72：Location read-only adapter broader regression co
 | 多城市 `qtyByCity` backup 匯入後數量不變 | Covered | High | Covered by `tests/backup-regression.test.js` via read-only location adapter. | This covers adapter normalization tolerance only; it does not migrate backup import/export, storage keys, or Location Registry. |
 | Inventory render/display accepts normalized Location Adapter entries | Covered | High | Covered by `tests/core-cost-regression.test.js` and `src/components/inventory.js` display helper. | Reader/display only; does not migrate `qtyByCity` writers, `qtyByLocation`, storage, backup import/export, purchase/transport writers, or Location Registry. |
 | custom location name key 更名後庫存不遺失 | Docs-only | High | 先保留為文件風險，待更名行為邊界確認後再決定測試。 | 目前先記錄風險，不在本任務新增 test。 |
-| legacy `qtyByCity` wrapper / direct map normalization | Adapter-only planned | High | D74 tests-only candidate。 | Broader read-only coverage only; adapter output does not imply storage migration. |
-| future `qtyByLocation` normalization | Adapter-only planned | High | D74 tests-only candidate。 | Future wrapper can be normalized by read-only adapter, but `qtyByLocation` is not current storage. |
-| invalid / non-finite quantities reported as unresolved | Adapter-only planned | High | D74 tests-only candidate。 | Invalid values should be reported through `unresolvedLocations`, not silently repaired. |
-| zero and negative finite quantities preserved | Adapter-only planned | High | D74 tests-only candidate。 | Read-only adapter must not self-correct finite numeric values. |
-| multiple locations preserved | Adapter-only planned | High | D74 tests-only candidate。 | All literal location keys must remain present in adapter output. |
-| input object not mutated | Adapter-only planned | High | D74 tests-only candidate。 | Adapter must remain read-only. |
-| same location names remain literal keys | Adapter-only planned | High | D74 tests-only candidate。 | No Location Registry lookup or ID conversion is implied. |
-| custom location strings remain supported | Adapter-only planned | High | D74 tests-only candidate。 | Legacy custom location names remain literal keys. |
+| legacy direct map normalization | Covered | High | Maintain D74-D76 read-only regression coverage. | Adapter normalizes direct legacy location maps without mutation or storage migration. |
+| legacy `qtyByCity` wrapper normalization | Covered | High | Maintain D74-D76 read-only regression coverage. | Adapter reads wrapper input without treating `qtyByCity` as a literal location key. |
+| future `qtyByLocation` sample normalization | Covered | High | Maintain adapter-only compatibility coverage. | Future sample readability is adapter-only; `qtyByLocation` is not current storage or accepted migrated backup schema. |
+| invalid / non-finite quantities reported as unresolved | Covered | High | Maintain D74-D76 read-only regression coverage. | Invalid values are reported through `unresolvedLocations`, not silently repaired. |
+| zero and negative finite quantities preserved | Covered | High | Maintain D74-D76 read-only regression coverage. | This is normalizer behavior only; it does not define inventory business validity. |
+| multiple locations preserved | Covered | High | Maintain D74-D76 read-only regression coverage. | All literal location keys remain present in adapter output. |
+| input object not mutated | Covered | High | Maintain D74-D76 read-only regression coverage. | Adapter remains read-only; output `quantities` are copies. |
+| same location names remain literal keys | Covered | High | Maintain D74-D76 read-only regression coverage. | No Location Registry lookup or ID conversion is implied. |
+| custom location strings remain supported | Covered | High | Maintain D74-D76 backup and adapter coverage. | Legacy custom location names remain literal keys and `customLocations` remains a string array. |
+| legacy backup import/loadState/adapter preservation | Covered | High | Maintain D76 backup regression coverage. | Covers multi-item/multi-location `qtyByCity`, system/custom literal keys, `globalAvgCost`, zero quantities, `loadState`, and adapter read after import; does not migrate backup shape. |
 | adapter output does not imply storage migration | Writer/storage migration not started | High | Keep as boundary assertion for D74 and later reviews. | Do not write back `qtyByLocation`, replace `qtyByCity`, create Location Registry in storage, modify purchase/transport writers, or remove legacy fallback. |
-| location adapter 雙讀 `qtyByCity` / `qtyByLocation` | Adapter-only planned | High | Minimal read-only adapter exists; broader dual-read regression is the selected Location track. | This does not migrate writers, backup import/export, storage keys, or Location Registry. |
+| location adapter 雙讀 `qtyByCity` / `qtyByLocation` | Covered | High | D74-D76 read-only checkpoint complete. | This does not migrate writers, backup import/export, storage keys, or Location Registry. |
 | migration 前後每個 location 物理數量一致 | Migration-blocked | High | 等 adapter sample、backup/rollback validation 與 migration plan 具體化後再寫正式 test。 | 需等 migration/adapter sample 建立後才能驗證；D73 不啟動 migration。 |
 
 ## Transaction / Event Compatibility

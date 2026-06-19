@@ -2,17 +2,44 @@
 
 ## Handoff Status
 
-- Latest checkpoint: D72 migration readiness review complete
+- Latest checkpoint: D77 Location read-only checkpoint review
 - Latest master commit: `63607692b0a10801ec527710135d1117296bf952`
 - Commit title: `docs: sync zero-todo stabilization baseline`
-- Baseline: `99 tests / 99 pass / 0 fail / 0 TODO`
+- Baseline: `117 tests / 117 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
-This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D72. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D77. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+
+## D77 Location Read-Only Checkpoint
+
+- Latest baseline: `117 tests / 117 pass / 0 fail / 0 TODO`.
+- Location read-only adapter checkpoint: pass.
+- Location writer/storage migration readiness: fail.
+- Migration execution remains not started.
+- Current read-only coverage protects legacy direct maps, legacy `qtyByCity` wrappers, future `qtyByLocation` sample wrappers, invalid/non-finite unresolved reporting, finite zero/negative preservation, literal/custom location keys, input immutability, output copy behavior, and legacy backup import/loadState/adapter preservation.
+- Future `qtyByLocation` sample readability is adapter-only compatibility. It does not mean `qtyByLocation` is current storage or accepted migrated backup schema.
+- Backup coverage protects the current legacy-compatible backup shape. It does not start backup migration.
+
+Remaining Location migration blockers:
+
+- Location Registry business-rule definition.
+- System/custom location mapping.
+- Conflict and rename identity rules.
+- Unresolved mapping policy.
+- Writer API.
+- Backup migration.
+- Rollback.
+- Fallback removal gate.
+
+Next review boundary:
+
+- Do not implement registry/storage migration directly.
+- Do not replace `qtyByCity` writers or add `qtyByLocation` writers.
+- Do not modify purchase/transport writers.
 
 ## D72 Migration Readiness Review
 
-- Latest baseline remains `99 tests / 99 pass / 0 fail / 0 TODO`.
+- Historical baseline: `99 tests / 99 pass / 0 fail / 0 TODO`.
 - Migration execution readiness: fail.
 - Adapter-only stabilization readiness: pass.
 - Next selected track: Location read-only adapter broader regression coverage.
@@ -68,7 +95,7 @@ Location read-only track boundary:
 - `actualMainQty` / `actualSubQty` do not affect planning helper output.
 - Alchemy aggregation remains unchanged.
 - Purchase and crafting block when explicit quality is not selected; no implicit/default `4.0` is used on blocked paths.
-- Latest master baseline is `99 tests / 99 pass / 0 fail / 0 TODO`.
+- Historical D69-D70 checkpoint baseline was `99 tests / 99 pass / 0 fail / 0 TODO`.
 - No migration has started.
 
 ## D1-D60 Completed Summary
@@ -84,7 +111,7 @@ Location read-only track boundary:
 ### Current Behavior Safety Net
 
 - D1-D60 historical regression baseline protected 56 tests with no failures and no TODO tests.
-- Latest master baseline is now `99 tests / 99 pass / 0 fail / 0 TODO`.
+- Latest master baseline is now `117 tests / 117 pass / 0 fail / 0 TODO`.
 - Core cost and inventory behaviors remain covered in `tests/core-cost-regression.test.js`.
 - Ledger display and transaction reader safety remain covered in `tests/ledger-data-safety.test.js`.
 - Backup import/export and compatibility safety remain covered in `tests/backup-regression.test.js`.

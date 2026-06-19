@@ -10,6 +10,12 @@
 
 目前自訂倉庫仍以顯示名稱字串作為 legacy key。
 
+目前庫存地點仍以 literal city/custom location string keys 搭配 `qtyByCity` 儲存。Current implementation 不使用 `qtyByLocation` 作為 storage，也尚未建立 Location Registry object。
+
+目前已存在 read-only Location Adapter normalization checkpoint：adapter 可讀取 legacy direct map、legacy `qtyByCity` wrapper 與 future `qtyByLocation` sample wrapper，並輸出 `sourceFormat`、`quantities`、`unresolvedLocations`。此能力只代表 reader/normalizer compatibility，不代表 writer、storage、backup schema 或 migration 已開始。
+
+Future target 仍是 Location Registry + stable `locationId`。在 Location Registry business rules、system/custom mapping、conflict/rename identity rules、unresolved mapping policy、writer API、backup migration、rollback 與 fallback removal gate 完成前，不得把 future target 寫成 current implementation。
+
 封版前已加入資料安全限制：非空自訂倉庫不得刪除，使用者必須先轉移或清空該倉庫庫存。
 
 空自訂倉庫仍可依 current implementation 刪除，且此行為已有 regression test 保護。

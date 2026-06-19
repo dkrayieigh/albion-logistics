@@ -111,7 +111,7 @@ D69-D70 已完成 crafting material planning safe-start aggregation 與 zero-TOD
 - `submitCraftAll()` 正式扣帳使用使用者填入的 actual material consumption；blank/invalid actual consumption 會在任何 mutation 前阻擋。
 - Purchase 與 crafting 未明確選擇 quality 時會阻擋，不再隱含 default `4.0`。
 
-測試基準：
+歷史 checkpoint baseline：
 
 - `99 tests / 99 pass / 0 fail / 0 TODO`
 - 測試檔：`tests/core-cost-regression.test.js`
@@ -124,6 +124,27 @@ D72 migration readiness review 判定：migration execution readiness fail，ada
 - Location adapter broader dual-read coverage remains gap：legacy `qtyByCity` direct/wrapper input、future `qtyByLocation` wrapper input、invalid/non-finite quantity unresolved reporting、zero/negative finite quantity preservation、multi-location preservation、input immutability、literal location key preservation、custom location string support。
 - Writer/storage migration remains blocked：不得寫回 `qtyByLocation`、不得取代 `qtyByCity`、不得建立 Location Registry storage、不得修改 purchase/transport writers、不得移除 legacy fallback。
 - 此 checkpoint 不代表 `qtyByLocation` current implementation、Location Registry current implementation 或 migration 已開始。
+
+## D74-D76 Location read-only adapter checkpoint
+
+D74-D76 已完成 Location read-only compatibility coverage。D77 Spec Lead readiness decision：Location read-only adapter checkpoint PASS；Location writer/storage migration readiness FAIL；migration execution remains not started。
+
+- Baseline：`117 tests / 117 pass / 0 fail / 0 TODO`。
+- Covered read-only behavior：legacy direct map normalization、legacy `qtyByCity` wrapper normalization、future `qtyByLocation` sample normalization、invalid/non-finite unresolved reporting、zero/negative finite read-only preservation、literal/custom location key preservation、input immutability、multi-location preservation、legacy backup import/loadState/adapter preservation。
+- Future `qtyByLocation` sample readability is adapter-only compatibility；不代表 `qtyByLocation` 是 current storage 或 accepted migrated backup schema。
+- Backup tests 保護 current legacy-compatible backup shape；不代表 backup migration 已開始。
+- Writer/storage migration remains blocked。
+
+Remaining blockers：
+
+- Location Registry model。
+- System/custom location mapping。
+- Conflict/rename identity rules。
+- Unresolved mapping policy。
+- Writer API。
+- Backup migration。
+- Rollback。
+- Fallback removal gate。
 
 ### 1.3 銷售估價工具
 
