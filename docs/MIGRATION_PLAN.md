@@ -86,6 +86,12 @@ Adapter API draft: `ADAPTER_API.md`。該文件是 future API draft，不代表 
 - 建立 legacy location name ↔ future locationId mapping。
 - 確認 system cities、自訂倉庫、LaborerIsland / laborer island 邊界。
 - 明確定義非空自訂倉庫刪除安全規則仍保留。
+- 定義 Location identity business rules：`locationId` immutable、`displayName` mutable、rename preserves `locationId`。
+- 定義 fixed system IDs：`thetford`、`martlock`、`bridgewatch`、`lymhurst`、`fort_sterling`、`caerleon`、`brecilien`。
+- 定義 custom location generated ID policy。Conceptual format is `custom:<generated-id>`；exact UUID / generator implementation remains future design。
+- 定義 name conflict policy：trim surrounding whitespace、case-insensitive comparison、no duplicate displayName、no conflict with system city display names、no silent suffixing or automatic rename。
+- 定義 legacy mapping policy：exact match only、no fuzzy matching、no silent custom creation、duplicate/conflicting/unknown names become unresolved。
+- Migration must stop while unresolved mappings remain。
 
 ### Adapter-First Rule
 
@@ -105,6 +111,8 @@ Adapter API draft: `ADAPTER_API.md`。該文件是 future API draft，不代表 
 - Migration 前必須保存含自訂倉庫與多城市庫存的 backup。
 - Migration 後必須驗證每個 location 的物理庫存數量一致。
 - 必須可回復 legacy `qtyByCity` backup。
+- Migration validation must compare inventory item count、each item/location quantity、global quantity totals、`globalAvgCost`、cash、transaction count、custom location count、unresolved mapping count。
+- Any mismatch blocks migration and requires rollback to legacy backup。
 
 ### Release Boundary
 

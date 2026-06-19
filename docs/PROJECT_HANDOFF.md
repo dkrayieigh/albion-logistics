@@ -2,13 +2,41 @@
 
 ## Handoff Status
 
-- Latest checkpoint: D77 Location read-only checkpoint review
-- Latest master commit: `63607692b0a10801ec527710135d1117296bf952`
-- Commit title: `docs: sync zero-todo stabilization baseline`
+- Latest checkpoint: D78 Location Registry business rules
+- Latest master commit: `8195ba078f5a1cb8330a7dd1b364dbfdc4623969`
+- Commit title: `docs: close location read-only adapter checkpoint`
 - Baseline: `117 tests / 117 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
-This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D77. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D78. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+
+## D78 Location Registry Business Rules
+
+- Location Registry business rules have been documented as future target / migration boundary.
+- Current implementation remains literal city/custom location string keys, `qtyByCity`, `customLocations` string array, and read-only `normalizeLocationMap()` adapter.
+- Location Registry is not current implementation.
+- Writer/storage readiness remains fail.
+- Migration execution remains not started.
+- `custom:<generated-id>` is a conceptual future custom location ID format; exact UUID / generator implementation remains future design.
+
+Documented future rules:
+
+- `locationId` is immutable identity.
+- `displayName` is mutable presentation.
+- Rename preserves `locationId`.
+- Future inventory references `locationId`, not `displayName`.
+- System locations use fixed IDs and cannot be deleted or renamed by ID.
+- Custom locations use permanent generated IDs that are not derived from display names.
+- Duplicate/conflicting display names are blocked by trim + case-insensitive checks; no silent suffixing or automatic rename.
+- Legacy mapping uses exact matching only; duplicate/conflicting/unknown names become unresolved; no fuzzy matching; no silent custom creation.
+- Migration validation must compare inventory item count, each item/location quantity, global totals, `globalAvgCost`, cash, transaction count, custom location count, and unresolved mapping count.
+- Any mismatch blocks migration and requires rollback to legacy backup.
+
+Compatibility release boundary:
+
+- May add registry model draft and read-only mapping/adapter.
+- Must preserve literal legacy names, `qtyByCity`, and legacy fallback.
+- Must not switch purchase/transport writers, write `qtyByLocation`, rewrite `localStorage`, rewrite backup schema, or remove fallback.
 
 ## D77 Location Read-Only Checkpoint
 

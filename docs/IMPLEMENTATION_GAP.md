@@ -146,6 +146,19 @@ Remaining blockers：
 - Rollback。
 - Fallback removal gate。
 
+## D78 Location Registry business rules checkpoint
+
+D78 已將 Location Registry business rules 寫入 future target / migration boundary docs。此 checkpoint 只定義規則，不代表 Location Registry、adapter expansion、writer/storage migration、backup migration 或 `qtyByLocation` storage 已實作。
+
+- Current implementation 仍是 literal city/custom location string keys、`qtyByCity`、`customLocations` string array 與 read-only `normalizeLocationMap()` adapter。
+- Future Location identity：`locationId` 是 immutable identity；`displayName` 是 mutable presentation；rename preserves `locationId`；future inventory references `locationId`, not `displayName`。
+- Future system locations 使用固定 IDs：`thetford`、`martlock`、`bridgewatch`、`lymhurst`、`fort_sterling`、`caerleon`、`brecilien`。System location 不可刪除，ID 不可 rename，display labels 可 localization，ID 不得從 UI text 動態推導。
+- Future custom locations 使用永久 generated ID，概念格式為 `custom:<generated-id>`；ID 只在建立時產生一次，不得由 displayName 推導，rename 不改 ID。Exact UUID / generator implementation 仍是 future design。
+- Name conflict policy：duplicate displayName 不允許；trim surrounding whitespace；case-insensitive comparison；custom names 不得與 system city display names 衝突；Chinese characters、spaces、symbols 仍允許；不得 silent suffixing 或 automatic rename。
+- Rename/delete/mapping rules 已定義為 future boundary：rename 不改 quantity、`globalAvgCost` 或 historical raw transaction payload；system location 不可刪除；non-empty 或 referenced custom location 不可刪除；unknown/duplicate/conflicting legacy names become unresolved；no fuzzy matching；no silent custom creation；migration must stop while unresolved mappings remain。
+- Migration validation invariants 已定義：inventory item count、each item/location quantity、global quantity totals、`globalAvgCost`、cash、transaction count、custom location count、unresolved mapping count。Any mismatch blocks migration and requires rollback to legacy backup。
+- Compatibility release boundary：first compatible release may add registry model draft/read-only mapping adapter while preserving literal legacy names、`qtyByCity` 與 fallback；不得 switch purchase/transport writers、write `qtyByLocation`、rewrite `localStorage`、rewrite backup schema 或 remove fallback。
+
 ### 1.3 銷售估價工具
 
 - **目前行為：** 支援遊戲估價單價 / 總價同步、90% / 85% P2P 參考價、實售單價 / 總價同步，並顯示 Total Cost、Est. GP、Unit GP 與 GP %；若 `globalAvgCost` unknown，顯示成本未知，不顯示假毛利。Legacy sale writer payload 維持不變。

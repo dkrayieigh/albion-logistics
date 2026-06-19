@@ -54,6 +54,112 @@ Future target 仍是 Location Registry + stable `locationId`。在 Location Regi
 ## 🟡 第二層：地點實體註冊表 (Location Registry) — Future Target
 記錄地點的「靜態物理屬性」。皇家城市固定不可變；自訂地堡記錄於 `state.customLocations`。
 
+> D78 boundary：本節是 future target / migration boundary。Current implementation 仍使用 literal city/custom location string keys、`qtyByCity` 與 `customLocations` string array。Location Registry 尚未實作，writer/storage migration 尚未開始。
+
+### Location Registry Business Rules — Future Target
+
+#### Location identity
+
+- `locationId` 是不可變 identity。
+- `displayName` 是可變 presentation。
+- Rename 必須保留原 `locationId`。
+- Future inventory references 必須使用 `locationId`，不得使用 `displayName` 作為持久化 identity。
+
+#### System locations
+
+固定 system location IDs：
+
+- `thetford`
+- `martlock`
+- `bridgewatch`
+- `lymhurst`
+- `fort_sterling`
+- `caerleon`
+- `brecilien`
+
+System locations rules：
+
+- System location 不可刪除。
+- System location ID 不可 rename。
+- Display labels 可以 localization。
+- System location ID 不得從 UI text 動態推導。
+
+#### Custom locations
+
+- Custom location 必須有永久 generated ID，概念格式為 `custom:<generated-id>`。
+- ID 只在建立時產生一次。
+- ID 不得由 `displayName` 推導。
+- Rename 不得改變 ID。
+- Exact UUID / generator implementation 仍是 future design。
+
+#### Name conflict rules
+
+- Duplicate `displayName` 不允許。
+- Conflict checking 前必須 trim surrounding whitespace。
+- Comparison 必須 case-insensitive。
+- Custom names 不得與 system city display names 衝突。
+- Chinese characters、spaces 與 symbols 仍允許。
+- 不得 silent suffixing 或自動 rename。
+
+#### Rename semantics
+
+- `locationId` 不變。
+- Inventory quantity 不變。
+- `globalAvgCost` 不變。
+- Historical raw transaction payload 不回寫、不重寫。
+- Display layer 未來可透過 mapping resolve current `displayName`。
+
+#### Delete semantics
+
+- System location 不可刪除。
+- Non-empty custom location 不可刪除。
+- Referenced custom location 不可刪除。
+- 只有 empty 且 unreferenced custom location 可刪除。
+- 刪除 registry entry 不得刪除 transaction history。
+
+#### Legacy name mapping
+
+- Exact system name maps to fixed system ID。
+- Exact custom name maps to existing custom ID。
+- Duplicate/conflicting names become unresolved。
+- Unknown names become unresolved。
+- No fuzzy matching。
+- No silent creation of custom locations。
+- Migration must stop while unresolved mappings remain。
+
+#### Migration validation invariants
+
+Migration 前後必須比較：
+
+- Inventory item count。
+- Each item/location quantity。
+- Global quantity totals。
+- `globalAvgCost`。
+- Cash。
+- Transaction count。
+- Custom location count。
+- Unresolved mapping count。
+
+Any mismatch blocks migration and requires rollback to legacy backup。
+
+#### Compatibility release boundary
+
+第一個 compatible release 只可：
+
+- Add registry model draft。
+- Add read-only mapping/adapter。
+- Preserve literal legacy names。
+- Preserve `qtyByCity`。
+- Preserve legacy fallback。
+
+第一個 compatible release 不可：
+
+- Switch purchase/transport writers。
+- Write `qtyByLocation`。
+- Rewrite `localStorage`。
+- Rewrite backup schema。
+- Remove fallback。
+
 **資料模型 (`state.customLocations[i]`)：**
 
 JavaScript
