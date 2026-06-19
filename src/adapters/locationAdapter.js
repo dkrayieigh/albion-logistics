@@ -1,6 +1,14 @@
 export function normalizeLocationMap(input) {
-  const sourceFormat = input?.qtyByLocation ? 'qtyByLocation' : 'qtyByCity';
-  const source = sourceFormat === 'qtyByLocation' ? input.qtyByLocation : input;
+  let sourceFormat = 'qtyByCity';
+  let source = input;
+
+  if (input && Object.hasOwn(input, 'qtyByLocation')) {
+    sourceFormat = 'qtyByLocation';
+    source = input.qtyByLocation;
+  } else if (input && Object.hasOwn(input, 'qtyByCity')) {
+    source = input.qtyByCity;
+  }
+
   const quantities = {};
   const unresolvedLocations = [];
 

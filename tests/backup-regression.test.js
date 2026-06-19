@@ -559,7 +559,45 @@ test('location adapter read-only: empty null and undefined input normalize to em
   }
 });
 
-test.todo('location adapter should normalize legacy qtyByCity wrapper without treating qtyByCity as a literal location key');
+test('location adapter read-only: legacy qtyByCity wrapper normalizes without treating qtyByCity as a literal location key', { concurrency: false }, () => {
+  const input = {
+    qtyByCity: {
+      Thetford: 120,
+      CustomWarehouse: 5
+    }
+  };
+  const before = JSON.stringify(input);
+
+  const normalized = normalizeLocationMap(input);
+
+  assert.equal(JSON.stringify(input), before);
+  assert.equal(normalized.sourceFormat, 'qtyByCity');
+  assert.deepEqual(normalized.quantities, {
+    Thetford: 120,
+    CustomWarehouse: 5
+  });
+  assert.deepEqual(normalized.unresolvedLocations, []);
+  assert.equal(Object.hasOwn(normalized.quantities, 'qtyByCity'), false);
+  assert.notEqual(normalized.quantities, input.qtyByCity);
+});
+
+test('location adapter read-only: legacy qtyByCity wrapper reports invalid values unresolved', { concurrency: false }, () => {
+  const input = {
+    qtyByCity: {
+      Thetford: 120,
+      InvalidWarehouse: '5',
+      InfiniteWarehouse: Infinity
+    }
+  };
+  const beforeKeys = Object.keys(input.qtyByCity);
+
+  const normalized = normalizeLocationMap(input);
+
+  assert.deepEqual(Object.keys(input.qtyByCity), beforeKeys);
+  assert.equal(normalized.sourceFormat, 'qtyByCity');
+  assert.deepEqual(normalized.quantities, { Thetford: 120 });
+  assert.deepEqual(normalized.unresolvedLocations, ['InvalidWarehouse', 'InfiniteWarehouse']);
+});
 
 test('location adapter read-only: boundary does not touch storage writers or registry paths', { concurrency: false }, () => {
   const source = normalizeLocationMap.toString();
