@@ -58,6 +58,50 @@ export function calculateMaterialConsumption(baseQty, qty, rra) {
   };
 }
 
+export function calculateAggregatedMaterialPlanning(queueRows, getRRAForRow) {
+  const groups = {};
+
+  const addMaterial = (row, materialKey, baseQty, rra) => {
+    const qty = Number(row.qty);
+    if (!row.checked || !Number.isFinite(qty) || qty <= 0 || !materialKey || baseQty <= 0) return;
+
+    const perCraftMinReturn = Math.floor(baseQty * rra);
+    const perCraftMaxConsumption = baseQty - perCraftMinReturn;
+    const rowExpected = baseQty * qty - Math.floor(baseQty * qty * rra);
+    const rowConservative = perCraftMaxConsumption * qty;
+    const groupKey = `${row.city}|${materialKey}`;
+
+    if (!groups[groupKey]) {
+      groups[groupKey] = {
+        expected: 0,
+        conservative: 0,
+        maxPerCraftMinReturn: 0
+      };
+    }
+
+    groups[groupKey].expected += rowExpected;
+    groups[groupKey].conservative += rowConservative;
+    groups[groupKey].maxPerCraftMinReturn = Math.max(groups[groupKey].maxPerCraftMinReturn, perCraftMinReturn);
+  };
+
+  queueRows.forEach(row => {
+    const qty = Number(row.qty);
+    if (!row.checked || !Number.isFinite(qty) || qty <= 0) return;
+    const rra = getRRAForRow(row);
+    addMaterial(row, row.mainKey, row.recipe?.mainBaseQty || 0, rra);
+    if (row.recipe?.subBaseQty > 0) addMaterial(row, row.subKey, row.recipe.subBaseQty, rra);
+  });
+
+  return Object.fromEntries(Object.entries(groups).map(([key, value]) => [
+    key,
+    {
+      expected: value.expected,
+      conservative: value.conservative,
+      safeStart: value.conservative + value.maxPerCraftMinReturn
+    }
+  ]));
+}
+
 function parseActualConsumed(value) {
   if (typeof value === 'number' && Number.isInteger(value) && value >= 0) return value;
   if (typeof value !== 'string') return null;
@@ -207,7 +251,7 @@ export function renderCraftingQueue() {
 
 export function updateShoppingListTotal() {
   const sf = parseNum(document.getElementById('global-shopfee').value);
-  let aggregated = {};
+  let aggregated = calculateAggregatedMaterialPlanning(craftingQueue, q => getRRA(q.recipe.category, q.city, q.focus));
   let shopFeeTotal = 0;
   let artifactCostTotal = 0;
   let alchemyCostTotal = 0;
@@ -222,19 +266,6 @@ export function updateShoppingListTotal() {
         if (!aggregated[ak]) aggregated[ak] = { expected: 0, safeStart: 0 };
         aggregated[ak].expected += q.alchemyBaseQty * q.qty;
         aggregated[ak].safeStart += q.alchemyBaseQty * q.qty;
-    }
-    const rra = getRRA(q.recipe.category, q.city, q.focus);
-    const mainConsumption = calculateMaterialConsumption(q.recipe.mainBaseQty, q.qty, rra);
-    const k = `${q.city}|${q.mainKey}`;
-    if (!aggregated[k]) aggregated[k] = { expected: 0, safeStart: 0 };
-    aggregated[k].expected += mainConsumption.expectedNetConsumption;
-    aggregated[k].safeStart += mainConsumption.safeStartStock;
-    if(q.recipe.subBaseQty>0) {
-      const subConsumption = calculateMaterialConsumption(q.recipe.subBaseQty, q.qty, rra);
-      const sk = `${q.city}|${q.subKey}`;
-      if (!aggregated[sk]) aggregated[sk] = { expected: 0, safeStart: 0 };
-      aggregated[sk].expected += subConsumption.expectedNetConsumption;
-      aggregated[sk].safeStart += subConsumption.safeStartStock;
     }
   });
   

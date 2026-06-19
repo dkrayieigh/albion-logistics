@@ -1541,20 +1541,148 @@ test('material consumption helper distinguishes expected consumption, conservati
 
 test('single row aggregated safe-start stock equals existing single-row safe-start', { concurrency: false }, () => {
   const result = Crafting.calculateMaterialConsumption(16, 20, 0.479);
+  const planning = Crafting.calculateAggregatedMaterialPlanning([{
+    checked: true,
+    city: LOCATION,
+    mainKey: 'Steel_5.3',
+    qty: 20,
+    recipe: {
+      mainBaseQty: 16,
+      subBaseQty: 0
+    }
+  }], () => 0.479);
 
   assert.equal(result.conservativeNetConsumption, 180);
   assert.equal(result.safeStartStock, 187);
+  assert.deepEqual(planning[`${LOCATION}|Steel_5.3`], {
+    expected: result.expectedNetConsumption,
+    conservative: result.conservativeNetConsumption,
+    safeStart: result.safeStartStock
+  });
 });
 
-test.todo('aggregated safe-start stock should group same material as sum(row conservative consumption) plus max(per-craft min return), not sum row safe-start stocks');
+function makePlanningRow(overrides = {}) {
+  return {
+    checked: true,
+    city: LOCATION,
+    mainKey: 'Steel_5.3',
+    subKey: '_5.3',
+    qty: 10,
+    actualMainQty: '',
+    actualSubQty: 0,
+    recipe: {
+      name: 'PlanningProduct',
+      main: 'Steel',
+      sub: '',
+      mainBaseQty: 16,
+      subBaseQty: 0,
+      category: 'planning'
+    },
+    ...overrides
+  };
+}
 
-test.todo('aggregated safe-start stock should be independent of crafting queue row order');
+test('aggregated safe-start stock groups same material as sum(row conservative consumption) plus max(per-craft min return)', { concurrency: false }, () => {
+  const rows = [
+    makePlanningRow({ qty: 10, recipe: { mainBaseQty: 16, subBaseQty: 0 } }),
+    makePlanningRow({ qty: 5, recipe: { mainBaseQty: 8, subBaseQty: 0 } })
+  ];
+  const planning = Crafting.calculateAggregatedMaterialPlanning(rows, () => 0.479);
+  const rowASafeStart = Crafting.calculateMaterialConsumption(16, 10, 0.479).safeStartStock;
+  const rowBSafeStart = Crafting.calculateMaterialConsumption(8, 5, 0.479).safeStartStock;
 
-test.todo('aggregated safe-start stock should keep different material keys in separate planning groups');
+  assert.deepEqual(planning[`${LOCATION}|Steel_5.3`], {
+    expected: 105,
+    conservative: 115,
+    safeStart: 122
+  });
+  assert.notEqual(planning[`${LOCATION}|Steel_5.3`].safeStart, rowASafeStart + rowBSafeStart);
+});
 
-test.todo('aggregated safe-start stock should ignore unchecked or qty <= 0 queue rows in planning aggregation');
+test('aggregated safe-start stock is independent of crafting queue row order', { concurrency: false }, () => {
+  const rowA = makePlanningRow({ qty: 10, recipe: { mainBaseQty: 16, subBaseQty: 0 } });
+  const rowB = makePlanningRow({ qty: 5, recipe: { mainBaseQty: 8, subBaseQty: 0 } });
 
-test.todo('aggregated safe-start stock should ignore actual material consumed inputs and remain planning-only');
+  assert.deepEqual(
+    Crafting.calculateAggregatedMaterialPlanning([rowA, rowB], () => 0.479),
+    Crafting.calculateAggregatedMaterialPlanning([rowB, rowA], () => 0.479)
+  );
+});
+
+test('aggregated safe-start stock keeps different material keys and cities in separate planning groups', { concurrency: false }, () => {
+  const planning = Crafting.calculateAggregatedMaterialPlanning([
+    makePlanningRow({ city: LOCATION, mainKey: 'Steel_5.3' }),
+    makePlanningRow({ city: 'Bridgewatch', mainKey: 'Steel_5.3' }),
+    makePlanningRow({ city: LOCATION, mainKey: 'Cloth_5.3' })
+  ], () => 0.479);
+
+  assert.deepEqual(Object.keys(planning).sort(), [
+    `${LOCATION}|Cloth_5.3`,
+    `${LOCATION}|Steel_5.3`,
+    'Bridgewatch|Steel_5.3'
+  ].sort());
+});
+
+test('aggregated safe-start stock ignores unchecked and invalid quantity queue rows', { concurrency: false }, () => {
+  const valid = makePlanningRow({ qty: 1 });
+  const planning = Crafting.calculateAggregatedMaterialPlanning([
+    valid,
+    makePlanningRow({ checked: false, qty: 10 }),
+    makePlanningRow({ qty: 0 }),
+    makePlanningRow({ qty: -1 }),
+    makePlanningRow({ qty: Number.NaN })
+  ], () => 0.479);
+  const expected = Crafting.calculateMaterialConsumption(16, 1, 0.479);
+
+  assert.deepEqual(planning, {
+    [`${LOCATION}|Steel_5.3`]: {
+      expected: expected.expectedNetConsumption,
+      conservative: expected.conservativeNetConsumption,
+      safeStart: expected.safeStartStock
+    }
+  });
+});
+
+test('aggregated safe-start stock ignores actual material consumed inputs and remains planning-only', { concurrency: false }, () => {
+  const baseRows = [
+    makePlanningRow({ qty: 10, actualMainQty: '' }),
+    makePlanningRow({ qty: 5, actualMainQty: '' })
+  ];
+  const actualRows = [
+    makePlanningRow({ qty: 10, actualMainQty: 1 }),
+    makePlanningRow({ qty: 5, actualMainQty: 999 })
+  ];
+
+  assert.deepEqual(
+    Crafting.calculateAggregatedMaterialPlanning(baseRows, () => 0.479),
+    Crafting.calculateAggregatedMaterialPlanning(actualRows, () => 0.479)
+  );
+});
+
+test('aggregated material planning includes sub material groups with sub base quantities', { concurrency: false }, () => {
+  const planning = Crafting.calculateAggregatedMaterialPlanning([
+    makePlanningRow({
+      mainKey: 'Main_5.3',
+      subKey: 'Sub_5.3',
+      qty: 5,
+      recipe: {
+        mainBaseQty: 16,
+        subBaseQty: 8
+      }
+    })
+  ], () => 0.479);
+
+  assert.deepEqual(planning[`${LOCATION}|Main_5.3`], {
+    expected: 42,
+    conservative: 45,
+    safeStart: 52
+  });
+  assert.deepEqual(planning[`${LOCATION}|Sub_5.3`], {
+    expected: 21,
+    conservative: 25,
+    safeStart: 28
+  });
+});
 
 test('crafting without explicit quality is blocked before queue mutation', { concurrency: false }, () => {
   resetState();
@@ -1875,7 +2003,11 @@ test('checked queue display separates shop fee, artifact cost, alchemy cost, and
 
   Crafting.updateShoppingListTotal();
 
+  const materialDisplay = getElement('shopping-list-content').innerHTML;
   const cashDisplay = getElement('queue-total-cost').innerHTML;
+  assert.match(materialDisplay, /T3/);
+  assert.match(materialDisplay, /Test Alchemy/);
+  assert.match(materialDisplay, /12/);
   assert.match(cashDisplay, /店鋪使用費/);
   assert.match(cashDisplay, /Shop Fee/);
   assert.match(cashDisplay, /神器成本/);
