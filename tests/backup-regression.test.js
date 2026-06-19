@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
+import { SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
 
@@ -78,7 +79,7 @@ globalThis.FileReader = class FileReader {
 };
 
 const { initGlobalEvents } = await import('../src/app.js');
-const { loadState, state } = await import('../src/core/state.js');
+const { initDefaultState, loadState, state } = await import('../src/core/state.js');
 
 window.showToast = () => {};
 initGlobalEvents();
@@ -554,6 +555,61 @@ test('D76: future qtyByLocation remains adapter-only sample while imported legac
   assert.equal(Object.hasOwn(importedInventory['TestProduct_6.1'], 'qtyByLocation'), false);
   assert.equal(Object.hasOwn(importedInventory['布料_6.1'].qtyByCity, 'locationId'), false);
 });
+
+test('D80: current SYSTEM_CITIES includes all current location compatibility keys', { concurrency: false }, () => {
+  const expectedKeys = [
+    'Thetford',
+    'Martlock',
+    'Bridgewatch',
+    'Lymhurst',
+    'Fort Sterling',
+    'Caerleon',
+    'Brecilien',
+    'LaborerIsland',
+    'Hideout'
+  ];
+
+  for (const key of expectedKeys) {
+    assert.equal(Object.hasOwn(SYSTEM_CITIES, key), true);
+    assert.equal(typeof SYSTEM_CITIES[key].name, 'string');
+  }
+});
+
+test('D80: LaborerIsland remains a reserved legacy inventory key and not a custom location', { concurrency: false }, () => {
+  resetMocks();
+  state.assets = { cash: 0, debt: 0 };
+  state.customLocations = [];
+  state.inventory = {};
+  state.laborerInventory = {};
+  state.laborerLogs = [];
+  state.transactions = [];
+
+  initDefaultState();
+
+  const inventoryEntry = Object.values(state.inventory).find(entry =>
+    Object.hasOwn(entry.qtyByCity, 'LaborerIsland')
+  );
+  assert.ok(inventoryEntry);
+  assert.equal(Object.hasOwn(inventoryEntry.qtyByCity, 'LaborerIsland'), true);
+  assert.equal(inventoryEntry.qtyByCity.LaborerIsland, 0);
+  assert.equal(state.customLocations.includes('LaborerIsland'), false);
+});
+
+test('D80: Hideout remains a current compatibility key without asserting future registry identity', { concurrency: false }, () => {
+  assert.equal(Object.hasOwn(SYSTEM_CITIES, 'Hideout'), true);
+  assert.equal(typeof SYSTEM_CITIES.Hideout.name, 'string');
+  assert.equal(Object.hasOwn(SYSTEM_CITIES.Hideout, 'locationId'), false);
+  assert.match(loadState.toString(), /Hideout/);
+});
+
+test.todo('resolveLocationIdentity should map exact current system city names to fixed future IDs');
+test.todo('resolveLocationIdentity should map LaborerIsland to laborer_island as system-special');
+test.todo('resolveLocationIdentity should keep residual Hideout unresolved as a deprecated legacy key');
+test.todo('resolveLocationIdentity should resolve an exact custom location only through an explicit mapping');
+test.todo('resolveLocationIdentity should leave unknown names unresolved without silent custom creation');
+test.todo('resolveLocationIdentity should reject duplicate or conflicting normalized display names');
+test.todo('resolveLocationIdentity should not use fuzzy matching');
+test.todo('resolveLocationIdentity should not mutate input or mapping tables');
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
