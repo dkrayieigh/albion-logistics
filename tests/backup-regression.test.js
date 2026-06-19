@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
+import { resolveLocationIdentity } from '../src/adapters/locationIdentity.js';
 import { SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -602,14 +603,192 @@ test('D80: Hideout remains a current compatibility key without asserting future 
   assert.match(loadState.toString(), /Hideout/);
 });
 
-test.todo('resolveLocationIdentity should map exact current system city names to fixed future IDs');
-test.todo('resolveLocationIdentity should map LaborerIsland to laborer_island as system-special');
-test.todo('resolveLocationIdentity should keep residual Hideout unresolved as a deprecated legacy key');
-test.todo('resolveLocationIdentity should resolve an exact custom location only through an explicit mapping');
-test.todo('resolveLocationIdentity should leave unknown names unresolved without silent custom creation');
-test.todo('resolveLocationIdentity should reject duplicate or conflicting normalized display names');
-test.todo('resolveLocationIdentity should not use fuzzy matching');
-test.todo('resolveLocationIdentity should not mutate input or mapping tables');
+test('D81: resolveLocationIdentity maps exact current system city names to fixed future IDs', { concurrency: false }, () => {
+  const expected = {
+    Thetford: 'thetford',
+    Martlock: 'martlock',
+    Bridgewatch: 'bridgewatch',
+    Lymhurst: 'lymhurst',
+    'Fort Sterling': 'fort_sterling',
+    Caerleon: 'caerleon',
+    Brecilien: 'brecilien'
+  };
+
+  for (const [sourceName, locationId] of Object.entries(expected)) {
+    assert.deepEqual(resolveLocationIdentity({ sourceName }), {
+      sourceName,
+      locationId,
+      displayName: sourceName,
+      source: 'legacy',
+      unresolved: false,
+      deprecatedLegacyKey: false
+    });
+  }
+});
+
+test('D81: resolveLocationIdentity maps LaborerIsland to laborer_island as system-special', { concurrency: false }, () => {
+  assert.deepEqual(resolveLocationIdentity({ sourceName: 'LaborerIsland' }), {
+    sourceName: 'LaborerIsland',
+    locationId: 'laborer_island',
+    displayName: 'LaborerIsland',
+    source: 'legacy',
+    unresolved: false,
+    deprecatedLegacyKey: false
+  });
+});
+
+test('D81: resolveLocationIdentity keeps residual Hideout unresolved as a deprecated legacy key', { concurrency: false }, () => {
+  assert.deepEqual(resolveLocationIdentity({ sourceName: 'Hideout' }), {
+    sourceName: 'Hideout',
+    locationId: null,
+    displayName: null,
+    source: 'legacy',
+    unresolved: true,
+    deprecatedLegacyKey: true
+  });
+});
+
+test('D81: resolveLocationIdentity resolves an exact custom location only through explicit mapping', { concurrency: false }, () => {
+  const mappingTable = {
+    '公會T8地堡': {
+      locationId: 'custom:sample-001',
+      displayName: '公會T8地堡'
+    },
+    LegacyWarehouseAlias: {
+      locationId: 'custom:sample-002',
+      displayName: 'Display Warehouse'
+    }
+  };
+
+  assert.deepEqual(resolveLocationIdentity({ sourceName: '公會T8地堡', mappingTable }), {
+    sourceName: '公會T8地堡',
+    locationId: 'custom:sample-001',
+    displayName: '公會T8地堡',
+    source: 'legacy',
+    unresolved: false,
+    deprecatedLegacyKey: false
+  });
+  assert.deepEqual(resolveLocationIdentity({ sourceName: 'Display Warehouse', mappingTable }), {
+    sourceName: 'Display Warehouse',
+    locationId: 'custom:sample-002',
+    displayName: 'Display Warehouse',
+    source: 'legacy',
+    unresolved: false,
+    deprecatedLegacyKey: false
+  });
+});
+
+test('D81: resolveLocationIdentity leaves unknown or invalid names unresolved without silent custom creation', { concurrency: false }, () => {
+  const mappingTable = {
+    '公會T8地堡': {
+      locationId: 'custom:sample-001',
+      displayName: '公會T8地堡'
+    }
+  };
+
+  for (const sourceName of ['Unknown Warehouse', '', 123, null, undefined]) {
+    const resolved = resolveLocationIdentity({ sourceName, mappingTable });
+
+    assert.equal(resolved.locationId, null);
+    assert.equal(resolved.displayName, null);
+    assert.equal(resolved.source, 'legacy');
+    assert.equal(resolved.unresolved, true);
+    assert.equal(resolved.deprecatedLegacyKey, false);
+  }
+});
+
+test('D81: resolveLocationIdentity rejects duplicate or conflicting normalized display names', { concurrency: false }, () => {
+  const mappingTable = {
+    Warehouse: {
+      locationId: 'custom:sample-001',
+      displayName: 'Warehouse'
+    },
+    ' warehouse ': {
+      locationId: 'custom:sample-002',
+      displayName: 'WAREHOUSE'
+    }
+  };
+
+  assert.deepEqual(resolveLocationIdentity({ sourceName: 'Warehouse', mappingTable }), {
+    sourceName: 'Warehouse',
+    locationId: null,
+    displayName: null,
+    source: 'legacy',
+    unresolved: true,
+    deprecatedLegacyKey: false
+  });
+});
+
+test('D81: resolveLocationIdentity does not use fuzzy matching', { concurrency: false }, () => {
+  const mappingTable = {
+    '公會T8地堡': {
+      locationId: 'custom:sample-001',
+      displayName: '公會T8地堡'
+    }
+  };
+
+  for (const sourceName of ['Thetfor', 'FortSterling', 'T8地堡']) {
+    const resolved = resolveLocationIdentity({ sourceName, mappingTable });
+
+    assert.equal(resolved.locationId, null);
+    assert.equal(resolved.displayName, null);
+    assert.equal(resolved.unresolved, true);
+    assert.equal(resolved.deprecatedLegacyKey, false);
+  }
+});
+
+test('D81: resolveLocationIdentity does not mutate input or mapping tables', { concurrency: false }, () => {
+  const input = {
+    sourceName: '公會T8地堡',
+    mappingTable: {
+      '公會T8地堡': {
+        locationId: 'custom:sample-001',
+        displayName: '公會T8地堡'
+      }
+    }
+  };
+  const before = JSON.stringify(input);
+
+  resolveLocationIdentity(input);
+
+  assert.equal(JSON.stringify(input), before);
+});
+
+test('D81: resolveLocationIdentity treats malformed mapping entries as unresolved', { concurrency: false }, () => {
+  const cases = [
+    { BrokenWarehouse: null },
+    { BrokenWarehouse: 'custom:sample-001' },
+    { BrokenWarehouse: { displayName: 'BrokenWarehouse' } },
+    { BrokenWarehouse: { locationId: '', displayName: 'BrokenWarehouse' } }
+  ];
+
+  for (const mappingTable of cases) {
+    const resolved = resolveLocationIdentity({ sourceName: 'BrokenWarehouse', mappingTable });
+
+    assert.equal(resolved.locationId, null);
+    assert.equal(resolved.displayName, null);
+    assert.equal(resolved.unresolved, true);
+    assert.equal(resolved.deprecatedLegacyKey, false);
+  }
+});
+
+test('D81: exact system mapping is not overridden by custom mapping table entries', { concurrency: false }, () => {
+  const mappingTable = {
+    Thetford: {
+      locationId: 'custom:wrong-id',
+      displayName: 'Thetford'
+    }
+  };
+
+  assert.deepEqual(resolveLocationIdentity({ sourceName: 'Thetford', mappingTable }), {
+    sourceName: 'Thetford',
+    locationId: 'thetford',
+    displayName: 'Thetford',
+    source: 'legacy',
+    unresolved: false,
+    deprecatedLegacyKey: false
+  });
+});
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
