@@ -165,7 +165,7 @@ export function addToCraftingQueue() {
       const alcEl = document.getElementById('craft-alchemy-cost'); if (alcEl) alcPrice = parseNum(alcEl.value);
   }
   
-  craftingQueue.push({ id: Math.floor(Date.now() + Math.random() * 1000), checked: true, recipe: r, qty: q, quality: qual, city: city, focus: foc, mainKey: mk, mainQty: amc, actualMainQty: amc, subKey: sk, subQty: asc, actualSubQty: asc, tax: 0, artifactPrice: 0, artifactName: r.artifactVal > 0 || r.artifactName ? r.artifactName : null, artifactQty: r.artifactQty || 1, alchemyName: r.alchemyName, alchemyTier: alcTier, alchemyBaseQty: alcQty, alchemyPrice: alcPrice });
+  craftingQueue.push({ id: Math.floor(Date.now() + Math.random() * 1000), checked: true, recipe: r, qty: q, quality: qual, city: city, focus: foc, mainKey: mk, mainQty: amc, actualMainQty: '', subKey: sk, subQty: asc, actualSubQty: r.subBaseQty > 0 ? '' : 0, tax: 0, artifactPrice: 0, artifactName: r.artifactVal > 0 || r.artifactName ? r.artifactName : null, artifactQty: r.artifactQty || 1, alchemyName: r.alchemyName, alchemyTier: alcTier, alchemyBaseQty: alcQty, alchemyPrice: alcPrice });
   renderCraftingQueue(); updateShoppingListTotal(); window.showToast('已加入佇列', 'success');
 }
 
@@ -176,8 +176,6 @@ export function renderCraftingQueue() {
     const rra = getRRA(q.recipe.category, q.city, q.focus);
     const mainConsumption = calculateMaterialConsumption(q.recipe.mainBaseQty, q.qty, rra);
     const subConsumption = calculateMaterialConsumption(q.recipe.subBaseQty, q.qty, rra);
-    if (q.actualMainQty === undefined) q.actualMainQty = q.mainQty;
-    if (q.actualSubQty === undefined) q.actualSubQty = q.subQty;
     tr.innerHTML = `
     <td><input type="checkbox" ${q.checked ? 'checked' : ''} class="queue-check" data-id="${q.id}"></td>
     <td style="white-space:nowrap;"><strong>T${parseInt(q.quality.split(".")[0])||4} ${q.recipe.name}</strong> ${q.focus?"✨":""}<br><span style="font-size:0.8em; opacity:0.7; color:var(--text-secondary);">${q.recipe.id}</span></td>
@@ -190,8 +188,8 @@ export function renderCraftingQueue() {
         <button class="btn btn-warning" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" data-action="edit-queue" data-id="${q.id}">✏️ 編輯<br><span style="font-size:0.8em;opacity:0.7;">Edit</span></button>
         <button class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem; flex:1; line-height: 1.2;" data-action="delete-queue" data-id="${q.id}">🗑️ 刪除<br><span style="font-size:0.8em;opacity:0.7;">Delete</span></button>
       </div>
-      <div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.recipe.main} 實際消耗</div><input type="text" class="format-num queue-actual-main-qty" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="實際消耗" value="${q.actualMainQty ?? ''}" data-id="${q.id}"></div>
-      ${q.recipe.subBaseQty > 0 ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.recipe.sub} 實際消耗</div><input type="text" class="format-num queue-actual-sub-qty" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="實際消耗" value="${q.actualSubQty ?? ''}" data-id="${q.id}"></div>` : ''}
+      <div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.recipe.main} 實際消耗</div><input type="text" class="format-num queue-actual-main-qty" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="實際消耗（必填）" value="${q.actualMainQty ?? ''}" data-id="${q.id}"></div>
+      ${q.recipe.subBaseQty > 0 ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.recipe.sub} 實際消耗</div><input type="text" class="format-num queue-actual-sub-qty" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="實際消耗（必填）" value="${q.actualSubQty ?? ''}" data-id="${q.id}"></div>` : ''}
       ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.artifactName}${q.artifactQty > 1 ? ` (需: ${q.artifactQty})` : ''}</div><input type="text" class="format-num queue-art-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" data-id="${q.id}"></div>` : ''}
       ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">${q.alchemyTier} ${q.alchemyName} (需: ${q.alchemyBaseQty})</div><input type="text" class="format-num queue-alc-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" data-id="${q.id}"></div>` : ''}
     </td>`;
@@ -423,8 +421,8 @@ export function submitEditQueueQty() {
   const nq = parseInt(document.getElementById('edit-queue-qty-input').value);
   if(!isNaN(nq) && nq > 0) {
     q.qty = nq; const rra = getRRA(q.recipe.category, q.city, q.focus);
-    const mainConsumption = calculateMaterialConsumption(q.recipe.mainBaseQty, nq, rra); q.mainQty = mainConsumption.expectedNetConsumption; q.actualMainQty = q.mainQty;
-    const subConsumption = calculateMaterialConsumption(q.recipe.subBaseQty, nq, rra); q.subQty = subConsumption.expectedNetConsumption; q.actualSubQty = q.subQty;
+    const mainConsumption = calculateMaterialConsumption(q.recipe.mainBaseQty, nq, rra); q.mainQty = mainConsumption.expectedNetConsumption; q.actualMainQty = '';
+    const subConsumption = calculateMaterialConsumption(q.recipe.subBaseQty, nq, rra); q.subQty = subConsumption.expectedNetConsumption; q.actualSubQty = q.recipe.subBaseQty > 0 ? '' : 0;
     renderCraftingQueue(); updateShoppingListTotal(); window.showToast('數量已更新', 'success');
   }
   closeEditQueueQtyModal();

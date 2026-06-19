@@ -1262,7 +1262,30 @@ test('material consumption helper distinguishes expected consumption, conservati
   assert.notEqual(result.expectedNetConsumption, result.safeStartStock);
 });
 
-test.todo('material requirement safe-stock boundary: define expected net consumption vs conservative start-stock requirement before changing return formula');
+test.todo('aggregated safe-start stock for multiple queue rows sharing one material needs business rule before implementation');
+
+test('queue actual consumed inputs start blank', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.artifactVal === 448 && item.mainBaseQty === 16);
+
+  setCurrentBuyQuality('5.3');
+  getElement('craft-recipe').value = recipe.name;
+  getElement('craft-qty').value = '20';
+  getElement('craft-city').value = 'Bridgewatch';
+  getElement('craft-focus').checked = true;
+
+  Crafting.addToCraftingQueue();
+
+  assert.equal(craftingQueue.length, 1);
+  assert.equal(craftingQueue[0].mainQty, 167);
+  assert.equal(craftingQueue[0].actualMainQty, '');
+  assert.equal(craftingQueue[0].actualSubQty, 0);
+
+  const rowHtml = getElement('crafting-queue-tbody').rows[0].innerHTML;
+  assert.match(rowHtml, /placeholder="實際消耗（必填）"/);
+  assert.match(rowHtml, /queue-actual-main-qty[^>]*value=""/);
+  assert.doesNotMatch(rowHtml, /queue-actual-main-qty[^>]*value="167"/);
+});
 
 test('queue material display uses full expected consumption and safe start stock labels', { concurrency: false }, () => {
   resetState();
@@ -1282,7 +1305,7 @@ test('queue material display uses full expected consumption and safe start stock
     focus: true,
     mainKey: '鋼條_5.3',
     mainQty: consumption.expectedNetConsumption,
-    actualMainQty: consumption.expectedNetConsumption,
+    actualMainQty: '',
     subKey: '_5.3',
     subQty: 0,
     actualSubQty: 0,
@@ -1360,7 +1383,7 @@ test('submitCraftAll uses actual material consumed for material deduction and cr
   assert.equal(startingCash - state.assets.cash, expectedTax + artifactCost);
 });
 
-test('invalid actual material consumed blocks submit without mutating state', { concurrency: false }, () => {
+test('blank actual main consumption blocks submit without mutating state', { concurrency: false }, () => {
   resetState();
   const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');
   const quality = '5.3';
@@ -1413,6 +1436,75 @@ test('invalid actual material consumed blocks submit without mutating state', { 
   }), before);
   assert.equal(toasts.at(-1)?.type, 'error');
   assert.match(toasts.at(-1)?.message || '', /實際消耗|非負整數/);
+});
+
+test('blank actual sub consumption blocks submit without mutating state', { concurrency: false }, () => {
+  resetState();
+  const recipe = {
+    name: 'SubActualProduct',
+    main: 'MainMaterial',
+    sub: 'SubMaterial',
+    mainBaseQty: 2,
+    subBaseQty: 1,
+    category: 'cloth',
+    artifactVal: 0
+  };
+  const quality = '4.0';
+  const qty = 2;
+  const city = LOCATION;
+  const mainKey = 'MainMaterial_4.0';
+  const subKey = 'SubMaterial_4.0';
+  const outputKey = 'SubActualProduct_4.0';
+
+  state.assets.cash = 1000000;
+  state.inventory[mainKey] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 100
+  };
+  state.inventory[subKey] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 50
+  };
+  state.inventory[outputKey] = {
+    qtyByCity: qtyByCity(0),
+    globalAvgCost: null
+  };
+  craftingQueue.push({
+    id: 9204,
+    checked: true,
+    recipe,
+    qty,
+    quality,
+    city,
+    focus: false,
+    mainKey,
+    mainQty: 4,
+    actualMainQty: 4,
+    subKey,
+    subQty: 2,
+    actualSubQty: '',
+    tax: 0,
+    artifactPrice: 0,
+    artifactQty: 1,
+    alchemyName: null
+  });
+  const before = JSON.stringify({
+    assets: state.assets,
+    inventory: state.inventory,
+    transactions: state.transactions,
+    craftingQueue
+  });
+
+  Crafting.submitCraftAll();
+
+  assert.equal(JSON.stringify({
+    assets: state.assets,
+    inventory: state.inventory,
+    transactions: state.transactions,
+    craftingQueue
+  }), before);
+  assert.equal(toasts.at(-1)?.type, 'error');
+  assert.match(toasts.at(-1)?.message || '', /SubMaterial|實際消耗|非負整數/);
 });
 
 test('checked queue display separates shop fee, artifact cost, alchemy cost, and cash total without material cost', { concurrency: false }, () => {
