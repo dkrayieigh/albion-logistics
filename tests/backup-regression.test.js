@@ -123,6 +123,32 @@ function storageSnapshot() {
   return JSON.stringify([...storage.entries()]);
 }
 
+function legacyLocationBackupFixture() {
+  const customLocations = ['公會T8地堡', 'North Hideout / 北方倉'];
+  return {
+    inventory: {
+      '布料_6.1': {
+        qtyByCity: {
+          Thetford: 120,
+          Martlock: 5,
+          [customLocations[0]]: 7
+        },
+        globalAvgCost: 12345
+      },
+      'TestProduct_6.1': {
+        qtyByCity: {
+          Bridgewatch: 3,
+          [customLocations[1]]: 11
+        },
+        globalAvgCost: 98765
+      }
+    },
+    assets: { cash: 7654321, debt: 0 },
+    transactions: [],
+    customLocations
+  };
+}
+
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
   resetMocks();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '測試交易' }));
@@ -378,6 +404,155 @@ test('D63: large legacy transaction backup import preserves count and legacy tra
   loadState();
   assert.equal(state.transactions.length, 180);
   assert.deepEqual(state.transactions.slice(0, 4), transactions.slice(0, 4));
+});
+
+test('D76: legacy multi-item multi-location backup preserves all location quantities', { concurrency: false }, () => {
+  resetMocks();
+  const backup = legacyLocationBackupFixture();
+
+  importBackup(backup);
+
+  assert.equal(reloadCount, 1);
+  const importedInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.inventory));
+  assert.deepEqual(Object.keys(importedInventory), Object.keys(backup.inventory));
+  assert.deepEqual(importedInventory['布料_6.1'].qtyByCity, backup.inventory['布料_6.1'].qtyByCity);
+  assert.deepEqual(importedInventory['TestProduct_6.1'].qtyByCity, backup.inventory['TestProduct_6.1'].qtyByCity);
+  assert.equal(importedInventory['布料_6.1'].globalAvgCost, 12345);
+  assert.equal(importedInventory['TestProduct_6.1'].globalAvgCost, 98765);
+  assert.equal(Object.hasOwn(importedInventory['布料_6.1'], 'qtyByLocation'), false);
+  assert.equal(Object.hasOwn(importedInventory['TestProduct_6.1'], 'qtyByLocation'), false);
+  assert.equal(importedInventory['布料_6.1'].qtyByCity.Thetford, 120);
+  assert.equal(importedInventory['布料_6.1'].qtyByCity.Martlock, 5);
+  assert.equal(importedInventory['TestProduct_6.1'].qtyByCity.Bridgewatch, 3);
+});
+
+test('D76: loadState preserves imported legacy location maps and custom location strings', { concurrency: false }, () => {
+  resetMocks();
+  const backup = legacyLocationBackupFixture();
+
+  importBackup(backup);
+  loadState();
+
+  assert.deepEqual(state.customLocations, backup.customLocations);
+  for (const [location, quantity] of Object.entries(backup.inventory['布料_6.1'].qtyByCity)) {
+    assert.equal(state.inventory['布料_6.1'].qtyByCity[location], quantity);
+  }
+  for (const [location, quantity] of Object.entries(backup.inventory['TestProduct_6.1'].qtyByCity)) {
+    assert.equal(state.inventory['TestProduct_6.1'].qtyByCity[location], quantity);
+  }
+  assert.equal(state.inventory['布料_6.1'].globalAvgCost, 12345);
+  assert.equal(state.inventory['TestProduct_6.1'].globalAvgCost, 98765);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'], 'qtyByLocation'), false);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, 'locationId'), false);
+  assert.equal(typeof state.customLocations[0], 'string');
+});
+
+test('D76: location adapter reads imported qtyByCity wrapper without changing state', { concurrency: false }, () => {
+  resetMocks();
+  const backup = legacyLocationBackupFixture();
+
+  importBackup(backup);
+  loadState();
+  const before = JSON.stringify(state.inventory);
+  const itemState = state.inventory['布料_6.1'];
+  const normalized = normalizeLocationMap(itemState);
+
+  assert.equal(JSON.stringify(state.inventory), before);
+  assert.equal(normalized.sourceFormat, 'qtyByCity');
+  assert.deepEqual(normalized.quantities, itemState.qtyByCity);
+  assert.deepEqual(normalized.unresolvedLocations, []);
+  assert.notEqual(normalized.quantities, itemState.qtyByCity);
+});
+
+test('D76: custom location literal keys remain strings without registry conversion', { concurrency: false }, () => {
+  resetMocks();
+  const backup = legacyLocationBackupFixture();
+
+  importBackup(backup);
+  loadState();
+
+  assert.deepEqual(state.customLocations, ['公會T8地堡', 'North Hideout / 北方倉']);
+  assert.equal(typeof state.customLocations[0], 'string');
+  assert.equal(typeof state.customLocations[1], 'string');
+  assert.equal(Object.hasOwn(state.customLocations[0], 'id'), false);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity['公會T8地堡'], 7);
+  assert.equal(state.inventory['TestProduct_6.1'].qtyByCity['North Hideout / 北方倉'], 11);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, 'locationId'), false);
+});
+
+test('D76: legacy backup zero location quantity is preserved through import loadState and adapter read', { concurrency: false }, () => {
+  resetMocks();
+  const backup = legacyLocationBackupFixture();
+  backup.inventory['布料_6.1'].qtyByCity.Martlock = 0;
+
+  importBackup(backup);
+  assert.equal(JSON.parse(localStorage.getItem(STORAGE_KEYS.inventory))['布料_6.1'].qtyByCity.Martlock, 0);
+
+  loadState();
+  assert.equal(state.inventory['布料_6.1'].qtyByCity.Martlock, 0);
+
+  const normalized = normalizeLocationMap(state.inventory['布料_6.1']);
+  assert.equal(normalized.quantities.Martlock, 0);
+  assert.deepEqual(normalized.unresolvedLocations, []);
+});
+
+test('D76: invalid legacy location quantity remains unresolved in adapter without coercion', { concurrency: false }, () => {
+  const input = {
+    qtyByCity: {
+      Thetford: 120,
+      StringWarehouse: '5',
+      InfiniteWarehouse: Infinity
+    }
+  };
+  const before = JSON.stringify(Object.keys(input.qtyByCity));
+
+  const normalized = normalizeLocationMap(input);
+
+  assert.equal(JSON.stringify(Object.keys(input.qtyByCity)), before);
+  assert.deepEqual(normalized.quantities, { Thetford: 120 });
+  assert.deepEqual(normalized.unresolvedLocations, ['StringWarehouse', 'InfiniteWarehouse']);
+  assert.equal(Object.hasOwn(normalized.quantities, 'StringWarehouse'), false);
+  assert.equal(Object.hasOwn(normalized.quantities, 'InfiniteWarehouse'), false);
+});
+
+test('D76: legacy backup export import round trip preserves qtyByCity storage shape', { concurrency: false }, async () => {
+  resetMocks();
+  const backup = legacyLocationBackupFixture();
+  seedStorage(backup);
+
+  await getElement('btn-export-data').handlers.click();
+  assert.ok(createdBlob);
+  const exported = JSON.parse(createdBlob.parts.join(''));
+
+  resetMocks();
+  importBackup(exported);
+
+  const importedInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.inventory));
+  const importedCustomLocations = JSON.parse(localStorage.getItem(STORAGE_KEYS.customLocations));
+  assert.deepEqual(importedInventory, backup.inventory);
+  assert.deepEqual(importedCustomLocations, backup.customLocations);
+  assert.equal(Object.hasOwn(importedInventory['布料_6.1'], 'qtyByLocation'), false);
+  assert.equal(Object.hasOwn(importedInventory['布料_6.1'].qtyByCity, 'locationId'), false);
+});
+
+test('D76: future qtyByLocation remains adapter-only sample while imported legacy backup stays qtyByCity', { concurrency: false }, () => {
+  resetMocks();
+  const futureSample = normalizeLocationMap({
+    qtyByLocation: {
+      thetford: 120,
+      custom_warehouse: 5
+    }
+  });
+  const backup = legacyLocationBackupFixture();
+
+  importBackup(backup);
+
+  const importedInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.inventory));
+  assert.equal(futureSample.sourceFormat, 'qtyByLocation');
+  assert.deepEqual(futureSample.quantities, { thetford: 120, custom_warehouse: 5 });
+  assert.equal(Object.hasOwn(importedInventory['布料_6.1'], 'qtyByLocation'), false);
+  assert.equal(Object.hasOwn(importedInventory['TestProduct_6.1'], 'qtyByLocation'), false);
+  assert.equal(Object.hasOwn(importedInventory['布料_6.1'].qtyByCity, 'locationId'), false);
 });
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
