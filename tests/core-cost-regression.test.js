@@ -1539,7 +1539,22 @@ test('material consumption helper distinguishes expected consumption, conservati
   assert.notEqual(result.expectedNetConsumption, result.safeStartStock);
 });
 
-test.todo('aggregated safe-start stock for multiple queue rows sharing one material needs business rule before implementation');
+test('single row aggregated safe-start stock equals existing single-row safe-start', { concurrency: false }, () => {
+  const result = Crafting.calculateMaterialConsumption(16, 20, 0.479);
+
+  assert.equal(result.conservativeNetConsumption, 180);
+  assert.equal(result.safeStartStock, 187);
+});
+
+test.todo('aggregated safe-start stock should group same material as sum(row conservative consumption) plus max(per-craft min return), not sum row safe-start stocks');
+
+test.todo('aggregated safe-start stock should be independent of crafting queue row order');
+
+test.todo('aggregated safe-start stock should keep different material keys in separate planning groups');
+
+test.todo('aggregated safe-start stock should ignore unchecked or qty <= 0 queue rows in planning aggregation');
+
+test.todo('aggregated safe-start stock should ignore actual material consumed inputs and remain planning-only');
 
 test('crafting without explicit quality is blocked before queue mutation', { concurrency: false }, () => {
   resetState();
