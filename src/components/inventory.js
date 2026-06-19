@@ -194,6 +194,7 @@ export function deleteEditInventory() {
 
 
 let aSellItem = '', aSellQual = '', aSellCity = '';
+let sellEstimateBasis = 'total';
 
 export function openSellCraftedModal(item, q, city) {
   aSellItem = item; aSellQual = q; aSellCity = city;
@@ -210,7 +211,10 @@ export function openSellCraftedModal(item, q, city) {
   if (qtyInput) { qtyInput.max = maxQty; qtyInput.value = maxQty; }
   
   const costEl = document.getElementById('sell-crafted-cost');
-  if (costEl) costEl.innerText = formatSilver(state.inventory[key].globalAvgCost || 0);
+  if (costEl) {
+    const avgCost = state.inventory[key].globalAvgCost;
+    costEl.innerText = typeof avgCost === 'number' && !Number.isNaN(avgCost) ? formatSilver(avgCost) : '成本基準未知';
+  }
   
   const priceInput = document.getElementById('sell-crafted-price');
   if (priceInput) priceInput.value = '';
@@ -218,6 +222,9 @@ export function openSellCraftedModal(item, q, city) {
   const totalInput = document.getElementById('sell-crafted-total');
   if (totalInput) totalInput.value = '';
   
+  const estUnitInput = document.getElementById('sell-crafted-estimate-unit');
+  if (estUnitInput) estUnitInput.value = '';
+
   const estInput = document.getElementById('sell-crafted-estimate');
   if (estInput) estInput.value = '';
   
@@ -230,12 +237,45 @@ export function openSellCraftedModal(item, q, city) {
   const citySelect = document.getElementById('sell-crafted-city');
   if (citySelect) citySelect.parentElement.style.display = 'none';
   
-  runEstimator();
+  sellEstimateBasis = 'total';
+  refreshSaleValuationSummary();
   document.getElementById('sell-crafted-modal').style.display = 'block';
 }
 
-export function onSellEstimateChange() {
-  const est = parseNum(document.getElementById('sell-crafted-estimate').value) || 0;
+export function onSellEstimatePriceChange(type) {
+  const qty = parseInt(document.getElementById('sell-crafted-qty').value) || 0;
+  const unitEl = document.getElementById('sell-crafted-estimate-unit');
+  const totalEl = document.getElementById('sell-crafted-estimate');
+  sellEstimateBasis = type;
+  if (type === 'unit') {
+    const unit = parseNum(unitEl.value);
+    if (totalEl) totalEl.value = unit && qty > 0 ? formatSilver(unit * qty) : '';
+  } else {
+    const total = parseNum(totalEl.value);
+    if (unitEl) unitEl.value = total && qty > 0 ? formatSilver(Math.round(total / qty)) : '';
+  }
+  updateSaleBenchmarks();
+  refreshSaleValuationSummary();
+}
+
+export function onSellEstimateChange() { onSellEstimatePriceChange('total'); }
+
+function updateEstimatedValueForQty() {
+  const qty = parseInt(document.getElementById('sell-crafted-qty').value) || 0;
+  const unitEl = document.getElementById('sell-crafted-estimate-unit');
+  const totalEl = document.getElementById('sell-crafted-estimate');
+  if (sellEstimateBasis === 'unit') {
+    const unit = parseNum(unitEl?.value || '');
+    if (totalEl) totalEl.value = unit && qty > 0 ? formatSilver(unit * qty) : '';
+  } else {
+    const total = parseNum(totalEl?.value || '');
+    if (unitEl) unitEl.value = total && qty > 0 ? formatSilver(Math.round(total / qty)) : '';
+  }
+  updateSaleBenchmarks();
+}
+
+function updateSaleBenchmarks() {
+  const est = parseNum(document.getElementById('sell-crafted-estimate')?.value || '') || 0;
   document.getElementById('sell-bench-90').innerText = formatSilver(est * 0.9);
   document.getElementById('sell-bench-85').innerText = formatSilver(est * 0.85);
 }
@@ -249,10 +289,49 @@ export function adjustSellCraftedQty(d) {
   if (v < 1) v = 1; 
   if (v > parseInt(el.max)) v = parseInt(el.max); 
   el.value = v;
-  runEstimator();
+  updateEstimatedValueForQty();
+  refreshSaleValuationSummary();
+}
+
+export function refreshSaleValuationSummary() {
+  const key = `${aSellItem}_${aSellQual}`;
+  const inv = state.inventory[key];
+  const qty = parseInt(document.getElementById('sell-crafted-qty')?.value) || 0;
+  const saleTotal = parseNum(document.getElementById('sell-crafted-total')?.value || '') || 0;
+  const avgCost = inv?.globalAvgCost;
+  const hasCostBasis = typeof avgCost === 'number' && !Number.isNaN(avgCost);
+  const costStatusText = hasCostBasis ? '成本基準已建立' : '成本基準未知';
+  const costTotalText = hasCostBasis && qty > 0 ? formatSilver(avgCost * qty) : '成本基準未知';
+  const profitText = hasCostBasis && saleTotal > 0 && qty > 0 ? formatSilver(saleTotal - avgCost * qty) : '成本基準未知';
+  const profitUnitText = hasCostBasis && saleTotal > 0 && qty > 0 ? formatSilver(Math.round((saleTotal - avgCost * qty) / qty)) : '成本基準未知';
+  const marginText = hasCostBasis && saleTotal > 0 && qty > 0 ? `${((saleTotal - avgCost * qty) / saleTotal * 100).toFixed(2)}%` : '成本基準未知';
+  const result = document.getElementById('sell-estimator-result');
+
+  if (result) {
+    result.innerHTML = `
+      <div style="display:grid; grid-template-columns:1fr auto; gap:6px 12px; align-items:center;">
+        <span>成本狀態</span><strong id="sell-cost-status">${costStatusText}</strong>
+        <span>成本總額</span><strong id="sell-cost-total">${costTotalText}</strong>
+        <span>預估毛利</span><strong id="sell-profit-total">${profitText}</strong>
+        <span>單件毛利</span><strong id="sell-profit-unit">${profitUnitText}</strong>
+        <span>毛利率</span><strong id="sell-profit-margin">${marginText}</strong>
+      </div>`;
+  }
+  const costStatus = document.getElementById('sell-cost-status');
+  const costTotalEl = document.getElementById('sell-cost-total');
+  const profitTotalEl = document.getElementById('sell-profit-total');
+  const profitUnitEl = document.getElementById('sell-profit-unit');
+  const profitMarginEl = document.getElementById('sell-profit-margin');
+  if (costStatus) costStatus.innerText = costStatusText;
+  if (costTotalEl) costTotalEl.innerText = costTotalText;
+  if (profitTotalEl) profitTotalEl.innerText = profitText;
+  if (profitUnitEl) profitUnitEl.innerText = profitUnitText;
+  if (profitMarginEl) profitMarginEl.innerText = marginText;
 }
 
 export function runEstimator() {
+  refreshSaleValuationSummary();
+  return;
   const tEl = document.getElementById('sell-crafted-total');
   const est = document.getElementById('sell-estimator-result');
   if (tEl && est) {
@@ -272,7 +351,7 @@ export function onSellPriceChange(type) {
     const t = parseNum(tEl.value);
     pEl.value = q > 0 ? (t / q).toLocaleString() : '0';
   }
-  runEstimator();
+  refreshSaleValuationSummary();
 }
 
 export function submitSellCrafted() {
@@ -340,8 +419,10 @@ export function initInventoryEvents() {
   document.getElementById('btn-sell-qty-sub-1')?.addEventListener('click', () => adjustSellCraftedQty(-1));
   document.getElementById('btn-sell-qty-add-1')?.addEventListener('click', () => adjustSellCraftedQty(1));
   document.getElementById('btn-sell-qty-add-10')?.addEventListener('click', () => adjustSellCraftedQty(10));
+  document.getElementById('sell-crafted-qty')?.addEventListener('input', () => { updateEstimatedValueForQty(); refreshSaleValuationSummary(); });
   document.getElementById('sell-crafted-price')?.addEventListener('input', () => onSellPriceChange('unit'));
   document.getElementById('sell-crafted-total')?.addEventListener('input', () => onSellPriceChange('total'));
+  document.getElementById('sell-crafted-estimate-unit')?.addEventListener('input', () => onSellEstimatePriceChange('unit'));
   document.getElementById('sell-crafted-estimate')?.addEventListener('input', onSellEstimateChange);
   document.getElementById('btn-buy-qty-sub-10')?.addEventListener('click', () => adjBuyQty(-10));
   document.getElementById('btn-buy-qty-sub-1')?.addEventListener('click', () => adjBuyQty(-1));

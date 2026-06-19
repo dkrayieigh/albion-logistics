@@ -403,7 +403,10 @@
         </div>
       </div>
       <div class="form-group" style="background:rgba(0,0,0,0.2); padding:10px; border-radius:8px;"><div style="font-size:0.85rem; color:var(--text-secondary);">每件平均成本 (Avg Cost): <span id="sell-crafted-cost" style="color:var(--accent-red); font-weight:bold;"></span></div></div>
-      <div class="form-group" style="margin-top:15px;"><label class="form-label">總預估市值 Est. Total Value</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-estimate" ><span class="input-suffix">銀幣</span></div></div>
+      <div class="form-row" style="margin-top:15px;">
+        <div class="form-group"><label class="form-label">預估市值單價 / Estimated Unit Value</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-estimate-unit" ><span class="input-suffix">銀幣</span></div></div>
+        <div class="form-group"><label class="form-label">預估市值總價 / Estimated Total Value</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-estimate" ><span class="input-suffix">銀幣</span></div></div>
+      </div>
       <div class="benchmark-container" style="margin-top:10px;">
         <div class="benchmark-card pct90"><div class="benchmark-percent">90% 參考</div><div class="benchmark-val" id="sell-bench-90">0</div></div>
         <div class="benchmark-card pct85"><div class="benchmark-percent">85% 參考</div><div class="benchmark-val" id="sell-bench-85">0</div></div>
@@ -412,7 +415,15 @@
         <div class="form-group"><label class="form-label">實際售出單價 Unit Price</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-price" ><span class="input-suffix">銀幣</span></div></div>
         <div class="form-group"><label class="form-label">實際售出總價 Total Price</label><div class="input-with-suffix"><input type="text" class="format-num" id="sell-crafted-total" ><span class="input-suffix">銀幣</span></div></div>
       </div>
-      <div class="form-group"><div style="font-size:0.9rem; color:var(--text-secondary);"><span id="sell-estimator-result" style="font-weight:bold; font-size:1.2rem;"></span></div></div>
+      <div class="form-group"><div id="sell-estimator-result" style="font-size:0.9rem; color:var(--text-secondary);">
+        <div style="display:grid; grid-template-columns:1fr auto; gap:6px 12px; align-items:center;">
+          <span>成本狀態</span><strong id="sell-cost-status">成本基準未知</strong>
+          <span>成本總額</span><strong id="sell-cost-total">成本基準未知</strong>
+          <span>預估毛利</span><strong id="sell-profit-total">成本基準未知</strong>
+          <span>單件毛利</span><strong id="sell-profit-unit">成本基準未知</strong>
+          <span>毛利率</span><strong id="sell-profit-margin">成本基準未知</strong>
+        </div>
+      </div></div>
       <button class="btn btn-success" style="width:100%; height:45px;" id="btn-submit-sell-crafted">確認完成交易 (更新庫存與錢包)</button>
     </div>
   </div>

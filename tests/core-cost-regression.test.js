@@ -372,6 +372,44 @@ test('actual sale total updates actual sale unit price', { concurrency: false },
   assert.equal(getElement('sell-crafted-price').value, '540,000');
 });
 
+test('estimated unit value updates estimated total without setting actual sale price', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 495425
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '20';
+  getElement('sell-crafted-estimate-unit').value = '527000';
+  Inventory.onSellEstimatePriceChange('unit');
+
+  assert.equal(getElement('sell-crafted-estimate').value, '10,540,000');
+  assert.equal(getElement('sell-crafted-total').value, '');
+  assert.equal(getElement('sell-crafted-price').value, '');
+});
+
+test('estimated total value updates estimated unit', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 495425
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '20';
+  getElement('sell-crafted-estimate').value = '10540000';
+  Inventory.onSellEstimatePriceChange('total');
+
+  assert.equal(getElement('sell-crafted-estimate-unit').value, '527,000');
+});
+
 test('P2P valuation reference total generates 90% and 85% references without setting actual sale price', { concurrency: false }, () => {
   resetState();
   const item = 'TestProduct';
@@ -392,11 +430,72 @@ test('P2P valuation reference total generates 90% and 85% references without set
   assert.equal(getElement('sell-crafted-price').value, '');
 });
 
-test.todo('sale valuation UI display support: popup should show cost basis, cost total, estimated profit, profit per item, and profit margin from globalAvgCost instead of tax-only estimate');
+test('sale popup shows cost and profit summary from globalAvgCost', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 495425
+  };
 
-test.todo('sale valuation UI display support: popup should show cost basis unknown and avoid numeric profit margin when globalAvgCost is null');
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '20';
+  getElement('sell-crafted-total').value = '10800000';
+  Inventory.onSellPriceChange('total');
 
-test.todo('sale valuation UI display support: sale popup should replace fixed tax estimate with cost and profit summary for P2P mode');
+  assert.equal(getElement('sell-cost-status').innerText, '成本基準已建立');
+  assert.equal(getElement('sell-cost-total').innerText, '9,908,500');
+  assert.equal(getElement('sell-profit-total').innerText, '891,500');
+  assert.equal(getElement('sell-profit-unit').innerText, '44,575');
+  assert.equal(getElement('sell-profit-margin').innerText, '8.25%');
+});
+
+test('unknown cost basis shows unknown status without fake numeric profit', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: null
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '20';
+  getElement('sell-crafted-total').value = '10800000';
+  Inventory.onSellPriceChange('total');
+
+  assert.equal(getElement('sell-cost-status').innerText, '成本基準未知');
+  assert.equal(getElement('sell-cost-total').innerText, '成本基準未知');
+  assert.equal(getElement('sell-profit-total').innerText, '成本基準未知');
+  assert.equal(getElement('sell-profit-unit').innerText, '成本基準未知');
+  assert.equal(getElement('sell-profit-margin').innerText, '成本基準未知');
+  assert.doesNotMatch(getElement('sell-estimator-result').innerHTML, /NaN|Infinity/);
+});
+
+test('fixed tax estimate is no longer primary sale popup display', { concurrency: false }, () => {
+  resetState();
+  const item = 'TestProduct';
+  const quality = '6.1';
+  const key = `${item}_${quality}`;
+  state.inventory[key] = {
+    qtyByCity: qtyByCity(20),
+    globalAvgCost: 495425
+  };
+
+  Inventory.openSellCraftedModal(item, quality, LOCATION);
+  getElement('sell-crafted-qty').value = '20';
+  getElement('sell-crafted-total').value = '10800000';
+  Inventory.onSellPriceChange('total');
+
+  const summaryHtml = getElement('sell-estimator-result').innerHTML;
+  assert.match(summaryHtml, /sell-cost-total/);
+  assert.match(summaryHtml, /sell-profit-total/);
+  assert.match(summaryHtml, /sell-profit-margin/);
+  assert.doesNotMatch(summaryHtml, /0\.935|10,098,000|tax/i);
+});
 
 test('sale writer remains legacy payload while valuation UI readiness tests are added', { concurrency: false }, () => {
   resetState();
