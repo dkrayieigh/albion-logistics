@@ -2,13 +2,53 @@
 
 ## Handoff Status
 
-- Latest checkpoint: D60 close
-- Latest master commit: `da11f7ee14194394f6436059947ab66fefc12fc8`
-- Commit title: `docs: add laborer sale behavior checkpoint`
-- Baseline: `56 tests / 56 pass / 0 fail / 0 TODO`
+- Latest checkpoint: D70 close
+- Latest master commit: `c5d8d490f1bd106b6371a29915478fc0fc7c32bb`
+- Commit title: `fix: aggregate crafting safe stock by material`
+- Baseline: `99 tests / 99 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
-This document is a handoff checkpoint for D62 Migration readiness review. It summarizes current stable behavior, covered safety nets, future targets, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D70. It summarizes current stable behavior, covered safety nets, future targets, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+
+## D61-D70 Stabilization Summary
+
+### v0.4.3 Release Preparation
+
+- v0.4.3 release documentation was prepared and release notes were created.
+- The release notes remain documentation for the v0.4.3 release candidate; they do not change version metadata, build artifacts, tags, or GitHub Release state.
+- Historical crafting data repair remains out of scope for the release documentation.
+
+### Crafting Incident Stabilization
+
+- E1 corrected artifact crafting cost calculation behavior.
+- E2 documented the crafting incident recovery plan.
+- E3 documented the manual smoke checklist for the crafting hotfix.
+- Crafting accounting now uses user-entered actual material consumption.
+- Blank or invalid actual material consumption blocks before mutation.
+- Planning values are display/planning values only and are not accounting quantities.
+
+### Sale Valuation Stabilization
+
+- Sale valuation now supports game valuation unit/total sync.
+- 90% and 85% P2P reference values are shown as sale decision support.
+- Actual sale unit/total fields sync and can be manually overwritten.
+- Sale popup displays Total Cost, Est. GP, Unit GP, and GP %.
+- Unknown `globalAvgCost` displays unknown cost and does not show fake numeric profit.
+- Legacy sale writer payload remains unchanged; canonical `SELL_ITEM` is still not current implementation.
+
+### D69-D70 Zero-TODO Checkpoint
+
+- Crafting material planning aggregates by material key + city.
+- `groupExpected = sum(row expected)`.
+- `groupConservative = sum(row conservative)`.
+- `groupSafeStart = groupConservative + max(perCraftMinReturn)`.
+- Same material key + same city aggregates together; different material/city stays separate.
+- Unchecked or invalid qty rows are ignored.
+- `actualMainQty` / `actualSubQty` do not affect planning helper output.
+- Alchemy aggregation remains unchanged.
+- Purchase and crafting block when explicit quality is not selected; no implicit/default `4.0` is used on blocked paths.
+- Latest master baseline is `99 tests / 99 pass / 0 fail / 0 TODO`.
+- No migration has started.
 
 ## D1-D60 Completed Summary
 
@@ -22,7 +62,8 @@ This document is a handoff checkpoint for D62 Migration readiness review. It sum
 
 ### Current Behavior Safety Net
 
-- Regression baseline now protects 56 tests with no failures and no TODO tests.
+- D1-D60 historical regression baseline protected 56 tests with no failures and no TODO tests.
+- Latest master baseline is now `99 tests / 99 pass / 0 fail / 0 TODO`.
 - Core cost and inventory behaviors remain covered in `tests/core-cost-regression.test.js`.
 - Ledger display and transaction reader safety remain covered in `tests/ledger-data-safety.test.js`.
 - Backup import/export and compatibility safety remain covered in `tests/backup-regression.test.js`.
@@ -111,6 +152,10 @@ The current stable safety net covers:
 - Minimal read-only adapter reader/display tolerance for item identity, location display, transaction reader, and ledger display paths.
 - Current Sell Item success and failure behavior.
 - Current Laborer Sale success, reader, display, and terminology/key boundary behavior.
+- Current crafting material planning aggregation and safe-start calculation.
+- Current crafting accounting boundary: actual consumed values drive accounting, while expected/safe-start values remain planning display.
+- Purchase and crafting explicit quality guards.
+- Current sale valuation P2P references, cost/profit summary, and unknown-cost handling.
 
 ## Future Target
 
@@ -144,9 +189,9 @@ Before any migration work:
 - Do not migrate legacy transaction payloads before reader/writer boundaries, legacy-to-canonical mapping, backup validation, and ledger compatibility tests are ready.
 - Do not rename internal/storage key `滿日記本`.
 
-## Prohibited For D62 Readiness Review
+## Prohibited For Next Review
 
-D62 should remain a review/planning checkpoint unless explicitly re-scoped.
+The next review should remain a stabilization/release-boundary planning checkpoint unless explicitly re-scoped. It should not directly execute migration.
 
 Do not:
 
@@ -163,9 +208,9 @@ Do not:
 - Declare canonical `SELL_ITEM` or canonical laborer sale event complete.
 - Declare transaction payload, writer, storage, Stable ID, or Location Registry migration started.
 
-## D62 Recommendation
+## Next Review Recommendation
 
-D62 should be a Migration readiness review, not direct implementation.
+The next phase should first confirm stabilization and release-readiness boundaries, not direct migration implementation. Migration readiness can be reviewed later only after current behavior safety nets, backup validation, and compatibility boundaries are explicitly accepted.
 
 Recommended review questions:
 

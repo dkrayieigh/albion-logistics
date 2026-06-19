@@ -13,10 +13,15 @@ npm test
 ### Stable release baseline
 
 - 指令：`npm.cmd test`
-- 結果：**56 tests / 56 pass / 0 fail / 0 TODO**
+- 結果：**99 tests / 99 pass / 0 fail / 0 TODO**
+- 這是 latest master stabilization baseline；v0.4.3 release baseline 屬於歷史 release checkpoint，不代表目前最新 master baseline。
 - 目前沒有 regression test TODO。
 - 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
 - 手測案例中的 `locationId` 是 future/location-model 對照標記；current UI/storage 仍可能使用 legacy city display key 或 `qtyByCity`。
+- 新增 covered scope: crafting material planning aggregates expected consumption and safe-start stock by material key + city.
+- 新增 covered scope: crafting accounting uses user-entered actual material consumption; blank/invalid actual consumption blocks before mutation.
+- 新增 covered scope: purchase and crafting require explicit quality selection and no longer default to `4.0`.
+- 新增 covered scope: sale valuation supports P2P reference pricing, actual sale unit/total sync, cost/profit summary, and unknown-cost handling.
 - 新增 covered scope: minimal read-only Transaction Reader Adapter mixed legacy/future transaction tolerance.
 - 新增 covered scope: minimal Ledger render/display compatibility with normalized transaction reader entries.
 - 新增 covered scope: minimal read-only Location Adapter legacy qtyByCity multi-location preservation.
@@ -43,7 +48,7 @@ npm test
 - 新增 covered scope: Laborer sale success state transition preserves legacy payload, transaction insertion order, cash increase, selected inventory deduction, unrelated inventory, and legacy storage key 滿日記本.
 - This does not implement a canonical event, change writers, migrate transaction payloads, or rename legacy storage key 滿日記本.
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
-- `ADAPTER_TEST_PLAN.md` 不屬於目前 56 tests baseline，不代表 adapter 或 migration 已開始。
+- `ADAPTER_TEST_PLAN.md` 不屬於目前 99 tests baseline，不代表 adapter 或 migration 已開始。
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。
@@ -95,6 +100,9 @@ npm test
 **Automation：Partial**
 - `tests/core-cost-regression.test.js`
 - 已覆蓋製作消耗引用材料 `globalAvgCost`、材料 `globalAvgCost` 不變、成品入庫成本計算，以及成品已有庫存時套用 WAC。
+- 已覆蓋 planning/accounting boundary：預估消耗與 safe-start stock 只作為規劃顯示；正式扣帳使用使用者填入的 actual consumption。
+- 已覆蓋 blank/invalid actual consumption 在任何 mutation 前阻擋，不得消耗材料、不得扣 cash、不得新增成品或 transaction。
+- 已覆蓋材料規劃彙總：相同 material key + city 合併，順序不影響結果；不同 material/city 分開；未勾選或 invalid qty row 忽略；`actualMainQty` / `actualSubQty` 不影響 planning helper；主料/副料皆受保護；alchemy aggregation 維持既有行為。
 - UI 操作流程、RRR 顯示與實際配方選擇仍需手測。
 
 **📥 [前置狀態]**
@@ -106,13 +114,15 @@ npm test
 * 在製作模組，選擇製作 10 把需要鋼條（主料）與布料（副料）的武器。
 * 選擇城市：Thetford（locationId: `thetford`）。
 * 系統預估稅金/使用費：5,000。
+* 製作完成後填入實際材料消耗。
 * 點擊「開始製作」。
 
 **📤 [預期結果]**
-* ✅ 材料庫存：T6.1 鋼條與 T6.1 布料庫存正確減少（需符合扣除 RRR 後的預估消耗量）。
+* ✅ 材料規劃：預估消耗與 safe-start stock 只作為備料顯示，不是正式扣帳數量。
+* ✅ 材料庫存：T6.1 鋼條與 T6.1 布料庫存依使用者填入的實際消耗正確減少。
 * ✅ 成品庫存：Thetford（locationId: `thetford`） 的該武器庫存增加 10。
-* ✅ 現金變化：現金只扣除 5,000（稅金），絕對不扣材料的錢，現金變成 9,995,000。
-* ✅ 成品均價：該武器的全域均價被正確計算（計算公式包含消耗的材料均價總和 + 稅金）。
+* ✅ 現金變化：現金只扣除本次製作現金支出（例如店鋪使用費、神器成本、鍊金成本），絕對不再次扣除已在庫存中的材料成本。
+* ✅ 成品均價：該武器的全域均價被正確計算（計算公式包含實際消耗材料的均價總和 + 本次製作現金支出）。
 * ✅ 作業日誌：新增一筆「製作入庫」紀錄，且紀錄的總價值為正確的製造成本總和。
 
 ---
@@ -487,9 +497,12 @@ npm test
 * 修改銷售數量、單價或總價。
 
 **📤 [預期結果]**
-* ✅ 90% 參考值顯示 `90,000`。
-* ✅ 85% 參考值顯示 `85,000`。
-* ✅ 單價與總價互相換算，並更新目前介面使用的扣除稅額後預估。
+* ✅ 遊戲估價單價與總價互相換算。
+* ✅ 90% P2P 參考值顯示 `90,000`。
+* ✅ 85% P2P 參考值顯示 `85,000`。
+* ✅ 實售單價與實售總價互相換算，且使用者可手動覆寫。
+* ✅ 顯示 Total Cost、Est. GP、Unit GP 與 GP %；若 `globalAvgCost` unknown，顯示成本未知，不顯示假毛利。
+* ✅ 固定 6.5% market tax estimate 不再作為 P2P sale popup 的主要資訊。
 * ✅ 在確認交易前，參考值不修改庫存、現金或交易紀錄。
 
 ---

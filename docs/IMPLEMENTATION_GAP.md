@@ -88,16 +88,40 @@ Future boundary：
 - Legacy `type: '工人島出售'` fallback 不可移除。
 - Legacy storage key `滿日記本` 不可直接改名為 `滿日誌`。
 
-測試基準：
+歷史 checkpoint baseline：
 
 - `56 tests / 56 pass / 0 fail / 0 TODO`
 - 測試檔：`tests/core-cost-regression.test.js`、`tests/ledger-data-safety.test.js`
+- 此為 D51-D59 歷史 checkpoint baseline；最新 stable baseline 以 `TEST_CASES.md` 的 Stable release baseline 為準。
+
+## D69-D70 Zero-TODO stabilization checkpoint
+
+D69-D70 已完成 crafting material planning safe-start aggregation 與 zero-TODO stabilization checkpoint。此 checkpoint 只描述 current legacy-compatible implementation，不代表 Stable ID、`qtyByLocation`、canonical transaction payload、writer migration、storage migration 或 adapter expansion 已開始。
+
+已保護 current behavior：
+
+- Crafting material planning 以 helper 依 material key + city 彙總。
+- `groupExpected = sum(row expected)`。
+- `groupConservative = sum(row conservative)`。
+- `groupSafeStart = groupConservative + max(perCraftMinReturn)`。
+- 相同 material key + same city 會合併；不同 material 或不同 city 會分開。
+- 未勾選或 invalid qty rows 會被忽略。
+- `actualMainQty` / `actualSubQty` 不影響 planning helper。
+- Alchemy aggregation 維持既有行為。
+- `submitCraftAll()` 正式扣帳使用使用者填入的 actual material consumption；blank/invalid actual consumption 會在任何 mutation 前阻擋。
+- Purchase 與 crafting 未明確選擇 quality 時會阻擋，不再隱含 default `4.0`。
+
+測試基準：
+
+- `99 tests / 99 pass / 0 fail / 0 TODO`
+- 測試檔：`tests/core-cost-regression.test.js`
+- 未開始任何 migration；current implementation 仍使用中文 item key、`qtyByCity`、legacy transaction payload、legacy `customLocations` strings、legacy laborer key `滿日記本` 與 legacy fallbacks。
 
 ### 1.3 銷售估價工具
 
-- **目前行為：** 支援成品銷售的單價與總價互算、扣除 6.5% 後的收入預估，以及總預估市值的 90% 與 85% 參考價。
+- **目前行為：** 支援遊戲估價單價 / 總價同步、90% / 85% P2P 參考價、實售單價 / 總價同步，並顯示 Total Cost、Est. GP、Unit GP 與 GP %；若 `globalAvgCost` unknown，顯示成本未知，不顯示假毛利。Legacy sale writer payload 維持不變。
 - **主要實作位置：** `src/components/inventory.js` 的 `onSellEstimateChange()`、`runEstimator()`、`onSellPriceChange()`。
-- **穩定版分類：** Known limitation。比例只作為 UI 參考，不自動寫入正式交易金額。
+- **穩定版分類：** Known limitation。比例只作為 P2P sale decision reference，不自動寫入正式交易金額；固定 market tax estimate 不再作為 P2P sale popup 的主要資訊。
 - **文件狀態：** 已在 `BUSINESS_RULES.md` 與 `TEST_CASES.md` 標註 current implementation 限制。
 - **風險：** Low。
 - **封版狀態：** 非阻斷。
@@ -143,12 +167,14 @@ Future boundary：
   - 提供配方分類分頁與名稱搜尋。
   - 製作佇列可編輯數量、刪除項目、全選或個別勾選。
   - 購物清單會彙總勾選項目的材料、神器、鍊金材料與預估現金支出。
+  - 材料 planning display 會依 material key + city 彙總 expected consumption 與 safe-start stock；相同 material/city 合併，不同 material/city 分開。
+  - 正式 accounting 使用使用者填入的 actual material consumption；planning expected / safe-start 不是扣帳數量。
   - 執行製作時只處理已勾選項目。
-- **目前狀態：** `TEST-A07` 已轉為正式 regression test；材料數量充足但缺成本基準時，製作不得消耗材料、不得新增成品、不得扣 cash、不得新增 transaction，且 craftingQueue 必須保留。
+- **目前狀態：** `TEST-A07` 已轉為正式 regression test；材料數量充足但缺成本基準時，製作不得消耗材料、不得新增成品、不得扣 cash、不得新增 transaction，且 craftingQueue 必須保留。D69-D70 已補材料 planning aggregation、safe-start formula、actual consumption accounting、blank/invalid actual consumption no-mutation 與 quality guard regression coverage。
 - **主要實作位置：** `src/components/crafting.js` 的 `openItemSelector()`、`searchItems()`、`updateShoppingListTotal()`、佇列編輯函式與 `submitCraftAll()`。
-- **文件狀態：** 搜尋與分類已補 current implementation docs；購物清單、佇列 UI 編輯與部分製作仍屬 known limitation。
-- **風險：** Low；購物清單與正式成本結算的關係需視為 Medium。
-- **測試狀態：** Partially tested。製作結算的核心成本、材料消耗、成品 WAC、材料不足阻擋與材料缺成本基準阻擋已由 `tests/core-cost-regression.test.js` 保護；搜尋、分類、購物清單、佇列 UI 編輯與部分製作仍主要依賴手測。
+- **文件狀態：** 搜尋與分類已補 current implementation docs；購物清單 planning/accounting boundary 已文件化。佇列 UI 編輯、部分製作與手動互動流程仍屬 known limitation。
+- **風險：** Low；UI layout/manual interaction 仍需手測。購物清單 aggregation 不再列為 high-risk gap。
+- **測試狀態：** Partially tested。製作結算的核心成本、材料消耗、成品 WAC、材料不足阻擋、材料缺成本基準阻擋、材料 planning aggregation、safe-start formula、actual consumption accounting、blank/invalid actual consumption no-mutation 與 quality guard 已由 `tests/core-cost-regression.test.js` 保護；搜尋、分類、佇列 UI 編輯與部分製作仍主要依賴手測。
 - **封版狀態：** 非阻斷。
 
 ### 1.8 搜尋、分頁、Factory Reset 與 Tauri 視窗控制
@@ -280,6 +306,10 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 | 成品已有庫存時套用 WAC | current implementation | Tested | `tests/core-cost-regression.test.js` | 新製成品與既有成品庫存合併計算 WAC。 |
 | 材料不足時阻擋製作 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證製作前預檢不可造成部分狀態變更。 |
 | 材料 `globalAvgCost === null` 時阻擋製作 | current implementation | Tested | `tests/core-cost-regression.test.js` | `TEST-A07` 已落地，驗證阻擋後不修改材料、成品、cash、transactions 或 craftingQueue。 |
+| crafting material planning safe-start aggregation | current implementation / planning display | Tested | `tests/core-cost-regression.test.js` | Same material key + city aggregates expected/conservative/safe-start values; different material/city stays separate; unchecked or invalid qty rows are ignored. Planning values are not accounting quantities. |
+| crafting actual material consumption accounting | current implementation / accounting boundary | Tested | `tests/core-cost-regression.test.js` | `submitCraftAll()` deducts user-entered actual material consumption, not planning expected/safe-start values. |
+| blank or invalid actual consumption no-mutation | current implementation / failure path | Tested | `tests/core-cost-regression.test.js` | Blank/invalid actual material consumption blocks before mutating materials, crafted output, cash, transactions, or queue state. |
+| purchase and crafting explicit quality guard | current implementation / no implicit default | Tested | `tests/core-cost-regression.test.js` | Purchase and crafting block when quality is not explicitly selected; no implicit/default `4.0` is used on blocked paths. |
 | 物流轉移不改成本、不改 cash、不新增 ledger | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流只做物理庫存平移。 |
 | 來源庫存不足時阻擋物流轉移 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流轉移預檢不造成狀態變更。 |
 | legacy 中文 item key + `qtyByCity` 仍可用 | current compatibility behavior | Tested | `tests/core-cost-regression.test.js` | 保護目前舊資料相容，不代表 Stable ID 遷移完成。 |
@@ -293,6 +323,7 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 | Factory Reset | current implementation | Manual only | `docs/TEST_CASES.md` / UI | 尚未有 regression test。 |
 | 自訂倉庫刪除 | current implementation / legacy location key | Tested | `tests/core-cost-regression.test.js` | 非空倉庫不得刪除；Location ID migration 尚未完成。 |
 | 成品出售 | current implementation / legacy transaction | Tested | `tests/core-cost-regression.test.js` | 正式 `SELL_ITEM` event model 尚未完成。 |
+| sale valuation P2P references and profit display | current implementation / UI reference | Tested | `tests/core-cost-regression.test.js` | Game valuation unit/total sync, 90%/85% P2P references, actual sale unit/total sync, cost/profit summary, and unknown-cost handling are covered. Legacy sale writer payload is unchanged; canonical `SELL_ITEM` is not implemented. |
 | crafted item sale state transition regression | current implementation / legacy crafted sale writer behavior | Tested | `tests/core-cost-regression.test.js` | Current crafted sale writer preserves legacy transaction payload and location-specific inventory behavior. This does not implement canonical SELL_ITEM, transaction payload migration, writer migration, or storage migration. |
 | crafted item sale invalid total no-mutation regression | current implementation / legacy crafted sale writer failure path | Tested | `tests/core-cost-regression.test.js` | Current crafted sale writer blocks invalid total without mutating inventory, cash, transactions, or globalAvgCost. This does not implement canonical SELL_ITEM, transaction payload migration, writer migration, or storage migration. |
 | crafted item sale insufficient selected-location inventory no-mutation regression | current implementation / legacy crafted sale writer failure path | Tested | `tests/core-cost-regression.test.js` | Current crafted sale writer blocks sale when selected-location inventory is insufficient and does not consume stock from other locations. This does not implement canonical SELL_ITEM, transaction payload migration, writer migration, or storage migration. |

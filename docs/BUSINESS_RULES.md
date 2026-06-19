@@ -166,8 +166,25 @@ mainMaterialCost
 - 成功出售時，從目前指定倉庫扣除出售數量，增加 `state.assets.cash`，並新增一筆 `賣成品` legacy transaction。
 - 出售數量必須大於 0，且不得超過該倉庫目前庫存；不合法時必須阻擋且不得修改狀態。
 - 成品出售不得修改該品項的 `globalAvgCost`。
-- 銷售估價畫面的 90%、85% 與扣除稅額後預估僅為 UI 參考值，不會自動成為正式交易金額。
+- 銷售估價畫面的遊戲估價單價 / 總價同步、90% / 85% P2P 參考價與實售單價 / 總價同步僅為 UI 參考值，不會自動成為正式交易金額。
+- 銷售估價畫面會顯示成本總額、預估毛利、單件毛利與毛利率；若成本基準未知，顯示成本未知，不顯示假毛利。
+- 固定 market tax estimate 不得作為 P2P 成品出售彈窗的主要資訊。若未來支援市場出售，應另立 market tax mode。
 - 成功出售後的 UI 提示會顯示實際售出總價、單價與預估毛利；若成本基準未知，僅提示成本基準未知，不阻擋出售。
+
+### 製作規劃與正式扣帳邊界
+
+- 製作材料 planning display 與正式 accounting 必須分開理解。
+- Planning display 會依 material key + city 彙總勾選佇列項目的材料需求：
+  - `groupExpected = sum(row expected)`
+  - `groupConservative = sum(row conservative)`
+  - `groupSafeStart = groupConservative + max(perCraftMinReturn)`
+- 相同 material key + same city 會合併；不同 material 或不同 city 必須分開。
+- 未勾選或 invalid qty row 不得進入 planning aggregation。
+- `actualMainQty` / `actualSubQty` 不得影響 planning helper；actual consumption 是完成製作後的 accounting input。
+- `submitCraftAll()` 正式扣帳使用使用者填入的 actual material consumption，不使用 planning expected / safe-start 值作為扣帳數量。
+- Blank 或 invalid actual consumption 必須在任何 mutation 前阻擋；不得消耗材料、不得新增成品、不得扣 cash、不得新增 transaction。
+- Alchemy aggregation 維持既有 current implementation 行為。
+- Purchase 與 crafting 若未明確選擇 quality 必須阻擋，不得隱含 default `4.0`。
 
 ### 工人島物資出售
 
