@@ -151,6 +151,83 @@ function legacyLocationBackupFixture() {
   };
 }
 
+function makeLegacyLocationSnapshot() {
+  return {
+    inventory: {
+      '布料_6.1': {
+        qtyByCity: {
+          Thetford: 120,
+          LaborerIsland: 0,
+          '公會T8地堡': 7
+        },
+        globalAvgCost: 12345
+      },
+      'TestProduct_6.1': {
+        qtyByCity: {
+          Bridgewatch: 3
+        },
+        globalAvgCost: 98765
+      },
+      'UnknownCostProduct_6.1': {
+        qtyByCity: {
+          Thetford: 0
+        },
+        globalAvgCost: null
+      }
+    },
+    assets: {
+      cash: 7654321
+    },
+    transactions: [
+      { id: 1 },
+      { id: 2 }
+    ],
+    customLocations: [
+      '公會T8地堡'
+    ]
+  };
+}
+
+function makeFutureLocationSnapshot() {
+  return {
+    inventory: {
+      '布料_6.1': {
+        qtyByLocation: {
+          thetford: 120,
+          laborer_island: 0,
+          'custom:sample-001': 7
+        },
+        globalAvgCost: 12345
+      },
+      'TestProduct_6.1': {
+        qtyByLocation: {
+          bridgewatch: 3
+        },
+        globalAvgCost: 98765
+      },
+      'UnknownCostProduct_6.1': {
+        qtyByLocation: {
+          thetford: 0
+        },
+        globalAvgCost: null
+      }
+    },
+    assets: {
+      cash: 7654321
+    },
+    transactions: [
+      { id: 1 },
+      { id: 2 }
+    ],
+    locationRegistry: [
+      {
+        locationId: 'custom:sample-001',
+        displayName: '公會T8地堡'
+      }
+    ]
+  };
+}
+
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
   resetMocks();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '測試交易' }));
@@ -789,6 +866,19 @@ test('D81: exact system mapping is not overridden by custom mapping table entrie
     deprecatedLegacyKey: false
   });
 });
+
+test.todo('validateLocationMigration should pass when all legacy and future snapshot invariants match');
+test.todo('validateLocationMigration should fail when inventory item count changes');
+test.todo('validateLocationMigration should fail when any item location quantity changes');
+test.todo('validateLocationMigration should fail when global quantity totals change');
+test.todo('validateLocationMigration should fail when globalAvgCost changes');
+test.todo('validateLocationMigration should fail when cash changes');
+test.todo('validateLocationMigration should fail when transaction count changes');
+test.todo('validateLocationMigration should fail when custom location count changes');
+test.todo('validateLocationMigration should fail while unresolved mappings remain');
+test.todo('validateLocationMigration should report all mismatches instead of stopping at the first mismatch');
+test.todo('validateLocationMigration should not mutate before snapshot after snapshot or unresolved report');
+test.todo('validateLocationMigration should reject malformed snapshots without throwing uncontrolled errors');
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
