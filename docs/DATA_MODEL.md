@@ -9,6 +9,144 @@
 > 配方加成判斷應優先依賴 category，不應依賴 UI 顯示名稱字串比對
 
 ## 🌳 狀態樹根結構(Root State)
+> Current implementation 仍使用 legacy root shape。以下 clean-cutover root state 是 future target，尚未實作，且不得據此直接改寫 `state.js`、localStorage、writer 或 backup code。
+
+### Clean-Cutover Root State — Future Target
+
+```js
+{
+  schemaVersion: 1,
+  assets: {
+    cash: Number,
+    debt: Number
+  },
+  inventory: {},
+  locationRegistry: {},
+  transactions: [],
+  laborerInventory: {},
+  laborerLogs: []
+}
+```
+
+Root state rules：
+
+- `schemaVersion` 是 new schema 識別欄位；initial clean-cutover version 為 `1`。
+- `customLocations` 不再存在於 new schema stored state。
+- 不沿用 legacy storage shape 作為 new root。
+- `transactions` 初始為空陣列。
+- `assets.cash` 由使用者人工輸入，必須是 finite number。
+- `assets.debt` 預設為 `0`，若提供則必須是 finite number。
+- `inventory` 只包含人工初始化的 seed items。
+- `locationRegistry` 必須包含固定 system entries，並可包含初始化時建立的 custom entries。
+- Current `craftingQueue` 是 runtime/UI queue export，不是目前 persisted root state 欄位；clean-cutover schema 不憑空刪除 current runtime queue。若未來要持久化 queue，必須另行定義 writer/storage contract。
+
+### Storage Isolation — Future Target
+
+Clean cutover 使用新的 storage key namespace。正式 key 名稱定為：
+
+```text
+albion-logistics-v2-state
+```
+
+Storage rules：
+
+- 本文件只定義 future storage key；本任務不修改 localStorage。
+- Legacy keys 不得自動刪除。
+- New app 第一次啟動先檢查 `albion-logistics-v2-state`。
+- New key 不存在時進入 clean initialization flow。
+- 不自動讀取 legacy inventory 作 new state。
+- Rollback 仍可回舊版 app 讀 legacy keys。
+
+### Clean Initialization Input — Future Target
+
+```js
+{
+  cash: Number,
+  debt?: Number,
+  inventorySeeds: [
+    {
+      itemKey: String,
+      locationId: String,
+      quantity: Number,
+      globalAvgCost: Number | null
+    }
+  ],
+  customLocations: [
+    {
+      displayName: String
+    }
+  ]
+}
+```
+
+Input validation rules：
+
+- `cash` 必填且必須是 finite number。
+- `debt` 可省略，預設為 `0`；若提供則必須是 finite number。
+- `inventorySeeds` 可為空。
+- `inventorySeeds[].quantity` 必須是 finite number。
+- `inventorySeeds[].globalAvgCost` 缺省時為 `null`；若提供則必須是 finite number 或 `null`。
+- `inventorySeeds[].locationId` 必須存在於 fixed system registry 或 initialization 建立的 custom registry。
+- Duplicate `itemKey + locationId` 視為 invalid，不自動加總。
+- Custom ID 由 new implementation 生成，不由 `displayName` 推導。
+- Duplicate custom `displayName` 經 trim + case-insensitive 後視為 conflict。
+- Custom name 不得與 system `displayName` 衝突。
+- 初始化失敗不得部分建立 state。
+
+### Clean Initialization Output — Future Target
+
+成功時：
+
+- 產生完整 new root state。
+- 固定 system registry entries 全部建立。
+- Custom registry entries 生成 ID。
+- Inventory 只包含人工 seed 的 items。
+- Transactions 為空。
+- Legacy data 不被讀取或寫入。
+- `globalAvgCost` 缺省為 `null`。
+- Assets 使用人工輸入值。
+
+失敗時：
+
+- 不寫入 `albion-logistics-v2-state`。
+- 不修改 legacy keys。
+- 回傳 machine-readable errors。
+- 不留下 partial state。
+
+Suggested future error codes：
+
+```text
+INVALID_CASH
+INVALID_DEBT
+INVALID_INVENTORY_SEED
+DUPLICATE_INVENTORY_SEED
+UNKNOWN_LOCATION_ID
+INVALID_CUSTOM_LOCATION_NAME
+DUPLICATE_CUSTOM_LOCATION_NAME
+SYSTEM_LOCATION_NAME_CONFLICT
+INITIALIZATION_ABORTED
+```
+
+### First-Launch Confirmation — Future Target
+
+- New storage 不存在時顯示 clean initialization。
+- 若偵測到 legacy keys 存在，必須提示：
+  - legacy 資料不會自動遷移。
+  - 使用者應先匯出最後一份 legacy backup。
+  - 新版使用獨立 storage。
+- 使用者明確確認後才建立 new state。
+- Cancel 時不得寫任何 new state。
+- 不得自動清除 legacy keys。
+
+### Backup Boundary — Future Target
+
+- New backup 只匯出 new schema。
+- New importer 只接受 new schema 與對應 `schemaVersion`。
+- Legacy backup 不由 new importer 支援。
+- Legacy backup 由舊版 app 處理。
+- Backup implementation 尚未開始。
+
+## Current Legacy Root State
 //Root State
 {
   "assets": { ... },
@@ -28,9 +166,11 @@
 
 ## 📦 總庫存模型 (Inventory Item)
 > Future target / migration target：本節保留 Stable ID 與 `qtyByLocation` 目標模型。current implementation 仍使用 legacy 中文 item key 與 `qtyByCity`。
+> Location clean-cutover track only changes the Location dimension. It keeps existing legacy `itemKey` identity and does not perform Stable Item ID migration.
 
 **⛔ Inventory Key 組成目標：**
 * Future migration target 是 ${StableId}_${itemLevel}（例如：METALBAR_6.2 或 WILDFIRE_STAFF_6.2）；current implementation 仍可能使用中文 item key，不得據此直接改寫 storage。
+* Location clean-cutover new schema may still use current legacy `itemKey` while replacing `qtyByCity` with `qtyByLocation`; Stable ID remains a separate future migration track.
 * 絕對禁止將裝備的優劣品質（如傑出、大師）加入 Key 中。相同階級與附魔的物品，無論品質為何，在材料庫存端皆視為同一種資產。
 **HasCostBasis 判定規則：**
 - `globalAvgCost === null`：尚未建立成本基準。

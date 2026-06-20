@@ -5,6 +5,7 @@
 - Phase: legacy-compatible stabilization / clean-cutover preparation.
 - Test baseline: 142 tests / 142 pass / 0 fail / 0 TODO.
 - Selected Location strategy: single-user clean cutover.
+- Location schema contract: defined as future target, not implemented.
 - Writer/storage migration: not started.
 
 ## Current Implemented Safety Layers
@@ -30,7 +31,7 @@
 ## Current Blockers
 
 - New Location schema is not implemented.
-- New storage key is not selected or implemented.
+- New storage key `albion-logistics-v2-state` is selected but not implemented.
 - Clean initialization contract is not tested.
 - New writer tests are not created.
 - New backup export/import is not created.
@@ -39,7 +40,7 @@
 
 ## Next Approved Step
 
-- Define new Location schema and clean initialization contract in docs/tests.
+- Add clean initialization tests-only contract.
 - Do not switch writers yet.
 
 ## High-Risk Boundaries

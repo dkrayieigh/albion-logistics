@@ -44,8 +44,9 @@ npm test
 ## Location clean-cutover gaps
 
 - **Current implementation：** location quantity storage remains legacy `qtyByCity` with literal city/custom location string keys. Read-only adapters and resolver exist, but writer/storage paths do not use the future Location Registry model.
-- **Target behavior：** single-user clean cutover with new Location schema, manually initialized inventory/cash/cost basis, empty initial transactions, and external legacy backup archive.
-- **Remaining gaps：** Location Registry/new location model, generated custom ID implementation, new writer API, new storage key, new backup format, manual initialization flow, launch confirmation, release/smoke gate.
+- **Target behavior：** single-user clean cutover with new Location schema, `albion-logistics-v2-state`, manually initialized inventory/cash/cost basis, empty initial transactions, and external legacy backup archive.
+- **Schema contract status：** Location Registry shape、new root state、`qtyByLocation` inventory shape、clean initialization input/output、first-launch confirmation、error codes 與 backup boundary 已定義為 future target；尚未實作。
+- **Remaining gaps：** clean initialization tests-only contract, generated custom ID implementation, new writer API, new storage key implementation, new backup format implementation, manual initialization UI/flow, launch confirmation, release/smoke gate.
 - **Risk：** High。涉及 storage schema、inventory、cash、backup 與 rollback 行為。
 - **Dependencies：** new schema docs/tests, writer tests, backup export/import tests, manual initialization contract, old backup archive, and explicit confirmation before ignoring legacy local data.
 

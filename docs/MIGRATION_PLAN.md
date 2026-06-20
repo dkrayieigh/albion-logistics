@@ -69,6 +69,34 @@ Adapter API draft: `ADAPTER_API.md`。該文件是 future API draft，不代表 
 - 不從 legacy `globalAvgCost: 0` 推導 unknown cost。
 - Custom locations 由使用者重新建立。
 
+### New Location Schema Contract
+
+- New root state uses `schemaVersion: 1`。
+- New persisted storage key is `albion-logistics-v2-state`。
+- New state includes `locationRegistry` object keyed by `locationId`。
+- Registry entry `locationId` must equal its object key。
+- Registry `type` is limited to `system`、`system-special`、`custom`。
+- Registry `active` must be boolean。
+- `customLocations` does not exist in new stored state。
+- Inventory uses `qtyByLocation` only；`qtyByCity` does not appear in new schema。
+- This Location track keeps legacy `itemKey` identity and does not perform Stable Item ID migration。
+- New schema does not convert old transaction history into canonical events。
+
+### Fixed Location Registry Entries
+
+The clean-cutover registry must create fixed entries for:
+
+- `thetford`
+- `martlock`
+- `bridgewatch`
+- `lymhurst`
+- `fort_sterling`
+- `caerleon`
+- `brecilien`
+- `laborer_island`
+
+`Hideout` must not create a permanent registry entry.
+
 ### Superseded Location Strategy
 
 以下要求不再是 selected Location strategy：
@@ -177,6 +205,7 @@ This section supersedes earlier Location-track language that assumed full snapsh
 - Define new schema before writer/storage changes。
 - Define manual initialization flow before first new-schema launch。
 - Confirm old backup archive before ignoring or deleting legacy local data。
+- Define clean initialization error codes before implementation。
 
 ### Adapter-First Rule
 
@@ -201,11 +230,16 @@ This section supersedes earlier Location-track language that assumed full snapsh
 - Rollback means returning to old app and reloading old backup。
 - New app rollback is not an automatic schema rollback from legacy data。
 - Seed data validation should focus on manually selected current inventory, user-entered cash, and user-provided reliable cost basis。
+- New backup exports only new schema。
+- New importer accepts only matching new schema and `schemaVersion`。
+- Legacy backup is handled by the old app, not the new importer。
 
 ### Release Boundary
 
 - First clean-cutover release must not auto-delete legacy `localStorage`。
 - First new-schema launch must require explicit user confirmation or use a different storage key。
+- If legacy keys are detected, first-launch flow must warn that legacy data is not migrated and that the user should export a final legacy backup first。
+- Canceling first-launch confirmation must not write new state。
 - Do not declare `qtyByLocation` current implementation until new schema, writer tests, backup tests, manual initialization, and smoke checks are complete。
 - Do not remove legacy fallback in the old app path as part of this docs decision。
 

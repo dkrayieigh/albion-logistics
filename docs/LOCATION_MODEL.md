@@ -54,9 +54,119 @@ Selected Location strategy is single-user clean cutover, not full automatic lega
 - **⛔ 絕對禁止：** 使用顯示名稱（如 `"紫城"`, `"公會T8地堡"`）或夾帶加成屬性作為 Key。
 
 ## 🟡 第二層：地點實體註冊表 (Location Registry) — Future Target
-記錄地點的「靜態物理屬性」。皇家城市固定不可變；自訂地堡記錄於 `state.customLocations`。
+記錄地點的「靜態物理屬性」。皇家城市固定不可變；future custom locations 記錄於 `locationRegistry` object。Current legacy custom locations 仍是 `state.customLocations` string array。
 
 > Boundary：本節是 future target / migration boundary。Current implementation 仍使用 literal city/custom location string keys、`qtyByCity` 與 `customLocations` string array。Location Registry 尚未實作，writer/storage migration 尚未開始。
+
+### Clean-Cutover Location Registry Shape — Future Target
+
+Single-user clean cutover 的 new schema 使用 `locationRegistry` object，並以 `locationId` 作為 object key。不得使用 array 作為 registry storage shape。
+
+```js
+locationRegistry: {
+  thetford: {
+    locationId: 'thetford',
+    displayName: 'Thetford',
+    type: 'system',
+    active: true
+  },
+  martlock: {
+    locationId: 'martlock',
+    displayName: 'Martlock',
+    type: 'system',
+    active: true
+  },
+  bridgewatch: {
+    locationId: 'bridgewatch',
+    displayName: 'Bridgewatch',
+    type: 'system',
+    active: true
+  },
+  lymhurst: {
+    locationId: 'lymhurst',
+    displayName: 'Lymhurst',
+    type: 'system',
+    active: true
+  },
+  fort_sterling: {
+    locationId: 'fort_sterling',
+    displayName: 'Fort Sterling',
+    type: 'system',
+    active: true
+  },
+  caerleon: {
+    locationId: 'caerleon',
+    displayName: 'Caerleon',
+    type: 'system',
+    active: true
+  },
+  brecilien: {
+    locationId: 'brecilien',
+    displayName: 'Brecilien',
+    type: 'system',
+    active: true
+  },
+  laborer_island: {
+    locationId: 'laborer_island',
+    displayName: 'Laborer Island',
+    type: 'system-special',
+    active: true
+  },
+  'custom:<generated-id>': {
+    locationId: 'custom:<generated-id>',
+    displayName: '自訂倉庫名稱',
+    type: 'custom',
+    active: true
+  }
+}
+```
+
+Registry rules：
+
+- `locationId` 是唯一 identity。
+- `entry.locationId` 必須與 object key 完全相同。
+- `displayName` 只作 UI 顯示，不得作 identity。
+- `type` 只能是 `system`、`system-special`、`custom`。
+- `active` 必須是 boolean。
+- `system` 與 `system-special` 不得刪除。
+- `custom` 可依既有 non-empty / referenced safety rules 限制刪除。
+- `Hideout` 不建立永久 registry entry。
+- 不得從 UI 文字動態生成 `locationId`。
+
+Fixed system registry entries：
+
+| locationId | displayName | type |
+|---|---|---|
+| `thetford` | `Thetford` | `system` |
+| `martlock` | `Martlock` | `system` |
+| `bridgewatch` | `Bridgewatch` | `system` |
+| `lymhurst` | `Lymhurst` | `system` |
+| `fort_sterling` | `Fort Sterling` | `system` |
+| `caerleon` | `Caerleon` | `system` |
+| `brecilien` | `Brecilien` | `system` |
+| `laborer_island` | `Laborer Island` | `system-special` |
+
+### Clean-Cutover Inventory Shape — Future Target
+
+Location clean cutover 只切換 Location dimension，不同時做 Stable Item ID migration。
+
+```js
+inventory: {
+  [itemKey]: {
+    qtyByLocation: {
+      [locationId]: Number
+    },
+    globalAvgCost: Number | null
+  }
+}
+```
+
+- `itemKey` 仍保留現有 legacy item key。
+- 不同時做中文 item key -> Stable ID。
+- `qtyByCity` 不出現在 new schema。
+- quantity 必須是 finite number。
+- 是否允許 negative quantity 沿用既有 business rule；本文件不擅自改變。
+- `globalAvgCost` 仍為 number 或 `null`。
 
 ### Location Registry Business Rules — Future Target
 
@@ -175,7 +285,9 @@ Migration 前後必須比較：
 
 Any mismatch blocks migration and requires rollback to legacy backup。
 
-#### Compatibility release boundary
+#### Superseded automatic-compatible release boundary
+
+以下是舊 automatic-compatible strategy 的 boundary，已被 single-user clean cutover selected strategy 取代；保留作為 historical compatibility reference，不是 current selected release plan。
 
 第一個 compatible release 只可：
 
