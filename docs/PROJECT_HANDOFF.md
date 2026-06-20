@@ -2,18 +2,37 @@
 
 ## Handoff Status
 
-- Latest checkpoint: D82 docs sync / D81 Location identity resolver close
-- Latest master commit: `48ed0f0d37d95293fa770dc96544db005689c816`
-- Commit title: `docs: close location identity resolver checkpoint`
-- Baseline: `130 tests / 130 pass / 0 fail / 0 TODO`
+- Latest checkpoint: D85 Single-user clean cutover strategy decision
+- Latest master commit: Current master includes D84 read-only validator checkpoint
+- Commit title: Current master includes D84 read-only validator checkpoint
+- Baseline: `142 tests / 142 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
-This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D82 docs sync / D81 resolver close. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+This document is a handoff checkpoint for the current legacy-compatible stabilization phase after D85 strategy decision. It summarizes current stable behavior, covered safety nets, future targets, adapter-only readiness, and migration boundaries. It does not start implementation, migration, storage rewrite, writer rewrite, or canonical event rollout.
+
+## D85 Single-User Clean Cutover Strategy Decision
+
+- Current baseline: `142 tests / 142 pass / 0 fail / 0 TODO`.
+- D84 read-only `locationMigrationValidator` checkpoint is complete.
+- D84 validator is now scoped as read-only research / verification utility, not a production migration runner.
+- Full automatic Location migration is no longer the selected strategy.
+- Selected Location strategy is single-user clean cutover.
+- Future app does not need to directly import legacy backup.
+- Old backup must be retained as external archive before cutover.
+- Rollback means returning to old app and reloading old backup, not built-in new-schema rollback from legacy data.
+- New system initial transactions should be empty.
+- Initial cash, actual inventory, reliable cost basis, and custom locations are manually initialized by the user.
+- Legacy `globalAvgCost: 0` must not be used to infer unknown cost.
+- Known audit context: approximately 5302 inventory records, 11 non-zero inventory items, 12 non-zero item-location entries, 65 transactions, 0 customLocations, mostly zero `globalAvgCost`, and unreliable legacy cash.
+- Next step should be new Location schema and clean initialization contract.
+- Do not directly start writer switch.
+- Do not auto-clear legacy `localStorage`; first new-schema launch must require explicit confirmation or use different storage key.
+- Do not start D86 from this handoff.
 
 ## D82 Location Identity Resolver Docs Sync
 
 - D80-D81 Location identity mapping contract and minimal read-only resolver implementation are complete.
-- Current baseline: `130 tests / 130 pass / 0 fail / 0 TODO`.
+- Historical D82 baseline: `130 tests / 130 pass / 0 fail / 0 TODO`.
 - Current read-only implementation: `src/adapters/locationIdentity.js` exposes `resolveLocationIdentity()`.
 - Covered behavior: exact system city mapping, `LaborerIsland` -> `laborer_island`, residual `Hideout` unresolved with `deprecatedLegacyKey`, explicit custom mapping only, unknown unresolved, malformed mapping unresolved, normalized-name conflict detection, no fuzzy matching, input/mapping immutability, and system mapping precedence over custom mapping.
 - Location Registry persistence does not exist.
@@ -58,8 +77,8 @@ Documented future rules:
 - Custom locations use permanent generated IDs that are not derived from display names.
 - Duplicate/conflicting display names are blocked by trim + case-insensitive checks; no silent suffixing or automatic rename.
 - Legacy mapping uses exact matching only; duplicate/conflicting/unknown names become unresolved; no fuzzy matching; no silent custom creation.
-- Migration validation must compare inventory item count, each item/location quantity, global totals, `globalAvgCost`, cash, transaction count, custom location count, and unresolved mapping count.
-- Any mismatch blocks migration and requires rollback to legacy backup.
+- Historical automatic-migration validation rule compared inventory item count, each item/location quantity, global totals, `globalAvgCost`, cash, transaction count, custom location count, and unresolved mapping count.
+- D85 supersedes this full automatic Location migration path as selected strategy；clean cutover uses manual seed data and old backup archive instead.
 
 Compatibility release boundary:
 
@@ -168,7 +187,7 @@ Location read-only track boundary:
 ### Current Behavior Safety Net
 
 - D1-D60 historical regression baseline protected 56 tests with no failures and no TODO tests.
-- Latest master baseline is now `130 tests / 130 pass / 0 fail / 0 TODO`.
+- Latest master baseline is now `142 tests / 142 pass / 0 fail / 0 TODO`.
 - Core cost and inventory behaviors remain covered in `tests/core-cost-regression.test.js`.
 - Ledger display and transaction reader safety remain covered in `tests/ledger-data-safety.test.js`.
 - Backup import/export and compatibility safety remain covered in `tests/backup-regression.test.js`.

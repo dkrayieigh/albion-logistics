@@ -234,6 +234,8 @@ This remains a future identity API draft and current read-only resolver boundary
 
 Future validation API draft。此 API 尚未存在。
 
+D85 update：the existing `src/adapters/locationMigrationValidator.js` is a read-only research / verification utility. It is not a production migration runner, not a storage writer, and not a release blocker for full legacy snapshot equality under the selected single-user clean cutover strategy.
+
 **input**
 
 - before legacy snapshot。
@@ -261,14 +263,17 @@ Future validation API draft。此 API 尚未存在。
 
 - 只產生 validation report，不寫入 storage，不執行 migration。
 
-**must support legacy data**
+**historical full-migration research scope**
 
-- Must compare legacy `qtyByCity`, custom location strings, `globalAvgCost`, cash and transaction count.
+- Historical full-migration research compared legacy `qtyByCity`, custom location strings, `globalAvgCost`, cash and transaction count.
+- D85 clean cutover no longer requires complete legacy snapshot equality as selected release gate.
 
 **future implementation boundary**
 
 - Validation does not imply migration has started.
-- Validation must check inventory item count, each item/location quantity, global quantity totals, `globalAvgCost`, cash, transaction count, custom location count, and unresolved mapping count before any storage mutation.
+- Historical full snapshot validation checked inventory item count, each item/location quantity, global quantity totals, `globalAvgCost`, cash, transaction count, custom location count, and unresolved mapping count before any storage mutation.
+- D85 clean cutover supersedes full automatic Location migration as selected strategy；future validator work may become selected seed data validation for manually entered inventory, cash, and reliable cost basis.
+- The validator must not mutate state, rewrite backup, write `qtyByLocation`, connect writers, or remove legacy fallback.
 
 ## 6. Transaction Reader Adapter API
 

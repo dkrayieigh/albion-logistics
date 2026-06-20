@@ -156,7 +156,7 @@ D78 已將 Location Registry business rules 寫入 future target / migration bou
 - Future custom locations 使用永久 generated ID，概念格式為 `custom:<generated-id>`；ID 只在建立時產生一次，不得由 displayName 推導，rename 不改 ID。Exact UUID / generator implementation 仍是 future design。
 - Name conflict policy：duplicate displayName 不允許；trim surrounding whitespace；case-insensitive comparison；custom names 不得與 system city display names 衝突；Chinese characters、spaces、symbols 仍允許；不得 silent suffixing 或 automatic rename。
 - Rename/delete/mapping rules 已定義為 future boundary：rename 不改 quantity、`globalAvgCost` 或 historical raw transaction payload；system location 不可刪除；non-empty 或 referenced custom location 不可刪除；unknown/duplicate/conflicting legacy names become unresolved；no fuzzy matching；no silent custom creation；migration must stop while unresolved mappings remain。
-- Migration validation invariants 已定義：inventory item count、each item/location quantity、global quantity totals、`globalAvgCost`、cash、transaction count、custom location count、unresolved mapping count。Any mismatch blocks migration and requires rollback to legacy backup。
+- Historical automatic-migration validation invariants 已定義：inventory item count、each item/location quantity、global quantity totals、`globalAvgCost`、cash、transaction count、custom location count、unresolved mapping count。D85 已將 selected Location strategy 改為 clean cutover，full snapshot equality 不再是 release blocker。
 - Compatibility release boundary：first compatible release may add registry model draft/read-only mapping adapter while preserving literal legacy names、`qtyByCity` 與 fallback；不得 switch purchase/transport writers、write `qtyByLocation`、rewrite `localStorage`、rewrite backup schema 或 remove fallback。
 
 ## D79 Special legacy location identity boundary
@@ -180,6 +180,70 @@ D80-D81 已完成 Location identity mapping contract 與 minimal read-only `reso
 - Resolver implementation gap：complete for D80-D81 read-only mapping contract。
 - Remaining gaps：Location Registry persistence、generated ID implementation、writer API、storage migration、backup migration、rollback、compatible release、fallback removal gate。
 - Boundary：no writer uses `resolveLocationIdentity()`；backup importer/exporter does not use it；migration has not started。
+
+## D85 Single-user clean cutover strategy checkpoint
+
+D85 根據使用者確認的單一使用者條件，將 Location migration selected strategy 從完整 legacy-compatible automatic migration 改為 single-user clean cutover。此 checkpoint 只修改文件策略，不代表 new schema、writer/storage migration、backup implementation、migration runner 或 fallback removal 已開始。
+
+Confirmed audit context：
+
+- Legacy backup inventory records 約 5302。
+- 非零 inventory items：11。
+- 非零 item-location entries：12。
+- Transactions：65。
+- Custom locations：0。
+- 大多數 `globalAvgCost` 為 0。
+- Legacy cash 不視為可靠新系統起始值。
+- 舊 backup 可能受 crafting hotfix 前資料污染。
+
+Selected strategy：
+
+- 不實作 automatic legacy storage migration。
+- 不要求 future app 直接匯入 legacy backup。
+- 不建立 dual-writer 或長期 legacy fallback。
+- 不把舊 transaction history 轉成 canonical events。
+- 舊 backup 保留為 external archive。
+- 新版初始 transactions 為空；initial cash、實際 inventory、可靠 cost basis 由使用者人工輸入。
+- `globalAvgCost` 預設 `null`，除非使用者提供可靠 cost basis；不得從 legacy `globalAvgCost: 0` 推導 unknown cost。
+- Custom locations 由使用者重新建立。
+
+D84 validator revised scope：
+
+- `src/adapters/locationMigrationValidator.js` 只作為 read-only research / verification utility。
+- Full snapshot equality 不再是 clean-cutover release blocker。
+- 後續可調整為 selected seed data validator。
+- D84 不代表 production migration runner。
+
+Removed from selected strategy：
+
+- automatic backup migration。
+- dual-write。
+- long-term legacy fallback。
+- automatic transaction migration。
+- complete legacy inventory key preservation。
+- same transaction count。
+- same cash requirement。
+- complete custom location count preservation。
+
+Still required：
+
+- new schema 定義。
+- new writer tests。
+- new backup export/import tests。
+- manual initialization flow。
+- release checklist。
+- old backup archive。
+- build / smoke test。
+- rollback instructions。
+- user confirmation before deleting 或 ignoring legacy `localStorage`。
+
+Risk boundary：
+
+- Clean cutover 仍屬 High risk。
+- 不得直接修改 `state.js` 或 `localStorage` schema，直到 docs 與 tests 先完成。
+- 不得因單一使用者就省略 new schema tests。
+- 不得自動清除 legacy `localStorage`。
+- First new-schema launch 必須有明確 confirmation 或使用不同 storage key。
 
 ### 1.3 銷售估價工具
 

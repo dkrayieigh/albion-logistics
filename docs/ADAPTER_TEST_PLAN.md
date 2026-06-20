@@ -14,7 +14,7 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 
 ## Current Stable Baseline
 
-- 130 tests / 130 pass / 0 fail / 0 TODO。
+- 142 tests / 142 pass / 0 fail / 0 TODO。
 - This is the latest master stabilization baseline.
 - 此 baseline 保護 current legacy-compatible implementation。
 - 此 baseline 不代表 Stable ID / `qtyByLocation` / canonical event payload migration 已完成。
@@ -54,6 +54,15 @@ Adapter API draft is documented in `ADAPTER_API.md`. Tests in this file are plan
 - `customLocations` remains `string[]`。
 - No writer, inventory/state path, backup importer/exporter, or migration uses `resolveLocationIdentity()`。
 - Writer/storage migration remains blocked。
+
+## D85 Single-User Clean Cutover Decision
+
+- Location track selected strategy is now single-user clean cutover。
+- Full legacy-compatible automatic Location migration is no longer the selected strategy。
+- D84 `locationMigrationValidator` is read-only research / verification utility, not a production migration runner。
+- Full legacy snapshot equality is no longer a clean-cutover release blocker。
+- Future tests should focus on new schema writers, new backup export/import, manual initialization flow, selected seed data validation, old backup archive procedure, smoke tests, and explicit user confirmation before ignoring or deleting legacy `localStorage`。
+- Writer/storage migration remains blocked until docs and tests define the new schema and cutover contract。
 
 ## Test Status Legend
 
@@ -111,7 +120,8 @@ Next selected track after D72：Location read-only adapter broader regression co
 | location identity resolver system precedence | Covered | High | Maintain D80-D81 read-only resolver regression coverage. | System mapping cannot be overridden by custom mapping. |
 | adapter output does not imply storage migration | Writer/storage migration not started | High | Keep as boundary assertion for D74 and later reviews. | Do not write back `qtyByLocation`, replace `qtyByCity`, create Location Registry in storage, modify purchase/transport writers, or remove legacy fallback. |
 | location adapter 雙讀 `qtyByCity` / `qtyByLocation` | Covered | High | D74-D76 read-only checkpoint complete. | This does not migrate writers, backup import/export, storage keys, or Location Registry. |
-| migration 前後每個 location 物理數量一致 | Migration-blocked | High | 等 adapter sample、backup/rollback validation 與 migration plan 具體化後再寫正式 test。 | 需等 migration/adapter sample 建立後才能驗證；D73 不啟動 migration。 |
+| clean-cutover selected seed data validation | Migration-blocked | High | 等 new schema 與 manual initialization contract 定義後再寫正式 test。 | Supersedes full legacy snapshot equality as selected release gate；only manually selected current inventory, cash, and reliable cost basis should be validated. |
+| migration 前後每個 location 物理數量一致 | Migration-blocked | High | Historical full automatic migration strategy；not selected after D85。 | Keep as historical research concern only. Clean cutover does not auto-convert every legacy location entry. |
 
 ## Transaction / Event Compatibility
 
@@ -141,7 +151,7 @@ Next selected track after D72：Location read-only adapter broader regression co
 | 含 `customLocations` 字串陣列的 backup 匯入後自訂倉庫仍可顯示 | Next test.todo | High | 下一階段可新增 `test.todo`，但本任務不新增。 | 保護 legacy custom location format。 |
 | 含大量 legacy transactions 的 backup 匯入後 transaction count 與 ledger 顯示不變 | Next test.todo | High | 下一階段可新增 `test.todo`，但本任務不新增。 | 保護 ledger reader 與備份相容。 |
 | adapter 讀取 legacy backup 與 future sample backup 的比較測試 | Adapter-only | High | 等 backup compatibility adapter boundary 與 sample backup fixture 建立後再寫正式 test。 | Broader backup adapter coverage / future sample coverage 尚未完成。 |
-| rollback path 可回復 legacy backup | Adapter-only | High | 等 migration/rollback design 完成後再寫正式 test。 | 需等 migration/rollback design 後驗證。 |
+| rollback path 可回復 legacy backup | Docs-only | High | Clean cutover rollback instruction must say: return to old app and reload old backup。 | Future app does not need direct legacy backup import for rollback. |
 
 ## Cost Basis Compatibility
 
