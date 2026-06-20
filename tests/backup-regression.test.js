@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
 import { resolveLocationIdentity } from '../src/adapters/locationIdentity.js';
+import { validateLocationMigration } from '../src/adapters/locationMigrationValidator.js';
 import { SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -226,6 +227,20 @@ function makeFutureLocationSnapshot() {
       }
     ]
   };
+}
+
+function makeLocationMappings() {
+  const legacy = makeLegacyLocationSnapshot();
+  return {
+    Thetford: 'thetford',
+    LaborerIsland: 'laborer_island',
+    [legacy.customLocations[0]]: 'custom:sample-001',
+    Bridgewatch: 'bridgewatch'
+  };
+}
+
+function primaryLocationItemKey() {
+  return Object.keys(makeLegacyLocationSnapshot().inventory)[0];
 }
 
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
@@ -867,18 +882,246 @@ test('D81: exact system mapping is not overridden by custom mapping table entrie
   });
 });
 
-test.todo('validateLocationMigration should pass when all legacy and future snapshot invariants match');
-test.todo('validateLocationMigration should fail when inventory item count changes');
-test.todo('validateLocationMigration should fail when any item location quantity changes');
-test.todo('validateLocationMigration should fail when global quantity totals change');
-test.todo('validateLocationMigration should fail when globalAvgCost changes');
-test.todo('validateLocationMigration should fail when cash changes');
-test.todo('validateLocationMigration should fail when transaction count changes');
-test.todo('validateLocationMigration should fail when custom location count changes');
-test.todo('validateLocationMigration should fail while unresolved mappings remain');
-test.todo('validateLocationMigration should report all mismatches instead of stopping at the first mismatch');
-test.todo('validateLocationMigration should not mutate before snapshot after snapshot or unresolved report');
-test.todo('validateLocationMigration should reject malformed snapshots without throwing uncontrolled errors');
+test('D84: validateLocationMigration passes when all legacy and future snapshot invariants match', { concurrency: false }, () => {
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after: makeFutureLocationSnapshot(),
+    locationMappings: makeLocationMappings()
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    errors: [],
+    unresolvedMappings: []
+  });
+});
+
+test('D84: validateLocationMigration fails when inventory item count or key set changes', { concurrency: false }, () => {
+  const after = makeFutureLocationSnapshot();
+  delete after.inventory['TestProduct_6.1'];
+
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings()
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.errors, ['INVENTORY_ITEM_COUNT_MISMATCH']);
+});
+
+test('D84: validateLocationMigration fails when any item location quantity changes without global total mismatch', { concurrency: false }, () => {
+  const after = makeFutureLocationSnapshot();
+  const itemKey = primaryLocationItemKey();
+  after.inventory[itemKey].qtyByLocation.thetford = 119;
+  after.inventory[itemKey].qtyByLocation.laborer_island = 1;
+
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings()
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.errors, ['LOCATION_QUANTITY_MISMATCH']);
+});
+
+test('D84: validateLocationMigration fails when global quantity totals change', { concurrency: false }, () => {
+  const after = makeFutureLocationSnapshot();
+  after.inventory[primaryLocationItemKey()].qtyByLocation.thetford = 121;
+
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings()
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.errors, [
+    'LOCATION_QUANTITY_MISMATCH',
+    'GLOBAL_QUANTITY_TOTAL_MISMATCH'
+  ]);
+});
+
+test('D84: validateLocationMigration fails when globalAvgCost changes while null stays compatible', { concurrency: false }, () => {
+  const after = makeFutureLocationSnapshot();
+  after.inventory[primaryLocationItemKey()].globalAvgCost = 12346;
+
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings()
+  });
+
+  assert.equal(makeLegacyLocationSnapshot().inventory['UnknownCostProduct_6.1'].globalAvgCost, null);
+  assert.equal(makeFutureLocationSnapshot().inventory['UnknownCostProduct_6.1'].globalAvgCost, null);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.errors, ['GLOBAL_AVG_COST_MISMATCH']);
+});
+
+test('D84: validateLocationMigration fails when cash changes', { concurrency: false }, () => {
+  const after = makeFutureLocationSnapshot();
+  after.assets.cash += 1;
+
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings()
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.errors, ['CASH_MISMATCH']);
+});
+
+test('D84: validateLocationMigration fails when transaction count changes', { concurrency: false }, () => {
+  const after = makeFutureLocationSnapshot();
+  after.transactions.push({ id: 3 });
+
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings()
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.errors, ['TRANSACTION_COUNT_MISMATCH']);
+});
+
+test('D84: validateLocationMigration fails when custom location count changes without counting system registry entries', { concurrency: false }, () => {
+  const after = makeFutureLocationSnapshot();
+  after.locationRegistry.push({ locationId: 'thetford', displayName: 'Thetford' });
+  const withSystemOnly = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings()
+  });
+
+  after.locationRegistry.push({ locationId: 'custom:extra-002', displayName: 'Extra' });
+  const withExtraCustom = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings()
+  });
+
+  assert.equal(withSystemOnly.ok, true);
+  assert.deepEqual(withSystemOnly.errors, []);
+  assert.equal(withExtraCustom.ok, false);
+  assert.deepEqual(withExtraCustom.errors, ['CUSTOM_LOCATION_COUNT_MISMATCH']);
+});
+
+test('D84: validateLocationMigration fails while unresolved mappings remain and preserves unresolved order', { concurrency: false }, () => {
+  const unresolvedMappings = ['MissingWarehouse', 'Hideout'];
+
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after: makeFutureLocationSnapshot(),
+    locationMappings: makeLocationMappings(),
+    unresolvedMappings
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.errors, ['UNRESOLVED_MAPPINGS']);
+  assert.deepEqual(result.unresolvedMappings, unresolvedMappings);
+  assert.notEqual(result.unresolvedMappings, unresolvedMappings);
+});
+
+test('D84: validateLocationMigration reports all mismatches instead of stopping at the first mismatch', { concurrency: false }, () => {
+  const after = makeFutureLocationSnapshot();
+  after.inventory[primaryLocationItemKey()].qtyByLocation.thetford = 121;
+  after.inventory['TestProduct_6.1'].globalAvgCost = 98766;
+  after.assets.cash += 1;
+  after.transactions.push({ id: 3 });
+  after.locationRegistry.push({ locationId: 'custom:extra-002', displayName: 'Extra' });
+
+  const result = validateLocationMigration({
+    before: makeLegacyLocationSnapshot(),
+    after,
+    locationMappings: makeLocationMappings(),
+    unresolvedMappings: ['MissingWarehouse']
+  });
+
+  assert.deepEqual(result.errors, [
+    'LOCATION_QUANTITY_MISMATCH',
+    'GLOBAL_QUANTITY_TOTAL_MISMATCH',
+    'GLOBAL_AVG_COST_MISMATCH',
+    'CASH_MISMATCH',
+    'TRANSACTION_COUNT_MISMATCH',
+    'CUSTOM_LOCATION_COUNT_MISMATCH',
+    'UNRESOLVED_MAPPINGS'
+  ]);
+});
+
+test('D84: validateLocationMigration does not mutate before snapshot after snapshot location mappings or unresolved report', { concurrency: false }, () => {
+  const before = makeLegacyLocationSnapshot();
+  const after = makeFutureLocationSnapshot();
+  const locationMappings = makeLocationMappings();
+  const unresolvedMappings = ['MissingWarehouse'];
+  const beforeSnapshot = JSON.stringify(before);
+  const afterSnapshot = JSON.stringify(after);
+  const locationMappingsSnapshot = JSON.stringify(locationMappings);
+  const unresolvedMappingsSnapshot = JSON.stringify(unresolvedMappings);
+
+  const result = validateLocationMigration({ before, after, locationMappings, unresolvedMappings });
+
+  assert.equal(JSON.stringify(before), beforeSnapshot);
+  assert.equal(JSON.stringify(after), afterSnapshot);
+  assert.equal(JSON.stringify(locationMappings), locationMappingsSnapshot);
+  assert.equal(JSON.stringify(unresolvedMappings), unresolvedMappingsSnapshot);
+  assert.notEqual(result.unresolvedMappings, unresolvedMappings);
+});
+
+test('D84: validateLocationMigration rejects malformed snapshots and invalid mappings without uncontrolled errors', { concurrency: false }, () => {
+  const malformedCases = [
+    {
+      input: {
+        before: null,
+        after: makeFutureLocationSnapshot(),
+        locationMappings: makeLocationMappings()
+      },
+      errors: ['INVALID_BEFORE_SNAPSHOT']
+    },
+    {
+      input: {
+        before: makeLegacyLocationSnapshot(),
+        after: { ...makeFutureLocationSnapshot(), inventory: [] },
+        locationMappings: makeLocationMappings()
+      },
+      errors: ['INVALID_AFTER_SNAPSHOT']
+    },
+    {
+      input: {
+        before: makeLegacyLocationSnapshot(),
+        after: makeFutureLocationSnapshot(),
+        locationMappings: null
+      },
+      errors: ['INVALID_LOCATION_MAPPINGS']
+    },
+    {
+      input: {
+        before: makeLegacyLocationSnapshot(),
+        after: makeFutureLocationSnapshot(),
+        locationMappings: { Thetford: 'thetford' }
+      },
+      errors: ['INVALID_LOCATION_MAPPINGS', 'LOCATION_QUANTITY_MISMATCH']
+    },
+    {
+      input: {
+        before: makeLegacyLocationSnapshot(),
+        after: makeFutureLocationSnapshot(),
+        locationMappings: makeLocationMappings(),
+        unresolvedMappings: 'MissingWarehouse'
+      },
+      errors: ['INVALID_LOCATION_MAPPINGS']
+    }
+  ];
+
+  for (const { input, errors } of malformedCases) {
+    assert.doesNotThrow(() => validateLocationMigration(input));
+    const result = validateLocationMigration(input);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, errors);
+  }
+});
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
