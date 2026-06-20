@@ -4,11 +4,16 @@
 
 開始任務前依序閱讀：
 
-1. IMPLEMENTATION_GAP.md
-2. CURRENT_LIMITATIONS.md
-3. BUSINESS_RULES.md
-4. TEST_CASES.md
-5. 對應的 migration boundary 文件
+1. PROJECT_HANDOFF.md
+2. IMPLEMENTATION_GAP.md
+3. CURRENT_LIMITATIONS.md
+4. BUSINESS_RULES.md
+5. TEST_CASES.md
+6. 對應的 migration boundary 文件
+
+current project status 只讀 `PROJECT_HANDOFF.md`。
+Git history 保存歷史 checkpoint。
+不要將 D-step 歷史、latest commit、latest baseline 或 next-step checkpoint 複製到 active docs。
 
 current src behavior 是相容性基準，但不是絕對真理。
 不得把 future target 寫成 current implementation。

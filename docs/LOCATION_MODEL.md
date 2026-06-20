@@ -16,7 +16,7 @@
 
 Future target 仍是 Location Registry + stable `locationId`。在 Location Registry business rules、system/custom mapping、conflict/rename identity rules、unresolved mapping policy、writer API、backup migration、rollback 與 fallback removal gate 完成前，不得把 future target 寫成 current implementation。
 
-D85 strategy update：Location track selected strategy is now single-user clean cutover, not full automatic legacy storage migration. Location Registry、`qtyByLocation` storage、new writers、backup implementation 與 migration runner 仍未實作；舊 backup 只作 external archive，初始 inventory / cash / reliable cost basis 由使用者人工輸入。
+Selected Location strategy is single-user clean cutover, not full automatic legacy storage migration. Location Registry、`qtyByLocation` storage、new writers、backup implementation 與 migration runner 仍未實作；舊 backup 只作 external archive，初始 inventory / cash / reliable cost basis 由使用者人工輸入。
 
 封版前已加入資料安全限制：非空自訂倉庫不得刪除，使用者必須先轉移或清空該倉庫庫存。
 
@@ -56,7 +56,7 @@ D85 strategy update：Location track selected strategy is now single-user clean 
 ## 🟡 第二層：地點實體註冊表 (Location Registry) — Future Target
 記錄地點的「靜態物理屬性」。皇家城市固定不可變；自訂地堡記錄於 `state.customLocations`。
 
-> D78 boundary：本節是 future target / migration boundary。Current implementation 仍使用 literal city/custom location string keys、`qtyByCity` 與 `customLocations` string array。Location Registry 尚未實作，writer/storage migration 尚未開始。
+> Boundary：本節是 future target / migration boundary。Current implementation 仍使用 literal city/custom location string keys、`qtyByCity` 與 `customLocations` string array。Location Registry 尚未實作，writer/storage migration 尚未開始。
 
 ### Location Registry Business Rules — Future Target
 

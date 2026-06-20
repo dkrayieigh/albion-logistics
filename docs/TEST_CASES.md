@@ -10,13 +10,11 @@
 npm test
 ```
 
-### Stable release baseline
+### Automated Test Baseline
 
 - 指令：`npm.cmd test`
-- 結果：**142 tests / 142 pass / 0 fail / 0 TODO**
-- 這是 latest master stabilization baseline；v0.4.3 release baseline 屬於歷史 release checkpoint，不代表目前最新 master baseline。
-- 目前沒有 regression test TODO。
-- 此基準只描述目前可執行 regression tests，不代表 future data model 或 event payload migration 已完成。
+- Current totals 以 `npm test` 和 `PROJECT_HANDOFF.md` 為準。
+- 本節只描述 regression suite 的 coverage scope，不保存最新測試總數、checkpoint 或 commit metadata。
 - 手測案例中的 `locationId` 是 future/location-model 對照標記；current UI/storage 仍可能使用 legacy city display key 或 `qtyByCity`。
 - 新增 covered scope: Location read-only adapter legacy direct map and `qtyByCity` wrapper normalization.
 - 新增 covered scope: Location read-only adapter future `qtyByLocation` sample normalization as adapter-only compatibility, not current storage support.
@@ -25,8 +23,8 @@ npm test
 - This does not implement `qtyByLocation` storage, Location Registry, backup migration, purchase/transport writer migration, or legacy fallback removal.
 - 新增 covered scope: Location identity resolver exact system city mapping, `LaborerIsland` to `laborer_island`, residual `Hideout` unresolved with `deprecatedLegacyKey`, explicit custom mapping, unknown/fuzzy unresolved, malformed mapping unresolved, normalized-name conflict detection, immutability, and system mapping precedence.
 - This future identity output does not implement Location Registry persistence, does not make `qtyByLocation` current storage, does not migrate `customLocations` from `string[]`, and does not connect resolver output to writers, storage, backup import/export, or migration.
-- 新增 covered scope: D84 Location migration validator read-only research / verification utility.
-- D85 selected Location strategy is single-user clean cutover；future tests should focus on new schema writers, new backup export/import, manual initialization flow, selected seed data validation, and first-launch confirmation before any writer/storage switch.
+- 新增 covered scope: Location migration validator read-only research / verification utility.
+- Selected Location strategy is single-user clean cutover；future tests should focus on new schema writers, new backup export/import, manual initialization flow, selected seed data validation, and first-launch confirmation before any writer/storage switch.
 - Full legacy snapshot equality is no longer the selected clean-cutover release gate.
 - 新增 covered scope: crafting material planning aggregates expected consumption and safe-start stock by material key + city.
 - 新增 covered scope: crafting accounting uses user-entered actual material consumption; blank/invalid actual consumption blocks before mutation.
@@ -58,7 +56,7 @@ npm test
 - 新增 covered scope: Laborer sale success state transition preserves legacy payload, transaction insertion order, cash increase, selected inventory deduction, unrelated inventory, and legacy storage key 滿日記本.
 - This does not implement a canonical event, change writers, migrate transaction payloads, or rename legacy storage key 滿日記本.
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
-- `ADAPTER_TEST_PLAN.md` 不屬於目前 142 tests baseline，不代表 adapter 或 migration 已開始。
+- `ADAPTER_TEST_PLAN.md` 是 planning matrix，不代表 adapter 或 migration 已開始。
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。

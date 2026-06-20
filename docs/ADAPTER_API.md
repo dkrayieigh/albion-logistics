@@ -136,7 +136,7 @@ This is reader/display compatibility only. The `qtyByCity` writer is unchanged, 
 - `qtyByLocation` 與 Location Registry 仍是 future target。
 - Minimal read-only location adapter exists, but no writer path or migration uses it yet.
 - Minimal Inventory render/display compatibility exists, but `qtyByCity` writer, purchase / transport writers, backup import/export, storage shape, Location Registry, `qtyByLocation` migration, and `globalAvgCost` behavior remain unchanged.
-- D13 currently covers adapter normalization tolerance only; migration 前後每個 location 物理數量一致仍需等 migration sample 建立後才可正式測試。
+- Current adapter normalization coverage does not imply migration readiness；migration 前後每個 location 物理數量一致仍需等 migration sample 或 clean-cutover seed validation 建立後才可正式測試。
 
 ### `resolveLocationQuantity(input)`
 
@@ -266,13 +266,13 @@ This implementation is a read-only research / verification utility. It is not a 
 **historical full-migration research scope**
 
 - Historical full-migration research compared legacy `qtyByCity`, custom location strings, `globalAvgCost`, cash and transaction count.
-- D85 clean cutover no longer requires complete legacy snapshot equality as selected release gate.
+- Clean cutover no longer requires complete legacy snapshot equality as selected release gate.
 
 **future implementation boundary**
 
 - Validation does not imply migration has started.
 - Historical full snapshot validation checked inventory item count, each item/location quantity, global quantity totals, `globalAvgCost`, cash, transaction count, custom location count, and unresolved mapping count before any storage mutation.
-- D85 clean cutover supersedes full automatic Location migration as selected strategy；future validator work may become selected seed data validation for manually entered inventory, cash, and reliable cost basis.
+- Clean cutover supersedes full automatic Location migration as selected strategy；future validator work may become selected seed data validation for manually entered inventory, cash, and reliable cost basis.
 - The validator must not mutate state, rewrite backup, write `qtyByLocation`, connect writers, or remove legacy fallback.
 
 ## 6. Transaction Reader Adapter API
@@ -455,7 +455,7 @@ Future helper draft，用於 adapter 前置驗證。
 
 ## 9. Test Boundary
 
-D5 test.todo anchors 可作為未來 adapter/migration 前置測試入口，但本文件不新增 test，也不新增 `test.todo`：
+Test planning anchors 可作為未來 adapter/migration 前置測試入口，但本文件不新增 test，也不新增 `test.todo`：
 
 - missing item mapping must fail explicitly。
 - importing legacy `qtyByCity` multi-location backup must preserve every location quantity。
