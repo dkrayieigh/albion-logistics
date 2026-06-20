@@ -232,9 +232,9 @@ This remains a future identity API draft and current read-only resolver boundary
 
 ### `validateLocationMigration(input)`
 
-Future validation API draft。此 API 尚未存在。
+Minimal read-only implementation exists in `src/adapters/locationMigrationValidator.js`.
 
-D85 update：the existing `src/adapters/locationMigrationValidator.js` is a read-only research / verification utility. It is not a production migration runner, not a storage writer, and not a release blocker for full legacy snapshot equality under the selected single-user clean cutover strategy.
+This implementation is a read-only research / verification utility. It is not a production migration runner, storage writer, or clean-cutover release blocker.
 
 **input**
 

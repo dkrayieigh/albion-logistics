@@ -2,9 +2,8 @@
 
 ## Handoff Status
 
-- Latest checkpoint: D85 Single-user clean cutover strategy decision
-- Latest master commit: Current master includes D84 read-only validator checkpoint
-- Commit title: Current master includes D84 read-only validator checkpoint
+- Latest master commit: `e43983a4815754ffc74df10ce58fc017f2cf3466`
+- Commit title: `docs: select single-user clean cutover strategy`
 - Baseline: `142 tests / 142 pass / 0 fail / 0 TODO`
 - Project phase: legacy-compatible stabilization
 
@@ -58,7 +57,7 @@ This document is a handoff checkpoint for the current legacy-compatible stabiliz
 - Writer/storage migration remains blocked.
 - Historical next step at D79 was D80 tests-only mapping contract; D80-D81 are now complete.
 
-## D78 Location Registry Business Rules
+## Historical D78 compatibility-release boundary, superseded by D85 clean cutover:
 
 - Location Registry business rules have been documented as future target / migration boundary.
 - Current implementation remains literal city/custom location string keys, `qtyByCity`, `customLocations` string array, and read-only `normalizeLocationMap()` adapter.
