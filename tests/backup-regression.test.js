@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
 import { resolveLocationIdentity } from '../src/adapters/locationIdentity.js';
 import { validateLocationMigration } from '../src/adapters/locationMigrationValidator.js';
+import { createCleanInitialState } from '../src/adapters/cleanInitialState.js';
 import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -1213,20 +1214,388 @@ test('D84: validateLocationMigration rejects malformed snapshots and invalid map
 // state, no input mutation, no legacy state mutation, and no localStorage access.
 // The custom location ID generator is not user input, is not stored in state, is not derived
 // from displayName/clientRef, and throw/invalid format/duplicate ID/system collision aborts atomically.
-test.todo('createCleanInitialState should create a valid empty new-schema state');
-test.todo('createCleanInitialState should accept finite cash and default omitted debt to zero');
-test.todo('createCleanInitialState should reject invalid cash or debt without returning partial state');
-test.todo('createCleanInitialState should create every fixed system registry entry with matching locationId keys');
-test.todo('createCleanInitialState should generate custom location IDs without deriving them from displayName or clientRef');
-test.todo('createCleanInitialState should resolve inventory customLocationRef through input-only clientRef');
-test.todo('createCleanInitialState should reject duplicate clientRef and unknown customLocationRef values');
-test.todo('createCleanInitialState should reject duplicate custom display names after trim and case normalization');
-test.todo('createCleanInitialState should reject custom display names that conflict with system locations');
-test.todo('createCleanInitialState should require exactly one locationId or customLocationRef per inventory seed');
-test.todo('createCleanInitialState should reject invalid inventory seeds and unknown system locationIds');
-test.todo('createCleanInitialState should reject duplicate itemKey and resolved locationId seed identities');
-test.todo('createCleanInitialState should initialize empty transactions and canonical laborer defaults using 滿日誌 only');
-test.todo('createCleanInitialState should not mutate input or legacy state and should remain atomic on failure');
+test('createCleanInitialState creates a valid empty new-schema state', { concurrency: false }, () => {
+  const result = createCleanInitialState({ cash: 0 });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.state.schemaVersion, 1);
+  assert.deepEqual(result.state.assets, { cash: 0, debt: 0 });
+  assert.deepEqual(result.state.inventory, {});
+  assert.deepEqual(result.state.transactions, []);
+  assert.deepEqual(result.state.laborerLogs, []);
+  assert.equal(Object.hasOwn(result.state, 'customLocations'), false);
+  assert.equal(Object.values(result.state.inventory).some(item => Object.hasOwn(item, 'qtyByCity')), false);
+});
+
+test('createCleanInitialState accepts finite cash and defaults omitted debt to zero', { concurrency: false }, () => {
+  const omittedDebt = createCleanInitialState({ cash: -12345 });
+  const negativeDebt = createCleanInitialState({ cash: 1, debt: -50 });
+
+  assert.equal(omittedDebt.ok, true);
+  assert.deepEqual(omittedDebt.state.assets, { cash: -12345, debt: 0 });
+  assert.equal(negativeDebt.ok, true);
+  assert.deepEqual(negativeDebt.state.assets, { cash: 1, debt: -50 });
+});
+
+test('createCleanInitialState rejects invalid cash or debt without returning partial state', { concurrency: false }, () => {
+  const cases = [
+    {
+      input: {},
+      errors: ['INVALID_CASH', 'INITIALIZATION_ABORTED']
+    },
+    {
+      input: { cash: NaN },
+      errors: ['INVALID_CASH', 'INITIALIZATION_ABORTED']
+    },
+    {
+      input: { cash: Infinity },
+      errors: ['INVALID_CASH', 'INITIALIZATION_ABORTED']
+    },
+    {
+      input: { cash: 0, debt: '1' },
+      errors: ['INVALID_DEBT', 'INITIALIZATION_ABORTED']
+    },
+    {
+      input: {
+        cash: 'bad',
+        debt: null,
+        customLocations: [{ clientRef: 'a', displayName: 'Thetford' }],
+        inventorySeeds: [{ itemKey: '', locationId: 'missing', quantity: '1', globalAvgCost: Infinity }]
+      },
+      errors: [
+        'INVALID_CASH',
+        'INVALID_DEBT',
+        'SYSTEM_LOCATION_NAME_CONFLICT',
+        'CUSTOM_LOCATION_ID_GENERATION_FAILED',
+        'INVALID_INVENTORY_SEED',
+        'UNKNOWN_LOCATION_ID',
+        'INITIALIZATION_ABORTED'
+      ]
+    }
+  ];
+
+  for (const { input, errors } of cases) {
+    const result = createCleanInitialState(input);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.state, null);
+    assert.deepEqual(result.errors, errors);
+  }
+});
+
+test('createCleanInitialState creates every fixed system registry entry with matching locationId keys', { concurrency: false }, () => {
+  const result = createCleanInitialState({ cash: 0 });
+  const registry = result.state.locationRegistry;
+
+  assert.deepEqual(Object.keys(registry), CLEAN_INITIALIZATION_FIXED_SYSTEM_REGISTRY);
+  for (const locationId of CLEAN_INITIALIZATION_FIXED_SYSTEM_REGISTRY) {
+    assert.equal(registry[locationId].locationId, locationId);
+    assert.equal(registry[locationId].active, true);
+  }
+  assert.equal(Object.hasOwn(registry, 'Hideout'), false);
+  assert.equal(Object.hasOwn(registry, 'hideout'), false);
+});
+
+test('createCleanInitialState generates custom location IDs without deriving them from displayName or clientRef', { concurrency: false }, () => {
+  const input = makeCleanInitializationInput();
+  const result = createCleanInitialState(input, {
+    generateCustomLocationId: makeCustomLocationIdGenerator()
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.locationRegistry['custom:test-001'].locationId, 'custom:test-001');
+  assert.equal(result.state.locationRegistry['custom:test-001'].displayName, input.customLocations[0].displayName);
+  assert.equal(Object.hasOwn(result.state.locationRegistry, input.customLocations[0].clientRef), false);
+  assert.equal(Object.hasOwn(result.state.locationRegistry, input.customLocations[0].displayName), false);
+
+  const failureCases = [
+    {
+      options: {},
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']
+    },
+    {
+      options: { generateCustomLocationId: () => 'warehouse-1' },
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']
+    },
+    {
+      options: { generateCustomLocationId: () => 'custom:' },
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']
+    },
+    {
+      input: {
+        cash: 0,
+        customLocations: [
+          { clientRef: 'a', displayName: 'A' },
+          { clientRef: 'b', displayName: 'B' }
+        ]
+      },
+      options: { generateCustomLocationId: () => 'custom:dup' },
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INITIALIZATION_ABORTED']
+    },
+    {
+      options: {
+        generateCustomLocationId: () => {
+          throw new Error('boom');
+        }
+      },
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']
+    }
+  ];
+
+  for (const failure of failureCases) {
+    const failed = createCleanInitialState(failure.input || input, failure.options);
+
+    assert.equal(failed.ok, false);
+    assert.equal(failed.state, null);
+    assert.deepEqual(failed.errors, failure.errors);
+  }
+});
+
+test('createCleanInitialState resolves inventory customLocationRef through input-only clientRef', { concurrency: false }, () => {
+  const input = makeCleanInitializationInput();
+  const [systemSeed, customSeed] = input.inventorySeeds;
+  const result = createCleanInitialState(input, {
+    generateCustomLocationId: makeCustomLocationIdGenerator()
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.state.inventory[systemSeed.itemKey], {
+    qtyByLocation: { thetford: systemSeed.quantity },
+    globalAvgCost: systemSeed.globalAvgCost
+  });
+  assert.deepEqual(result.state.inventory[customSeed.itemKey], {
+    qtyByLocation: { 'custom:test-001': customSeed.quantity },
+    globalAvgCost: customSeed.globalAvgCost
+  });
+  assert.equal(Object.hasOwn(result.state.inventory[customSeed.itemKey].qtyByLocation, customSeed.customLocationRef), false);
+  assert.equal(Object.hasOwn(result.state, 'customLocationRef'), false);
+});
+
+test('createCleanInitialState rejects duplicate clientRef and unknown customLocationRef values', { concurrency: false }, () => {
+  let nextCustomLocationId = 0;
+  const duplicateRef = createCleanInitialState(
+    {
+      cash: 0,
+      customLocations: [
+        { clientRef: 'dup', displayName: 'Warehouse A' },
+        { clientRef: ' dup ', displayName: 'Warehouse B' }
+      ]
+    },
+    {
+      generateCustomLocationId: () => `custom:${nextCustomLocationId += 1}`
+    }
+  );
+  const unknownRef = createCleanInitialState(
+    {
+      ...makeCleanInitializationInput(),
+      inventorySeeds: [
+        {
+          itemKey: '布料_6.1',
+          customLocationRef: 'missing-ref',
+          quantity: 10,
+          globalAvgCost: 1
+        }
+      ]
+    },
+    {
+      generateCustomLocationId: makeCustomLocationIdGenerator()
+    }
+  );
+
+  assert.equal(duplicateRef.ok, false);
+  assert.equal(duplicateRef.state, null);
+  assert.deepEqual(duplicateRef.errors, ['DUPLICATE_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']);
+  assert.equal(unknownRef.ok, false);
+  assert.equal(unknownRef.state, null);
+  assert.deepEqual(unknownRef.errors, ['INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']);
+});
+
+test('createCleanInitialState rejects duplicate custom display names after trim and case normalization', { concurrency: false }, () => {
+  let nextCustomLocationId = 0;
+  const result = createCleanInitialState(
+    {
+      cash: 0,
+      customLocations: [
+        { clientRef: 'a', displayName: ' Warehouse ' },
+        { clientRef: 'b', displayName: 'warehouse' }
+      ]
+    },
+    {
+      generateCustomLocationId: () => `custom:${nextCustomLocationId += 1}`
+    }
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, null);
+  assert.deepEqual(result.errors, ['DUPLICATE_CUSTOM_LOCATION_NAME', 'INITIALIZATION_ABORTED']);
+});
+
+test('createCleanInitialState rejects custom display names that conflict with system locations', { concurrency: false }, () => {
+  const result = createCleanInitialState(
+    {
+      cash: 0,
+      customLocations: [
+        { clientRef: 'a', displayName: ' thetford ' }
+      ]
+    },
+    {
+      generateCustomLocationId: () => 'custom:system-conflict'
+    }
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, null);
+  assert.deepEqual(result.errors, ['SYSTEM_LOCATION_NAME_CONFLICT', 'INITIALIZATION_ABORTED']);
+});
+
+test('createCleanInitialState requires exactly one locationId or customLocationRef per inventory seed', { concurrency: false }, () => {
+  const cases = [
+    {
+      input: {
+        cash: 0,
+        inventorySeeds: [
+          { itemKey: '布料_6.1', quantity: 1, globalAvgCost: null }
+        ]
+      }
+    },
+    {
+      input: {
+        cash: 0,
+        customLocations: [{ clientRef: 'warehouse-1', displayName: 'Warehouse' }],
+        inventorySeeds: [
+          {
+            itemKey: '布料_6.1',
+            locationId: 'thetford',
+            customLocationRef: 'warehouse-1',
+            quantity: 1,
+            globalAvgCost: null
+          }
+        ]
+      },
+      options: { generateCustomLocationId: makeCustomLocationIdGenerator() }
+    },
+    {
+      input: {
+        cash: 0,
+        inventorySeeds: [
+          { itemKey: '布料_6.1', locationId: ' ', quantity: 1, globalAvgCost: null }
+        ]
+      }
+    }
+  ];
+
+  for (const { input, options } of cases) {
+    const result = createCleanInitialState(input, options);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.state, null);
+    assert.deepEqual(result.errors, ['INVALID_LOCATION_REFERENCE', 'INITIALIZATION_ABORTED']);
+  }
+});
+
+test('createCleanInitialState rejects invalid inventory seeds and unknown system locationIds', { concurrency: false }, () => {
+  const invalidSeed = createCleanInitialState({
+    cash: 0,
+    inventorySeeds: [
+      { itemKey: ' ', locationId: 'thetford', quantity: 1, globalAvgCost: null },
+      { itemKey: '布料_6.1', locationId: 'thetford', quantity: '1', globalAvgCost: null },
+      { itemKey: '鋼條_6.2', locationId: 'thetford', quantity: 1, globalAvgCost: Infinity }
+    ]
+  });
+  const unknownLocation = createCleanInitialState({
+    cash: 0,
+    inventorySeeds: [
+      { itemKey: '布料_6.1', locationId: 'unknown', quantity: 1, globalAvgCost: null }
+    ]
+  });
+
+  assert.equal(invalidSeed.ok, false);
+  assert.equal(invalidSeed.state, null);
+  assert.deepEqual(invalidSeed.errors, ['INVALID_INVENTORY_SEED', 'INITIALIZATION_ABORTED']);
+  assert.equal(unknownLocation.ok, false);
+  assert.equal(unknownLocation.state, null);
+  assert.deepEqual(unknownLocation.errors, ['UNKNOWN_LOCATION_ID', 'INITIALIZATION_ABORTED']);
+});
+
+test('createCleanInitialState rejects duplicate itemKey and resolved locationId seed identities', { concurrency: false }, () => {
+  const duplicateIdentity = createCleanInitialState({
+    cash: 0,
+    inventorySeeds: [
+      { itemKey: ' 布料_6.1 ', locationId: 'thetford', quantity: 1, globalAvgCost: 0 },
+      { itemKey: '布料_6.1', locationId: 'thetford', quantity: -2, globalAvgCost: 0 }
+    ]
+  });
+  const inconsistentCost = createCleanInitialState({
+    cash: 0,
+    inventorySeeds: [
+      { itemKey: '布料_6.1', locationId: 'thetford', quantity: 1, globalAvgCost: 0 },
+      { itemKey: '布料_6.1', locationId: 'martlock', quantity: 2, globalAvgCost: null }
+    ]
+  });
+  const sameCostAcrossLocations = createCleanInitialState({
+    cash: 0,
+    inventorySeeds: [
+      { itemKey: '布料_6.1', locationId: 'thetford', quantity: 1, globalAvgCost: 0 },
+      { itemKey: '布料_6.1', locationId: 'martlock', quantity: -2, globalAvgCost: 0 }
+    ]
+  });
+
+  assert.equal(duplicateIdentity.ok, false);
+  assert.equal(duplicateIdentity.state, null);
+  assert.deepEqual(duplicateIdentity.errors, ['DUPLICATE_INVENTORY_SEED', 'INITIALIZATION_ABORTED']);
+  assert.equal(inconsistentCost.ok, false);
+  assert.equal(inconsistentCost.state, null);
+  assert.deepEqual(inconsistentCost.errors, ['INVALID_INVENTORY_SEED', 'INITIALIZATION_ABORTED']);
+  assert.equal(sameCostAcrossLocations.ok, true);
+  assert.deepEqual(sameCostAcrossLocations.state.inventory['布料_6.1'], {
+    qtyByLocation: { thetford: 1, martlock: -2 },
+    globalAvgCost: 0
+  });
+});
+
+test('createCleanInitialState initializes empty transactions and canonical laborer defaults using journal category only', { concurrency: false }, () => {
+  const result = createCleanInitialState({ cash: 0 });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.state.transactions, []);
+  assert.deepEqual(result.state.laborerLogs, []);
+  assert.deepEqual(Object.keys(result.state.laborerInventory), CLEAN_INITIALIZATION_LABORER_CATEGORIES);
+  for (const category of CLEAN_INITIALIZATION_LABORER_CATEGORIES) {
+    assert.deepEqual(Object.keys(result.state.laborerInventory[category]), CLEAN_INITIALIZATION_ALL_LABORER_QUALITIES);
+    assert.equal(Object.values(result.state.laborerInventory[category]).every(value => value === 0), true);
+  }
+});
+
+test('createCleanInitialState does not mutate input or legacy state and remains atomic on failure', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    inventory: { '布料_6.1': { qtyByCity: { Thetford: 9 }, globalAvgCost: 6000 } },
+    assets: { cash: 1, debt: 2 },
+    transactions: [{ type: 'legacy' }]
+  });
+  const input = makeCleanInitializationInput();
+  const inputBefore = JSON.stringify(input);
+  const storageBefore = JSON.stringify([...storage.entries()]);
+
+  const failure = createCleanInitialState(input, {
+    generateCustomLocationId: () => {
+      throw new Error('generator failed');
+    }
+  });
+  const success = createCleanInitialState(input, {
+    generateCustomLocationId: makeCustomLocationIdGenerator()
+  });
+  const source = createCleanInitialState.toString();
+
+  assert.equal(failure.ok, false);
+  assert.equal(failure.state, null);
+  assert.deepEqual(failure.errors, ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']);
+  assert.equal(success.ok, true);
+  assert.equal(JSON.stringify(input), inputBefore);
+  assert.equal(JSON.stringify([...storage.entries()]), storageBefore);
+  assert.doesNotMatch(source, /localStorage|saveState|initDefaultState|document|window/i);
+});
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
