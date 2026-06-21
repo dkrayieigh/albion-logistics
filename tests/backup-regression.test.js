@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
 import { resolveLocationIdentity } from '../src/adapters/locationIdentity.js';
 import { validateLocationMigration } from '../src/adapters/locationMigrationValidator.js';
-import { SYSTEM_CITIES } from '../src/data/constants.js';
+import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
 
@@ -259,6 +259,38 @@ const CLEAN_INITIALIZATION_LABORER_CATEGORIES = [
   '布料',
   '板材',
   '滿日誌'
+];
+
+const CLEAN_INITIALIZATION_SUPPORTED_QUALITIES =
+  QUAL_GROUPS.flatMap(group => group.items);
+
+const CLEAN_INITIALIZATION_ALL_LABORER_QUALITIES = [
+  ...new Set([
+    ...CLEAN_INITIALIZATION_SUPPORTED_QUALITIES,
+    '4.0',
+    '5.0',
+    '6.0',
+    '7.0',
+    '8.0'
+  ])
+];
+
+// Future contract only: errors are emitted in this order, each code at most once.
+// INITIALIZATION_ABORTED is the overall failure code; TODOs do not decide which failures must include it.
+const CLEAN_INITIALIZATION_ERROR_ORDER = [
+  'INVALID_CASH',
+  'INVALID_DEBT',
+  'INVALID_CUSTOM_LOCATION_NAME',
+  'DUPLICATE_CUSTOM_LOCATION_REF',
+  'DUPLICATE_CUSTOM_LOCATION_NAME',
+  'SYSTEM_LOCATION_NAME_CONFLICT',
+  'CUSTOM_LOCATION_ID_GENERATION_FAILED',
+  'INVALID_INVENTORY_SEED',
+  'INVALID_LOCATION_REFERENCE',
+  'INVALID_CUSTOM_LOCATION_REF',
+  'UNKNOWN_LOCATION_ID',
+  'DUPLICATE_INVENTORY_SEED',
+  'INITIALIZATION_ABORTED'
 ];
 
 function makeCleanInitializationInput() {
@@ -1172,6 +1204,15 @@ test('D84: validateLocationMigration rejects malformed snapshots and invalid map
   }
 });
 
+// Future clean initialization contract:
+// Success returns ok:true with a complete new state, schemaVersion:1, debt defaulting to 0,
+// the full fixed registry, qtyByLocation inventory, empty transactions and laborerLogs,
+// laborer categories for 鋼條/布料/板材/滿日誌, every supported laborer quality initialized
+// to 0, and no future output key for 滿日記本.
+// Failure returns ok:false, state:null, ordered unique machine-readable errors, no partial
+// state, no input mutation, no legacy state mutation, and no localStorage access.
+// The custom location ID generator is not user input, is not stored in state, is not derived
+// from displayName/clientRef, and throw/invalid format/duplicate ID/system collision aborts atomically.
 test.todo('createCleanInitialState should create a valid empty new-schema state');
 test.todo('createCleanInitialState should accept finite cash and default omitted debt to zero');
 test.todo('createCleanInitialState should reject invalid cash or debt without returning partial state');
