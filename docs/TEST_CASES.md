@@ -67,10 +67,16 @@ npm test
 - Existing legacy keys trigger warning and do not auto-migrate legacy inventory.
 - Canceling initialization writes no new state and does not modify legacy keys.
 - Invalid cash/debt/inventory seed/custom location input returns machine-readable errors.
-- Duplicate `itemKey + locationId` seed is invalid and is not auto-summed.
+- `customLocations[].clientRef` is input-only, trimmed, non-empty, unique, not stored, and not derived from `displayName`.
+- `inventorySeeds[].customLocationRef` must reference an input `clientRef`; unknown references fail.
+- Each inventory seed must provide exactly one of `locationId` or `customLocationRef`.
+- Duplicate `itemKey + resolved locationId` seed is invalid and is not auto-summed.
 - Duplicate custom display names and system-name conflicts are invalid.
+- Deterministic custom ID generation may be injected for tests, but generator output must be `custom:<generated-id>` and must not be user input or stored as generator metadata.
 - Successful initialization creates fixed system registry entries, generated custom IDs, seeded inventory only, empty transactions, and user-entered assets.
+- Successful initialization creates future canonical `laborerInventory` defaults using `滿日誌`; it must not use the current legacy storage key `滿日記本` in future new schema output.
 - New backup/export/import accepts only new schema and matching `schemaVersion`.
+- These future tests must not implement the initializer, switch writers, mutate legacy state, write `localStorage`, or start migration.
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。

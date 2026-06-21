@@ -59,21 +59,52 @@ Storage rules：
 
 ### Clean Initialization Input — Future Target
 
+Future pure initializer API：
+
+```js
+createCleanInitialState(input, options?)
+```
+
+Optional test dependency injection：
+
+```js
+{
+  generateCustomLocationId?: () => String
+}
+```
+
+Initializer API rules：
+
+- `generateCustomLocationId` 只用於 pure implementation 與 deterministic tests。
+- Generator 不屬於 user input。
+- Generator 不得存入 state。
+- Production generator implementation 尚未開始。
+- Generator 回傳值必須符合 `custom:<generated-id>` 格式。
+- Generator 失敗、回傳重複 ID、或與 fixed system ID 衝突時，initialization 必須整體失敗。
+- The initializer must not mutate `input`, must not read or modify legacy state, and must not read or write localStorage.
+
 ```js
 {
   cash: Number,
   debt?: Number,
-  inventorySeeds: [
+
+  customLocations?: [
     {
-      itemKey: String,
-      locationId: String,
-      quantity: Number,
-      globalAvgCost: Number | null
+      clientRef: String,
+      displayName: String
     }
   ],
-  customLocations: [
+
+  inventorySeeds?: [
     {
-      displayName: String
+      itemKey: String,
+
+      // 必須剛好提供一個
+      locationId?: String,
+      customLocationRef?: String,
+
+      quantity: Number,
+      globalAvgCost?: Number | null
     }
   ]
 }
@@ -84,10 +115,22 @@ Input validation rules：
 - `cash` 必填且必須是 finite number。
 - `debt` 可省略，預設為 `0`；若提供則必須是 finite number。
 - `inventorySeeds` 可為空。
+- `customLocations` 可省略或為空。
+- `customLocations[].clientRef` 是 initialization input-only reference。
+- `clientRef` 不得存入 new root state 或 Location Registry。
+- `clientRef` 不得由 `displayName` 推導。
+- `clientRef` trim 後必須是非空字串。
+- 同一次 input 中 duplicate `clientRef` 必須失敗。
+- `inventorySeeds[].customLocationRef` 必須對應本次 input 中存在的 `clientRef`。
+- Unknown `customLocationRef` 必須失敗。
+- Inventory seed 必須剛好提供一個：`locationId` 或 `customLocationRef`。兩者同時存在或同時缺少均為 invalid。
+- Initializer 建立 custom permanent ID 後，必須透過 `clientRef` 解析 seed。
+- Permanent custom ID 不得由 `displayName` 或 `clientRef` 直接推導。
 - `inventorySeeds[].quantity` 必須是 finite number。
 - `inventorySeeds[].globalAvgCost` 缺省時為 `null`；若提供則必須是 finite number 或 `null`。
-- `inventorySeeds[].locationId` 必須存在於 fixed system registry 或 initialization 建立的 custom registry。
-- Duplicate `itemKey + locationId` 視為 invalid，不自動加總。
+- `inventorySeeds[].locationId` 必須存在於 fixed system registry。
+- Duplicate seed identity 以 `itemKey + resolved locationId` 判斷；若不同 reference 形式最終解析到同一永久 `locationId`，仍視為 duplicate。
+- Duplicate seed 視為 invalid，不自動加總。
 - Custom ID 由 new implementation 生成，不由 `displayName` 推導。
 - Duplicate custom `displayName` 經 trim + case-insensitive 後視為 conflict。
 - Custom name 不得與 system `displayName` 衝突。
@@ -95,7 +138,38 @@ Input validation rules：
 
 ### Clean Initialization Output — Future Target
 
-成功時：
+Success result：
+
+```js
+{
+  ok: true,
+  state: {
+    schemaVersion: 1,
+    assets: {
+      cash: Number,
+      debt: Number
+    },
+    inventory: {},
+    locationRegistry: {},
+    transactions: [],
+    laborerInventory: {},
+    laborerLogs: []
+  },
+  errors: []
+}
+```
+
+Failure result：
+
+```js
+{
+  ok: false,
+  state: null,
+  errors: String[]
+}
+```
+
+Success rules：
 
 - 產生完整 new root state。
 - 固定 system registry entries 全部建立。
@@ -105,27 +179,73 @@ Input validation rules：
 - Legacy data 不被讀取或寫入。
 - `globalAvgCost` 缺省為 `null`。
 - Assets 使用人工輸入值。
+- `laborerInventory` 建立 future canonical default shape。
+- `laborerLogs` 初始化為空陣列。
 
-失敗時：
+Failure rules：
 
 - 不寫入 `albion-logistics-v2-state`。
 - 不修改 legacy keys。
-- 回傳 machine-readable errors。
+- 回傳 machine-readable error codes。
+- Errors 使用固定順序。
+- 同一 code 最多出現一次。
 - 不留下 partial state。
+- 不修改 input。
+- 不讀取或修改 legacy state。
+- 不讀寫 localStorage。
+
+Future `laborerInventory` canonical default shape：
+
+```js
+laborerInventory: {
+  '鋼條': {
+    [supportedQuality]: 0
+  },
+  '布料': {
+    [supportedQuality]: 0
+  },
+  '板材': {
+    [supportedQuality]: 0
+  },
+  '滿日誌': {
+    [supportedQuality]: 0
+  }
+}
+```
+
+Laborer inventory rules：
+
+- Future canonical journal category only accepts `滿日誌`。
+- Future target must not use `滿日記本`。
+- Current legacy src/storage key remains `滿日記本`; this docs task does not modify it.
+- Current legacy key：`滿日記本`；future canonical key：`滿日誌`。
+- All supported quality keys initialize to `0`。
+- Future tests should obtain supported quality keys from current quality constants or a future shared default builder, not copy a hard-coded list that can drift.
+- This Location clean-cutover contract does not redesign laborer accounting or writer semantics.
 
 Suggested future error codes：
 
 ```text
 INVALID_CASH
 INVALID_DEBT
-INVALID_INVENTORY_SEED
-DUPLICATE_INVENTORY_SEED
-UNKNOWN_LOCATION_ID
 INVALID_CUSTOM_LOCATION_NAME
+DUPLICATE_CUSTOM_LOCATION_REF
 DUPLICATE_CUSTOM_LOCATION_NAME
 SYSTEM_LOCATION_NAME_CONFLICT
+CUSTOM_LOCATION_ID_GENERATION_FAILED
+INVALID_INVENTORY_SEED
+INVALID_LOCATION_REFERENCE
+INVALID_CUSTOM_LOCATION_REF
+UNKNOWN_LOCATION_ID
+DUPLICATE_INVENTORY_SEED
 INITIALIZATION_ABORTED
 ```
+
+Error code boundary：
+
+- `INITIALIZATION_ABORTED` is defined as an overall failure code.
+- This docs task does not require every failure to append `INITIALIZATION_ABORTED`; formal tests contract should decide that behavior.
+- This docs task does not implement error generation.
 
 ### First-Launch Confirmation — Future Target
 

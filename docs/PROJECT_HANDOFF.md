@@ -4,6 +4,7 @@
 
 - Phase: legacy-compatible stabilization / clean-cutover preparation.
 - Test baseline: 142 tests / 142 pass / 0 fail / 0 TODO.
+- Latest checkpoint: clean initialization contract final docs sync.
 - Selected Location strategy: single-user clean cutover.
 - Location schema contract: defined as future target, not implemented.
 - Writer/storage migration: not started.
@@ -32,7 +33,8 @@
 
 - New Location schema is not implemented.
 - New storage key `albion-logistics-v2-state` is selected but not implemented.
-- Clean initialization contract is not tested.
+- Clean initialization contract is defined in docs but not tested.
+- `createCleanInitialState()` is not implemented.
 - New writer tests are not created.
 - New backup export/import is not created.
 - Launch confirmation flow is not created.
@@ -40,8 +42,8 @@
 
 ## Next Approved Step
 
-- Add clean initialization tests-only contract.
-- Do not switch writers yet.
+- Add clean initialization tests-only contract for `createCleanInitialState()`.
+- Do not implement the initializer or switch writers yet.
 
 ## High-Risk Boundaries
 
@@ -52,3 +54,4 @@
 - No transaction history migration.
 - No direct future-app import requirement for legacy backups.
 - No Location Registry current implementation claim.
+- Do not connect clean initialization output to writers, storage, backup import/export, or migration until tests and implementation are explicitly approved.

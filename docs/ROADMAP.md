@@ -8,7 +8,7 @@
 實際 current implementation 仍以 `src` 與 regression tests 為準。  
 若本文件與 `IMPLEMENTATION_GAP.md` 衝突，應先回到 `IMPLEMENTATION_GAP.md` 確認目前差異狀態。
 
-目前 stable regression baseline 請以 `TEST_CASES.md` 的 Stable release baseline 為準。
+Current status 與 regression baseline 請以 `PROJECT_HANDOFF.md` 與實際 `npm test` 結果為準。
 
 ---
 
@@ -113,6 +113,8 @@
 - 先讀取相容，再考慮寫入遷移。
 - 詳細 migration boundary 請見 `MIGRATION_PLAN.md`。
 - Adapter API draft is tracked in `ADAPTER_API.md`.
+- 已存在 read-only adapters 可作研究與安全層，但不代表 Location writer/storage migration 已開始。
+- Selected Location strategy 是 single-user clean cutover，不需要長期 dual-read / dual-write rollout。
 
 ---
 
@@ -146,23 +148,22 @@
 
 ### 目標
 
-在 adapter、測試與事件入口穩定後，才開始資料模型遷移。
+在 adapter、測試與事件入口穩定後，才開始資料模型遷移。Location dimension、Stable Item ID 與 canonical transaction/event 是分離 tracks，不得一次同時切換三者。
 
-### 遷移項目
+### Track 分離
 
-- `qtyByCity` → `qtyByLocation`
-- 中文 item key → Stable ID
-- 字串 `customLocations` → Location Registry
-- legacy transaction → 新版 event payload
+- Location dimension：selected strategy 是 single-user clean cutover，建立 new Location schema、new storage key 與 clean initialization flow。
+- Stable Item ID：仍是獨立 future track。
+- Canonical transaction/event：仍是獨立 future track。
 
 ### 原則
 
-- 必須有 migration 測試。
-- 必須可驗證遷移前後：
-  - 總庫存一致
-  - cash 一致
-  - transaction 數量一致
-  - `globalAvgCost` 一致
+- Location clean cutover 不要求 automatic legacy migration。
+- Location clean cutover 不要求 dual-write。
+- Location clean cutover 不要求完整 legacy backup 轉換。
+- Location clean cutover 不要求 cash、transaction count 或全部 legacy inventory key 完全一致。
+- Location clean cutover 以 manually initialized inventory、cash、reliable cost basis、empty transactions 與 external legacy backup archive 為基準。
+- Stable Item ID 與 canonical event migration 不得和 Location clean cutover 同時執行。
 - 必須保留備份與復原方式。
 - 詳細 migration track 與 release boundary 請見 `MIGRATION_PLAN.md`。
 
@@ -172,12 +173,12 @@
 
 ### 目標
 
-在至少一個穩定相容版本後，才移除舊格式 fallback。
+依 track 策略決定 fallback 移除方式。
 
 ### 移除前條件
 
-- 所有舊資料樣本可成功遷移。
-- regression tests 完整覆蓋。
-- UI 不再直接依賴舊欄位。
-- 備份匯入可辨識版本。
-- 使用者有明確備份方式。
+- 「至少一個 compatible release 後才移除 fallback」只適用採 compatibility migration 的 track。
+- 這不適用 selected Location clean-cutover strategy。
+- Location legacy data 由舊版 app 與 external backup 保留。
+- 新版不得自動刪除 legacy storage。
+- 任何 fallback removal 都不得由 incidental refactor 發生。
