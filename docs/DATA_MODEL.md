@@ -9,7 +9,7 @@
 > 配方加成判斷應優先依賴 category，不應依賴 UI 顯示名稱字串比對
 
 ## 🌳 狀態樹根結構(Root State)
-> Current implementation 仍使用 legacy root shape。以下 clean-cutover root state 是 future target，尚未實作，且不得據此直接改寫 `state.js`、localStorage、writer 或 backup code。
+> Current production implementation 仍使用 legacy root shape。以下 clean-cutover root state 是 future storage target；pure `createCleanInitialState()` helper 已可產生此 shape，但尚未接入 `state.js`、localStorage、writer 或 backup code。
 
 ### Clean-Cutover Root State — Future Target
 
@@ -78,7 +78,8 @@ Initializer API rules：
 - `generateCustomLocationId` 只用於 pure implementation 與 deterministic tests。
 - Generator 不屬於 user input。
 - Generator 不得存入 state。
-- Production generator implementation 尚未開始。
+- Pure initializer and generator injection contract are implemented.
+- Production startup/storage integration and production generator selection are not implemented.
 - Generator 回傳值必須符合 `custom:<generated-id>` 格式。
 - Generator 失敗、回傳重複 ID、或與 fixed system ID 衝突時，initialization 必須整體失敗。
 - The initializer must not mutate `input`, must not read or modify legacy state, and must not read or write localStorage.

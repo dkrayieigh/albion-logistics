@@ -58,25 +58,29 @@ npm test
 - Adapter / Migration 前置測試規劃見 `ADAPTER_TEST_PLAN.md`。
 - `ADAPTER_TEST_PLAN.md` 是 planning matrix，不代表 adapter 或 migration 已開始。
 
-### Future Clean Initialization Test Requirements
+### Clean Initialization Covered Regression Scope
 
-以下是 future clean-cutover 測試需求，不代表目前已新增正式測試：
+The pure `createCleanInitialState()` helper is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
 
 - New root state uses `schemaVersion: 1` and writes only to `albion-logistics-v2-state`.
-- First launch without new storage enters clean initialization flow.
-- Existing legacy keys trigger warning and do not auto-migrate legacy inventory.
-- Canceling initialization writes no new state and does not modify legacy keys.
+- Existing legacy keys are not auto-migrated by this helper.
 - Invalid cash/debt/inventory seed/custom location input returns machine-readable errors.
+- Cash/debt validation is covered.
+- Fixed registry output is covered.
+- Custom ID generation and generator failure boundaries are covered.
 - `customLocations[].clientRef` is input-only, trimmed, non-empty, unique, not stored, and not derived from `displayName`.
 - `inventorySeeds[].customLocationRef` must reference an input `clientRef`; unknown references fail.
 - Each inventory seed must provide exactly one of `locationId` or `customLocationRef`.
 - Duplicate `itemKey + resolved locationId` seed is invalid and is not auto-summed.
 - Duplicate custom display names and system-name conflicts are invalid.
+- Inventory seed validation, duplicate resolved identity, and cross-location cost consistency are covered.
 - Deterministic custom ID generation may be injected for tests, but generator output must be `custom:<generated-id>` and must not be user input or stored as generator metadata.
 - Successful initialization creates fixed system registry entries, generated custom IDs, seeded inventory only, empty transactions, and user-entered assets.
 - Successful initialization creates future canonical `laborerInventory` defaults using `滿日誌`; it must not use the current legacy storage key `滿日記本` in future new schema output.
-- New backup/export/import accepts only new schema and matching `schemaVersion`.
-- These future tests must not implement the initializer, switch writers, mutate legacy state, write `localStorage`, or start migration.
+- Atomic failure, input immutability, and localStorage immutability are covered.
+- New backup/export/import accepts only new schema and matching `schemaVersion` in future work; current helper does not implement backup.
+- This does not switch writers, mutate legacy state, write `localStorage`, connect backup import/export, connect UI, or start migration.
+
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。

@@ -43,10 +43,17 @@ npm test
 
 ## Location clean-cutover gaps
 
-- **Current implementation：** location quantity storage remains legacy `qtyByCity` with literal city/custom location string keys. Read-only adapters and resolver exist, but writer/storage paths do not use the future Location Registry model.
-- **Target behavior：** single-user clean cutover with new Location schema, `albion-logistics-v2-state`, manually initialized inventory/cash/cost basis, empty initial transactions, and external legacy backup archive.
-- **Schema contract status：** Location Registry shape、new root state、`qtyByLocation` inventory shape、clean initialization input/output、first-launch confirmation、error codes 與 backup boundary 已定義為 future target；尚未實作。
-- **Remaining gaps：** clean initialization tests-only contract, generated custom ID implementation, new writer API, new storage key implementation, new backup format implementation, manual initialization UI/flow, launch confirmation, release/smoke gate.
+- **Current implementation:** location quantity storage remains legacy `qtyByCity` with literal city/custom location string keys. Read-only adapters, resolver, and pure `createCleanInitialState()` exist, but writer/storage paths do not use the future Location Registry model.
+- **Target behavior:** single-user clean cutover with new Location schema, `albion-logistics-v2-state`, manually initialized inventory/cash/cost basis, empty initial transactions, and external legacy backup archive.
+- **Schema contract status:** Location Registry shape, new root state, `qtyByLocation` inventory shape, clean initialization input/output, error codes, and backup boundary are defined. Pure initializer helper is implemented and covered by regression tests. First-launch confirmation is not implemented.
+- **Remaining gaps:** new-schema storage adapter, storage key read/write implementation, launch confirmation, production ID generator decision/integration, writer integration, new backup export/import, UI/manual initialization flow, smoke/release gate.
+Current status override for clean initializer implementation:
+
+- **Current implemented:** schema contract exists, pure `createCleanInitialState()` exists, and the 14 clean initialization contract TODO anchors have been converted into regression coverage.
+- **Covered behavior:** initializer output uses the new root shape, fixed registry, `qtyByLocation`, future canonical `滿日誌` laborer defaults, ordered/unique errors, atomic failure, and input/localStorage immutability.
+- **Isolation boundary:** the helper remains isolated and is not production startup flow, migration runner, current storage writer, backup importer, writer integration, or UI integration.
+- **Remaining gaps:** new-schema storage adapter, storage key read/write implementation, launch confirmation, production ID generator decision/integration, writer integration, new backup export/import, UI/manual initialization flow, smoke/release gate.
+
 - **Risk：** High。涉及 storage schema、inventory、cash、backup 與 rollback 行為。
 - **Dependencies：** new schema docs/tests, writer tests, backup export/import tests, manual initialization contract, old backup archive, and explicit confirmation before ignoring legacy local data.
 
@@ -248,6 +255,7 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 | legacy 中文 item key + `qtyByCity` 仍可用 | current compatibility behavior | Tested | `tests/core-cost-regression.test.js` | 保護目前舊資料相容，不代表 Stable ID 遷移完成。 |
 | missing legacy item mapping explicit failure | minimal read-only item identity adapter exists | Tested | `tests/core-cost-regression.test.js` | `src/adapters/itemIdentity.js` 可在缺少 mapping 時明確失敗且不 mutate input；不代表 Stable ID migration、Stable ID catalog、storage key migration 或 legacy item key replacement 已完成。 |
 | legacy `qtyByCity` multi-location normalization tolerance | minimal read-only location adapter exists | Tested | `tests/backup-regression.test.js` | `src/adapters/locationAdapter.js` 可保留 legacy 多地點數量且不 mutate input；不代表 `qtyByLocation` migration、Location Registry migration 或 backup import/export migration 已完成。 |
+| clean initialization pure helper contract | isolated pure initializer implementation | Tested | `tests/backup-regression.test.js` | `src/adapters/cleanInitialState.js` implements `createCleanInitialState()` for new root shape, fixed registry, `qtyByLocation`, future canonical `滿日誌` laborer defaults, ordered/unique errors, atomic failure, and input/localStorage immutability. This does not connect storage, writer, backup, UI, first-launch flow, or migration. |
 | Inventory render/display normalized Location Adapter entry tolerance | minimal reader/display integration | Tested | `tests/core-cost-regression.test.js` | Inventory render/display path 可顯示 normalized Location Adapter entries；不代表 `qtyByCity` writer、`qtyByLocation` migration、Location Registry、storage shape、backup import/export、purchase/transport writers 或 `globalAvgCost` 已完成遷移。 |
 | 採購刪除轉 adjustment | current implementation | Tested | `tests/ledger-data-safety.test.js` | 原始交易保留，新增調整交易。 |
 | 庫存不足時阻擋 purchase reversal | current implementation | Tested | `tests/ledger-data-safety.test.js` | 不新增 adjustment，不改狀態。 |

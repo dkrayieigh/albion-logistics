@@ -360,6 +360,83 @@ Future helper draft，可作為 `readTransaction()` 的 normalized result shape�
 
 - 不得要求 current writer 改成 canonical event writer。
 
+## Clean Initialization Adapter API
+
+### `createCleanInitialState(input, options?)`
+
+Minimal pure implementation exists in `src/adapters/cleanInitialState.js`.
+
+This implementation matches the documented input/output contract and is covered by regression tests. It remains isolated: it does not read current state, does not read or write `localStorage`, does not connect to writers, does not connect to backup import/export, does not connect to UI, and does not start migration.
+
+**input**
+
+```js
+{
+  cash: Number,
+  debt?: Number,
+  customLocations?: [
+    {
+      clientRef: String,
+      displayName: String
+    }
+  ],
+  inventorySeeds?: [
+    {
+      itemKey: String,
+      locationId?: String,
+      customLocationRef?: String,
+      quantity: Number,
+      globalAvgCost?: Number | null
+    }
+  ]
+}
+```
+
+**options**
+
+```js
+{
+  generateCustomLocationId?: () => String
+}
+```
+
+**output**
+
+```js
+{
+  ok: Boolean,
+  state: Object | null,
+  errors: String[]
+}
+```
+
+**current implementation status**
+
+- Input/output contract is implemented.
+- Fixed registry entries are implemented.
+- Future canonical laborer defaults are implemented with `滿日誌`.
+- Deterministic generator injection is implemented for pure tests.
+- Error codes are returned in documented order and each code appears at most once.
+- `INITIALIZATION_ABORTED` is reserved for unclassified internal exception fallback.
+- Direct custom generated `locationId` is not accepted as input reference; custom inventory seeds must use `customLocationRef`.
+
+**must not mutate state**
+
+- Does not mutate `input`.
+- Does not read or mutate current state.
+- Does not read or write `localStorage`.
+- Does not write `albion-logistics-v2-state`.
+- Does not connect to `state.js`, writers, backup import/export, UI, first-launch flow, or migration.
+
+**future integration boundary**
+
+- Storage adapter boundary remains future work.
+- Production startup flow remains future work.
+- Production ID generator selection/integration remains future work.
+- Writer switch remains future work.
+- New backup export/import remains future work.
+- UI/manual initialization flow remains future work.
+
 ## 7. Backup Compatibility Adapter API
 
 ### `readBackupSnapshot(input)`
