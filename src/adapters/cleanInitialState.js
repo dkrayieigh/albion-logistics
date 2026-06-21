@@ -135,7 +135,7 @@ function validateCustomLocations(customLocations, options, errors) {
     if (
       typeof locationId !== 'string' ||
       !locationId.startsWith('custom:') ||
-      locationId.length <= 'custom:'.length ||
+      locationId.slice('custom:'.length).trim().length === 0 ||
       Object.hasOwn(FIXED_LOCATION_REGISTRY, locationId) ||
       generatedIds.has(locationId)
     ) {
@@ -156,7 +156,7 @@ function validateCustomLocations(customLocations, options, errors) {
   return { entries, refToLocationId, registryEntries };
 }
 
-function validateInventorySeeds(seeds, refToLocationId, errors) {
+function validateInventorySeeds(seeds, refToLocationId, errors, suppressCustomRefErrors = false) {
   const normalizedSeeds = [];
   const seedIdentities = new Set();
   const itemCosts = new Map();
@@ -188,11 +188,13 @@ function validateInventorySeeds(seeds, refToLocationId, errors) {
       pushError(errors, 'INVALID_LOCATION_REFERENCE');
     } else if (hasLocationId) {
       if (!locationId) pushError(errors, 'INVALID_LOCATION_REFERENCE');
-      else if (!Object.hasOwn(FIXED_LOCATION_REGISTRY, locationId) && ![...refToLocationId.values()].includes(locationId)) {
+      else if (!Object.hasOwn(FIXED_LOCATION_REGISTRY, locationId)) {
         pushError(errors, 'UNKNOWN_LOCATION_ID');
       } else resolvedLocationId = locationId;
     } else if (hasCustomRef) {
-      if (!customLocationRef || !refToLocationId.has(customLocationRef)) pushError(errors, 'INVALID_CUSTOM_LOCATION_REF');
+      if (!customLocationRef || !refToLocationId.has(customLocationRef)) {
+        if (!suppressCustomRefErrors) pushError(errors, 'INVALID_CUSTOM_LOCATION_REF');
+      }
       else resolvedLocationId = refToLocationId.get(customLocationRef);
     }
 
@@ -219,53 +221,65 @@ function validateInventorySeeds(seeds, refToLocationId, errors) {
 }
 
 export function createCleanInitialState(input, options = {}) {
-  const errors = [];
-  const source = isPlainObject(input) ? input : {};
-  const cash = source.cash;
-  const debt = Object.hasOwn(source, 'debt') ? source.debt : 0;
-  const customLocations = Object.hasOwn(source, 'customLocations') ? source.customLocations : [];
-  const inventorySeeds = Object.hasOwn(source, 'inventorySeeds') ? source.inventorySeeds : [];
+  try {
+    const errors = [];
+    const source = isPlainObject(input) ? input : {};
+    const cash = source.cash;
+    const debt = Object.hasOwn(source, 'debt') ? source.debt : 0;
+    const customLocations = Object.hasOwn(source, 'customLocations') ? source.customLocations : [];
+    const inventorySeeds = Object.hasOwn(source, 'inventorySeeds') ? source.inventorySeeds : [];
 
-  if (!isFiniteNumber(cash)) pushError(errors, 'INVALID_CASH');
-  if (!isFiniteNumber(debt)) pushError(errors, 'INVALID_DEBT');
+    if (!isFiniteNumber(cash)) pushError(errors, 'INVALID_CASH');
+    if (!isFiniteNumber(debt)) pushError(errors, 'INVALID_DEBT');
 
-  const customResult = validateCustomLocations(customLocations, options, errors);
-  const normalizedSeeds = validateInventorySeeds(inventorySeeds, customResult.refToLocationId, errors);
+    const customResult = validateCustomLocations(customLocations, options, errors);
+    const normalizedSeeds = validateInventorySeeds(
+      inventorySeeds,
+      customResult.refToLocationId,
+      errors,
+      errors.includes('CUSTOM_LOCATION_ID_GENERATION_FAILED')
+    );
 
-  if (errors.length > 0) {
-    pushError(errors, 'INITIALIZATION_ABORTED');
+    if (errors.length > 0) {
+      return {
+        ok: false,
+        state: null,
+        errors: orderedErrors(errors)
+      };
+    }
+
+    const inventory = {};
+    for (const seed of normalizedSeeds) {
+      if (!inventory[seed.itemKey]) {
+        inventory[seed.itemKey] = {
+          qtyByLocation: {},
+          globalAvgCost: seed.globalAvgCost
+        };
+      }
+      inventory[seed.itemKey].qtyByLocation[seed.locationId] = seed.quantity;
+    }
+
+    return {
+      ok: true,
+      state: {
+        schemaVersion: 1,
+        assets: { cash, debt },
+        inventory,
+        locationRegistry: {
+          ...cloneFixedRegistry(),
+          ...Object.fromEntries(customResult.registryEntries.map(entry => [entry.locationId, { ...entry }]))
+        },
+        transactions: [],
+        laborerInventory: buildLaborerInventory(),
+        laborerLogs: []
+      },
+      errors: []
+    };
+  } catch {
     return {
       ok: false,
       state: null,
-      errors: orderedErrors(errors)
+      errors: ['INITIALIZATION_ABORTED']
     };
   }
-
-  const inventory = {};
-  for (const seed of normalizedSeeds) {
-    if (!inventory[seed.itemKey]) {
-      inventory[seed.itemKey] = {
-        qtyByLocation: {},
-        globalAvgCost: seed.globalAvgCost
-      };
-    }
-    inventory[seed.itemKey].qtyByLocation[seed.locationId] = seed.quantity;
-  }
-
-  return {
-    ok: true,
-    state: {
-      schemaVersion: 1,
-      assets: { cash, debt },
-      inventory,
-      locationRegistry: {
-        ...cloneFixedRegistry(),
-        ...Object.fromEntries(customResult.registryEntries.map(entry => [entry.locationId, { ...entry }]))
-      },
-      transactions: [],
-      laborerInventory: buildLaborerInventory(),
-      laborerLogs: []
-    },
-    errors: []
-  };
 }

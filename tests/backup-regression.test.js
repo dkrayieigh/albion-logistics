@@ -276,8 +276,8 @@ const CLEAN_INITIALIZATION_ALL_LABORER_QUALITIES = [
   ])
 ];
 
-// Future contract only: errors are emitted in this order, each code at most once.
-// INITIALIZATION_ABORTED is the overall failure code; TODOs do not decide which failures must include it.
+// Future contract only: validation errors are emitted in this order, each code at most once.
+// INITIALIZATION_ABORTED is reserved for unclassified internal exception fallback.
 const CLEAN_INITIALIZATION_ERROR_ORDER = [
   'INVALID_CASH',
   'INVALID_DEBT',
@@ -1242,19 +1242,19 @@ test('createCleanInitialState rejects invalid cash or debt without returning par
   const cases = [
     {
       input: {},
-      errors: ['INVALID_CASH', 'INITIALIZATION_ABORTED']
+      errors: ['INVALID_CASH']
     },
     {
       input: { cash: NaN },
-      errors: ['INVALID_CASH', 'INITIALIZATION_ABORTED']
+      errors: ['INVALID_CASH']
     },
     {
       input: { cash: Infinity },
-      errors: ['INVALID_CASH', 'INITIALIZATION_ABORTED']
+      errors: ['INVALID_CASH']
     },
     {
       input: { cash: 0, debt: '1' },
-      errors: ['INVALID_DEBT', 'INITIALIZATION_ABORTED']
+      errors: ['INVALID_DEBT']
     },
     {
       input: {
@@ -1269,8 +1269,7 @@ test('createCleanInitialState rejects invalid cash or debt without returning par
         'SYSTEM_LOCATION_NAME_CONFLICT',
         'CUSTOM_LOCATION_ID_GENERATION_FAILED',
         'INVALID_INVENTORY_SEED',
-        'UNKNOWN_LOCATION_ID',
-        'INITIALIZATION_ABORTED'
+        'UNKNOWN_LOCATION_ID'
       ]
     }
   ];
@@ -1312,15 +1311,19 @@ test('createCleanInitialState generates custom location IDs without deriving the
   const failureCases = [
     {
       options: {},
-      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED']
     },
     {
       options: { generateCustomLocationId: () => 'warehouse-1' },
-      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED']
     },
     {
       options: { generateCustomLocationId: () => 'custom:' },
-      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED']
+    },
+    {
+      options: { generateCustomLocationId: () => 'custom:   ' },
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED']
     },
     {
       input: {
@@ -1331,7 +1334,7 @@ test('createCleanInitialState generates custom location IDs without deriving the
         ]
       },
       options: { generateCustomLocationId: () => 'custom:dup' },
-      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INITIALIZATION_ABORTED']
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED']
     },
     {
       options: {
@@ -1339,7 +1342,7 @@ test('createCleanInitialState generates custom location IDs without deriving the
           throw new Error('boom');
         }
       },
-      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']
+      errors: ['CUSTOM_LOCATION_ID_GENERATION_FAILED']
     }
   ];
 
@@ -1358,6 +1361,22 @@ test('createCleanInitialState resolves inventory customLocationRef through input
   const result = createCleanInitialState(input, {
     generateCustomLocationId: makeCustomLocationIdGenerator()
   });
+  const directCustomLocationId = createCleanInitialState(
+    {
+      ...input,
+      inventorySeeds: [
+        {
+          itemKey: customSeed.itemKey,
+          locationId: 'custom:test-001',
+          quantity: customSeed.quantity,
+          globalAvgCost: customSeed.globalAvgCost
+        }
+      ]
+    },
+    {
+      generateCustomLocationId: makeCustomLocationIdGenerator()
+    }
+  );
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.state.inventory[systemSeed.itemKey], {
@@ -1370,6 +1389,9 @@ test('createCleanInitialState resolves inventory customLocationRef through input
   });
   assert.equal(Object.hasOwn(result.state.inventory[customSeed.itemKey].qtyByLocation, customSeed.customLocationRef), false);
   assert.equal(Object.hasOwn(result.state, 'customLocationRef'), false);
+  assert.equal(directCustomLocationId.ok, false);
+  assert.equal(directCustomLocationId.state, null);
+  assert.deepEqual(directCustomLocationId.errors, ['UNKNOWN_LOCATION_ID']);
 });
 
 test('createCleanInitialState rejects duplicate clientRef and unknown customLocationRef values', { concurrency: false }, () => {
@@ -1405,10 +1427,10 @@ test('createCleanInitialState rejects duplicate clientRef and unknown customLoca
 
   assert.equal(duplicateRef.ok, false);
   assert.equal(duplicateRef.state, null);
-  assert.deepEqual(duplicateRef.errors, ['DUPLICATE_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(duplicateRef.errors, ['DUPLICATE_CUSTOM_LOCATION_REF']);
   assert.equal(unknownRef.ok, false);
   assert.equal(unknownRef.state, null);
-  assert.deepEqual(unknownRef.errors, ['INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(unknownRef.errors, ['INVALID_CUSTOM_LOCATION_REF']);
 });
 
 test('createCleanInitialState rejects duplicate custom display names after trim and case normalization', { concurrency: false }, () => {
@@ -1428,7 +1450,7 @@ test('createCleanInitialState rejects duplicate custom display names after trim 
 
   assert.equal(result.ok, false);
   assert.equal(result.state, null);
-  assert.deepEqual(result.errors, ['DUPLICATE_CUSTOM_LOCATION_NAME', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(result.errors, ['DUPLICATE_CUSTOM_LOCATION_NAME']);
 });
 
 test('createCleanInitialState rejects custom display names that conflict with system locations', { concurrency: false }, () => {
@@ -1446,7 +1468,7 @@ test('createCleanInitialState rejects custom display names that conflict with sy
 
   assert.equal(result.ok, false);
   assert.equal(result.state, null);
-  assert.deepEqual(result.errors, ['SYSTEM_LOCATION_NAME_CONFLICT', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(result.errors, ['SYSTEM_LOCATION_NAME_CONFLICT']);
 });
 
 test('createCleanInitialState requires exactly one locationId or customLocationRef per inventory seed', { concurrency: false }, () => {
@@ -1490,7 +1512,7 @@ test('createCleanInitialState requires exactly one locationId or customLocationR
 
     assert.equal(result.ok, false);
     assert.equal(result.state, null);
-    assert.deepEqual(result.errors, ['INVALID_LOCATION_REFERENCE', 'INITIALIZATION_ABORTED']);
+    assert.deepEqual(result.errors, ['INVALID_LOCATION_REFERENCE']);
   }
 });
 
@@ -1512,10 +1534,10 @@ test('createCleanInitialState rejects invalid inventory seeds and unknown system
 
   assert.equal(invalidSeed.ok, false);
   assert.equal(invalidSeed.state, null);
-  assert.deepEqual(invalidSeed.errors, ['INVALID_INVENTORY_SEED', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(invalidSeed.errors, ['INVALID_INVENTORY_SEED']);
   assert.equal(unknownLocation.ok, false);
   assert.equal(unknownLocation.state, null);
-  assert.deepEqual(unknownLocation.errors, ['UNKNOWN_LOCATION_ID', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(unknownLocation.errors, ['UNKNOWN_LOCATION_ID']);
 });
 
 test('createCleanInitialState rejects duplicate itemKey and resolved locationId seed identities', { concurrency: false }, () => {
@@ -1543,10 +1565,10 @@ test('createCleanInitialState rejects duplicate itemKey and resolved locationId 
 
   assert.equal(duplicateIdentity.ok, false);
   assert.equal(duplicateIdentity.state, null);
-  assert.deepEqual(duplicateIdentity.errors, ['DUPLICATE_INVENTORY_SEED', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(duplicateIdentity.errors, ['DUPLICATE_INVENTORY_SEED']);
   assert.equal(inconsistentCost.ok, false);
   assert.equal(inconsistentCost.state, null);
-  assert.deepEqual(inconsistentCost.errors, ['INVALID_INVENTORY_SEED', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(inconsistentCost.errors, ['INVALID_INVENTORY_SEED']);
   assert.equal(sameCostAcrossLocations.ok, true);
   assert.deepEqual(sameCostAcrossLocations.state.inventory['布料_6.1'], {
     qtyByLocation: { thetford: 1, martlock: -2 },
@@ -1590,7 +1612,7 @@ test('createCleanInitialState does not mutate input or legacy state and remains 
 
   assert.equal(failure.ok, false);
   assert.equal(failure.state, null);
-  assert.deepEqual(failure.errors, ['CUSTOM_LOCATION_ID_GENERATION_FAILED', 'INVALID_CUSTOM_LOCATION_REF', 'INITIALIZATION_ABORTED']);
+  assert.deepEqual(failure.errors, ['CUSTOM_LOCATION_ID_GENERATION_FAILED']);
   assert.equal(success.ok, true);
   assert.equal(JSON.stringify(input), inputBefore);
   assert.equal(JSON.stringify([...storage.entries()]), storageBefore);
