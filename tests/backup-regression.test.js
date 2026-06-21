@@ -243,6 +243,55 @@ function primaryLocationItemKey() {
   return Object.keys(makeLegacyLocationSnapshot().inventory)[0];
 }
 
+const CLEAN_INITIALIZATION_FIXED_SYSTEM_REGISTRY = [
+  'thetford',
+  'martlock',
+  'bridgewatch',
+  'lymhurst',
+  'fort_sterling',
+  'caerleon',
+  'brecilien',
+  'laborer_island'
+];
+
+const CLEAN_INITIALIZATION_LABORER_CATEGORIES = [
+  '鋼條',
+  '布料',
+  '板材',
+  '滿日誌'
+];
+
+function makeCleanInitializationInput() {
+  return {
+    cash: 5000000,
+    debt: 0,
+    customLocations: [
+      {
+        clientRef: 'warehouse-1',
+        displayName: '公會倉庫'
+      }
+    ],
+    inventorySeeds: [
+      {
+        itemKey: '布料_6.1',
+        locationId: 'thetford',
+        quantity: 54,
+        globalAvgCost: null
+      },
+      {
+        itemKey: '鋼條_6.2',
+        customLocationRef: 'warehouse-1',
+        quantity: 20,
+        globalAvgCost: 28738
+      }
+    ]
+  };
+}
+
+function makeCustomLocationIdGenerator() {
+  return () => 'custom:test-001';
+}
+
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
   resetMocks();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '測試交易' }));
@@ -1122,6 +1171,21 @@ test('D84: validateLocationMigration rejects malformed snapshots and invalid map
     assert.deepEqual(result.errors, errors);
   }
 });
+
+test.todo('createCleanInitialState should create a valid empty new-schema state');
+test.todo('createCleanInitialState should accept finite cash and default omitted debt to zero');
+test.todo('createCleanInitialState should reject invalid cash or debt without returning partial state');
+test.todo('createCleanInitialState should create every fixed system registry entry with matching locationId keys');
+test.todo('createCleanInitialState should generate custom location IDs without deriving them from displayName or clientRef');
+test.todo('createCleanInitialState should resolve inventory customLocationRef through input-only clientRef');
+test.todo('createCleanInitialState should reject duplicate clientRef and unknown customLocationRef values');
+test.todo('createCleanInitialState should reject duplicate custom display names after trim and case normalization');
+test.todo('createCleanInitialState should reject custom display names that conflict with system locations');
+test.todo('createCleanInitialState should require exactly one locationId or customLocationRef per inventory seed');
+test.todo('createCleanInitialState should reject invalid inventory seeds and unknown system locationIds');
+test.todo('createCleanInitialState should reject duplicate itemKey and resolved locationId seed identities');
+test.todo('createCleanInitialState should initialize empty transactions and canonical laborer defaults using 滿日誌 only');
+test.todo('createCleanInitialState should not mutate input or legacy state and should remain atomic on failure');
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
