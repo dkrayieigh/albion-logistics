@@ -3,9 +3,9 @@
 ## Current Status
 
 - Phase: legacy-compatible stabilization / clean-cutover preparation.
-- Test baseline: 156 tests / 156 pass / 0 fail / 0 TODO.
+- Test baseline: 168 tests / 168 pass / 0 fail / 0 TODO.
 - Selected Location strategy: single-user clean cutover.
-- Location schema contract: defined as future target, not implemented.
+- Location schema contract and pure state/codec helpers exist; schema persistence and production integration are not implemented.
 - Writer/storage migration: not started.
 
 ## Current Implemented Safety Layers
@@ -15,6 +15,7 @@
 - Location identity read-only resolver.
 - Location migration validator as research / verification utility.
 - Pure clean-state initializer: `createCleanInitialState()`.
+- Pure new-schema storage codec: `encodeNewSchemaState()` / `decodeNewSchemaState()`.
 - Transaction mixed-format reader.
 - Current regression suite.
 
@@ -34,6 +35,7 @@
 - New Location schema is not implemented.
 - New storage key `albion-logistics-v2-state` is selected but not implemented.
 - Pure initializer is implemented and tested but not integrated with state, storage, writer, backup, or UI.
+- The pure storage codec is implemented and tested but is not connected to `localStorage`, `state.js`, writers, backup, startup, or UI.
 - New writer tests are not created.
 - New backup export/import is not created.
 - Launch confirmation flow is not created.
@@ -41,8 +43,8 @@
 
 ## Next Approved Step
 
-- Define and test the new-schema storage adapter boundary.
-- Do not connect it to current `state.js`, writers, backup, or UI yet.
+- Define the tests-only new-schema storage repository contract using an injected key-value backend.
+- Do not access global `localStorage` or connect current `state.js`, writers, backup, startup, or UI yet.
 
 ## High-Risk Boundaries
 

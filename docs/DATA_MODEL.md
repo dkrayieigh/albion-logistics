@@ -10,6 +10,7 @@
 
 ## 🌳 狀態樹根結構(Root State)
 > Current production implementation 仍使用 legacy root shape。以下 clean-cutover root state 是 future storage target；pure `createCleanInitialState()` helper 已可產生此 shape，但尚未接入 `state.js`、localStorage、writer 或 backup code。
+> Pure clean initializer and pure schema codec are implemented. Persistence, startup loading, storage repository, writer and backup integration are not implemented.
 
 ### Clean-Cutover Root State — Future Target
 

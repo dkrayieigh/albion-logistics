@@ -46,7 +46,10 @@ Location schema contract 已定義為 future target，但尚未實作：
 - `qtyByLocation` 與 Location Registry 仍不是 current implementation。
 - `albion-logistics-v2-state` 已選定為 future clean-cutover storage key，但尚未實作。
 - current app 仍使用 legacy 分散 localStorage keys。
-- Future clean initialization contract 已定義，但 initializer、writer/storage switch 與 first-launch confirmation 尚未實作。
+- Future clean initialization contract 已定義，pure initializer 已實作；writer/storage switch 與 first-launch confirmation 尚未實作。
+- Pure clean initializer 與 pure new-schema storage codec 已實作並受測。
+- Actual persistence、production storage integration、startup loading、storage repository、writer integration、backup integration 與 UI integration 尚未實作。
+- 這不代表 new storage 已經被 current app 使用。
 
 ---
 

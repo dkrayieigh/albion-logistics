@@ -81,6 +81,26 @@ The pure `createCleanInitialState()` helper is covered by regression tests. Curr
 - New backup/export/import accepts only new schema and matching `schemaVersion` in future work; current helper does not implement backup.
 - This does not switch writers, mutate legacy state, write `localStorage`, connect backup import/export, connect UI, or start migration.
 
+### New-Schema Storage Codec Covered Regression Scope
+
+The pure `encodeNewSchemaState()` / `decodeNewSchemaState()` codec is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- Valid encode is covered.
+- Valid independent decode is covered.
+- Malformed JSON and non-string input rejection are covered.
+- `schemaVersion` and root-shape strictness are covered.
+- Assets validation is covered.
+- Fixed/custom Location Registry validation is covered.
+- Reordered fixed object fields are accepted where schema-equivalent.
+- `qtyByLocation` inventory and location references are covered.
+- Legacy field rejection is covered for `滿日記本`, `qtyByCity`, and `customLocations`.
+- JSON-safe transaction/log containers are covered.
+- Legal shared references are accepted.
+- Direct and indirect cycle rejection is covered.
+- Canonical laborer inventory using `滿日誌` is covered.
+- Purity, atomicity, and no `localStorage` access are covered.
+- This does not implement a storage repository, actual `albion-logistics-v2-state` get/set, startup loading, `state.js` integration, writers, backup import/export, UI, or migration.
+
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。

@@ -437,6 +437,66 @@ This implementation matches the documented input/output contract and is covered 
 - New backup export/import remains future work.
 - UI/manual initialization flow remains future work.
 
+## New-Schema Storage Codec API
+
+### `encodeNewSchemaState(state)`
+
+### `decodeNewSchemaState(serialized)`
+
+Minimal pure implementation exists in `src/adapters/newSchemaStorageCodec.js`.
+
+This codec validates and serializes the documented new schema shape. It is a pure boundary only: it does not read or write `localStorage`, does not connect to global state, does not connect to writers, does not connect to backup import/export, does not connect to UI, does not run startup loading, and does not start migration.
+
+**encode current behavior**
+
+- Validates complete `schemaVersion: 1` state.
+- Returns serialized JSON only on success.
+- Invalid state returns `serialized: null`.
+- Does not fill defaults.
+- Does not convert legacy data.
+- Does not mutate input.
+
+**decode current behavior**
+
+- Accepts string input only.
+- Malformed JSON fails explicitly.
+- Parsed state receives full validation.
+- Nested JSON-string legacy backup format is not re-parsed.
+- Success returns an independent parsed object.
+- Invalid state returns `state: null`.
+
+**validation coverage**
+
+- Strict root/model keys.
+- Assets validation.
+- Fixed/custom Location Registry validation.
+- `qtyByLocation` inventory and location references.
+- JSON-safe `transactions` and `laborerLogs` containers.
+- Canonical laborer categories and qualities.
+- Future canonical `滿日誌`.
+- Rejects legacy `滿日記本`, `qtyByCity`, and `customLocations`.
+- Ordered unique errors.
+- `STORAGE_CODEC_ABORTED` is reserved for unclassified internal fallback.
+
+**must not mutate or integrate**
+
+- No `localStorage` access.
+- No global state access.
+- No writer integration.
+- No backup integration.
+- No UI integration.
+- No startup integration.
+- No migration.
+
+**future integration boundary**
+
+- Storage repository remains future work.
+- Actual `albion-logistics-v2-state` get/set remains future work.
+- Startup load behavior remains future work.
+- Missing/corrupt storage handling remains future work.
+- Backup export/import remains future work.
+- Writer and UI integration remain future work.
+
 ## 7. Backup Compatibility Adapter API
 
 ### `readBackupSnapshot(input)`
