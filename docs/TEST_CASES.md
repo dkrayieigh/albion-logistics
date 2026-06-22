@@ -101,6 +101,26 @@ The pure `encodeNewSchemaState()` / `decodeNewSchemaState()` codec is covered by
 - Purity, atomicity, and no `localStorage` access are covered.
 - This does not implement a storage repository, actual `albion-logistics-v2-state` get/set, startup loading, `state.js` integration, writers, backup import/export, UI, or migration.
 
+### Injected New-Schema Storage Repository Covered Regression Scope
+
+The injected `createNewSchemaStorageRepository(backend)` repository is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- Valid fixed-key load is covered.
+- Missing load is covered.
+- Corrupt or invalid load is covered.
+- Backend read failure is covered.
+- Valid save is covered.
+- Invalid save no-write is covered.
+- Backend write failure and no-retry behavior are covered.
+- Invalid backend contracts are covered.
+- Throwing method getters are covered.
+- Backend methods are called with backend `this` binding.
+- Promise/thenable rejection behavior is covered.
+- Codec error passthrough is covered.
+- Legacy key isolation is covered.
+- Source isolation from global `localStorage`, startup, `state.js`, writers, backup, UI, and migration is covered.
+- This does not implement a global `localStorage` adapter, startup loader, autosave, production state writer, backup repository, or migration runner.
+
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。

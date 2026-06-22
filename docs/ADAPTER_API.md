@@ -490,12 +490,61 @@ This codec validates and serializes the documented new schema shape. It is a pur
 
 **future integration boundary**
 
-- Storage repository remains future work.
-- Actual `albion-logistics-v2-state` get/set remains future work.
+- Injected storage repository exists; production browser-storage backend binding remains future work.
+- Actual application `albion-logistics-v2-state` get/set remains future work.
 - Startup load behavior remains future work.
 - Missing/corrupt storage handling remains future work.
 - Backup export/import remains future work.
 - Writer and UI integration remain future work.
+
+## New-Schema Storage Repository API
+
+### `createNewSchemaStorageRepository(backend)`
+
+Minimal injected implementation exists in `src/adapters/newSchemaStorageRepository.js`.
+
+This repository wraps the pure codec with an injected synchronous key-value backend. It is not bound to global `localStorage`, does not connect to startup, does not connect to `state.js`, does not connect to writers, does not connect to backup import/export, does not connect to UI, and does not start migration.
+
+**factory behavior**
+
+- Returns an object with `load()` and `save(state)`.
+- Uses the fixed key `albion-logistics-v2-state`.
+- Requires an injected backend with synchronous `getItem(key)` and `setItem(key, value)` methods.
+- Calls backend methods with the backend as `this`.
+- Does not scan, delete, read, or write legacy keys.
+
+**load current behavior**
+
+- `loaded`: fixed key contains valid serialized new-schema state.
+- `missing`: fixed key returns `null`; this is not an error and does not create state.
+- `invalid`: fixed key contains serialized data that reaches the codec and fails validation; codec errors pass through.
+- `error`: invalid backend, throwing backend getter/method, non-string read result, thenable read result, or backend read failure.
+- Corrupt data does not trigger fallback, repair, or legacy import.
+
+**save current behavior**
+
+- `saved`: valid state is encoded and written once to the fixed key.
+- `invalid`: invalid state returns codec errors and does not write.
+- `error`: invalid backend, throwing backend getter/method, backend write failure, or thenable write result.
+- Backend write failure does not retry or clear existing storage.
+
+**boundary**
+
+- No global `localStorage`.
+- No startup integration.
+- No `state.js` integration.
+- No writer integration.
+- No backup integration.
+- No UI integration.
+- No migration.
+
+**future integration boundary**
+
+- Production browser-storage backend binding remains future work.
+- Startup load coordinator remains future work.
+- First-launch decision/confirmation remains future work.
+- Current state replacement remains future work.
+- Writer, backup, and UI integration remain future work.
 
 ## 7. Backup Compatibility Adapter API
 
