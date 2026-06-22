@@ -1,19 +1,21 @@
-const INVALID_BROWSER_STORAGE = ['INVALID_BROWSER_STORAGE'];
-
 function invalidBrowserStorageResult() {
   return {
     ok: false,
     backend: null,
-    errors: INVALID_BROWSER_STORAGE
+    errors: ['INVALID_BROWSER_STORAGE']
   };
 }
 
 function hasRejectedObjectShape(value) {
-  const tag = Object.prototype.toString.call(value);
-  return tag === '[object Array]' ||
-    tag === '[object Date]' ||
-    tag === '[object Map]' ||
-    tag === '[object Set]';
+  try {
+    const tag = Object.prototype.toString.call(value);
+    return tag === '[object Array]' ||
+      tag === '[object Date]' ||
+      tag === '[object Map]' ||
+      tag === '[object Set]';
+  } catch {
+    return true;
+  }
 }
 
 export function createBrowserStorageBackend(storage) {

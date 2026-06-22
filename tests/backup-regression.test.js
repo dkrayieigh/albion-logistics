@@ -2652,7 +2652,35 @@ test('browser storage backend should reject invalid or throwing storage method c
       get setItem() {
         throw new Error('getter failure');
       }
-    }
+    },
+    {
+      get [Symbol.toStringTag]() {
+        throw new Error('tag failure');
+      },
+      getItem() {},
+      setItem() {}
+    },
+    new Proxy(
+      {
+        getItem() {},
+        setItem() {}
+      },
+      {
+        get(target, prop, receiver) {
+          if (prop === Symbol.toStringTag) throw new Error('proxy tag failure');
+          return Reflect.get(target, prop, receiver);
+        }
+      }
+    ),
+    new Proxy(
+      {},
+      {
+        get(target, prop, receiver) {
+          if (prop === 'getItem') throw new Error('proxy method failure');
+          return Reflect.get(target, prop, receiver);
+        }
+      }
+    )
   ];
 
   for (const storageContract of invalidContracts) {
@@ -2663,6 +2691,15 @@ test('browser storage backend should reject invalid or throwing storage method c
       errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
     });
   }
+
+  const firstFailure = createBrowserStorageBackend(null);
+  const secondFailure = createBrowserStorageBackend(null);
+
+  assert.notEqual(firstFailure, secondFailure);
+  assert.notEqual(firstFailure.errors, secondFailure.errors);
+  firstFailure.errors.push('MUTATED');
+  assert.deepEqual(secondFailure.errors, BROWSER_STORAGE_BACKEND_ERROR_ORDER);
+  assert.deepEqual(createBrowserStorageBackend(null).errors, BROWSER_STORAGE_BACKEND_ERROR_ORDER);
 
   const readFailureBinding = createBrowserStorageBackend({
     getItem() {
