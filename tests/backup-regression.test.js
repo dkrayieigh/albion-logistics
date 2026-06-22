@@ -9,6 +9,7 @@ import {
   encodeNewSchemaState,
   decodeNewSchemaState
 } from '../src/adapters/newSchemaStorageCodec.js';
+import { createNewSchemaStorageRepository } from '../src/adapters/newSchemaStorageRepository.js';
 import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -2148,16 +2149,297 @@ test('new-schema storage codec should remain pure atomic and must not access loc
 // writer, backup, UI, or migration paths. Missing storage is not an error, corrupt storage
 // is reported without mutation or fallback, invalid state is not written, and backend read
 // or write failures are converted to repository errors without retries or clearing storage.
-test.todo('new-schema storage repository should load a valid state from the fixed storage key');
-test.todo('new-schema storage repository should report missing storage without creating or writing state');
-test.todo('new-schema storage repository should preserve codec errors for corrupt or invalid stored state');
-test.todo('new-schema storage repository should handle backend read failures without throwing');
-test.todo('new-schema storage repository should save a valid state through one encoded fixed-key write');
-test.todo('new-schema storage repository should reject invalid state without attempting a write');
-test.todo('new-schema storage repository should handle backend write failures without retrying or clearing storage');
-test.todo('new-schema storage repository should reject invalid injected backend contracts');
-test.todo('new-schema storage repository should never read write delete or scan legacy storage keys');
-test.todo('new-schema storage repository should remain isolated from global localStorage state startup writer backup and UI');
+test('new-schema storage repository should load a valid state from the fixed storage key', { concurrency: false }, () => {
+  const serialized = makeValidSerializedNewSchemaState();
+  const backend = makeInjectedStorageBackend({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+  const repository = createNewSchemaStorageRepository(backend);
+
+  const result = repository.load();
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'loaded');
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.state, decodeNewSchemaState(serialized).state);
+  assert.notEqual(result.state, decodeNewSchemaState(serialized).state);
+  assert.deepEqual(backend.calls, [{ method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }]);
+});
+
+test('new-schema storage repository should report missing storage without creating or writing state', { concurrency: false }, () => {
+  const backend = makeInjectedStorageBackend();
+  const repository = createNewSchemaStorageRepository(backend);
+
+  const result = repository.load();
+
+  assert.deepEqual(result, {
+    ok: true,
+    status: 'missing',
+    state: null,
+    errors: []
+  });
+  assert.deepEqual(backend.calls, [{ method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }]);
+  assert.equal(backend.entries.size, 0);
+});
+
+test('new-schema storage repository should preserve codec errors for corrupt or invalid stored state', { concurrency: false }, () => {
+  const unsupportedState = makeValidNewSchemaState();
+  unsupportedState.schemaVersion = 2;
+  const legacyState = makeValidNewSchemaState();
+  legacyState.customLocations = ['Legacy'];
+  const cases = [
+    {
+      serialized: '{invalid',
+      errors: ['INVALID_JSON']
+    },
+    {
+      serialized: JSON.stringify(unsupportedState),
+      errors: ['UNSUPPORTED_SCHEMA_VERSION']
+    },
+    {
+      serialized: JSON.stringify(legacyState),
+      errors: ['INVALID_ROOT_STATE', 'LEGACY_FIELD_NOT_ALLOWED']
+    }
+  ];
+
+  for (const { serialized, errors } of cases) {
+    const backend = makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: serialized });
+    const repository = createNewSchemaStorageRepository(backend);
+
+    const result = repository.load();
+
+    assert.deepEqual(result, {
+      ok: false,
+      status: 'invalid',
+      state: null,
+      errors
+    });
+    assert.deepEqual(backend.entries.get(NEW_SCHEMA_STORAGE_KEY), serialized);
+    assert.deepEqual(backend.calls, [{ method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }]);
+  }
+});
+
+test('new-schema storage repository should handle backend read failures without throwing', { concurrency: false }, () => {
+  const readFailureBackends = [
+    {
+      calls: [],
+      getItem(key) {
+        this.calls.push({ method: 'getItem', key });
+        throw new Error('read failed');
+      },
+      setItem() {
+        this.calls.push({ method: 'setItem' });
+      }
+    },
+    makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: 1 }),
+    makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: {} }),
+    makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: undefined }),
+    makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: Promise.resolve('{}') })
+  ];
+
+  for (const backend of readFailureBackends) {
+    const repository = createNewSchemaStorageRepository(backend);
+
+    assert.doesNotThrow(() => repository.load());
+    const result = repository.load();
+
+    assert.deepEqual(result, {
+      ok: false,
+      status: 'error',
+      state: null,
+      errors: ['STORAGE_READ_FAILED']
+    });
+    assert.equal(backend.calls.every(call => call.method !== 'setItem'), true);
+  }
+});
+
+test('new-schema storage repository should save a valid state through one encoded fixed-key write', { concurrency: false }, () => {
+  const state = makeValidNewSchemaState();
+  const before = JSON.stringify(state);
+  const backend = makeInjectedStorageBackend();
+  const repository = createNewSchemaStorageRepository(backend);
+
+  const result = repository.save(state);
+  const stored = backend.entries.get(NEW_SCHEMA_STORAGE_KEY);
+
+  assert.deepEqual(result, {
+    ok: true,
+    status: 'saved',
+    errors: []
+  });
+  assert.equal(JSON.stringify(state), before);
+  assert.deepEqual(backend.calls.map(call => call.method), ['setItem']);
+  assert.equal(backend.calls[0].key, NEW_SCHEMA_STORAGE_KEY);
+  assert.deepEqual(decodeNewSchemaState(stored).state, state);
+});
+
+test('new-schema storage repository should reject invalid state without attempting a write', { concurrency: false }, () => {
+  const invalidAssets = makeValidNewSchemaState();
+  invalidAssets.assets.cash = NaN;
+  const legacyInventory = makeValidNewSchemaState();
+  const itemKey = Object.keys(legacyInventory.inventory)[0];
+  legacyInventory.inventory[itemKey].qtyByCity = { Thetford: 1 };
+  const cases = [
+    {
+      state: invalidAssets,
+      errors: ['INVALID_ASSETS']
+    },
+    {
+      state: legacyInventory,
+      errors: ['INVALID_INVENTORY', 'LEGACY_FIELD_NOT_ALLOWED']
+    }
+  ];
+
+  for (const { state, errors } of cases) {
+    const backend = makeInjectedStorageBackend({ existing: 'value' });
+    const repository = createNewSchemaStorageRepository(backend);
+
+    const result = repository.save(state);
+
+    assert.deepEqual(result, {
+      ok: false,
+      status: 'invalid',
+      errors
+    });
+    assert.deepEqual(backend.calls, []);
+    assert.deepEqual([...backend.entries.entries()], [['existing', 'value']]);
+  }
+});
+
+test('new-schema storage repository should handle backend write failures without retrying or clearing storage', { concurrency: false }, () => {
+  const backend = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      return null;
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+      throw new Error('write failed');
+    },
+    removeItem(key) {
+      this.calls.push({ method: 'removeItem', key });
+    }
+  };
+  const repository = createNewSchemaStorageRepository(backend);
+
+  const result = repository.save(makeValidNewSchemaState());
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 'error',
+    errors: ['STORAGE_WRITE_FAILED']
+  });
+  assert.deepEqual(backend.calls.map(call => call.method), ['setItem']);
+
+  const asyncBackend = makeInjectedStorageBackend();
+  asyncBackend.setItem = (key, value) => {
+    asyncBackend.calls.push({ method: 'setItem', key, value });
+    return Promise.resolve();
+  };
+  const asyncResult = createNewSchemaStorageRepository(asyncBackend).save(makeValidNewSchemaState());
+
+  assert.deepEqual(asyncResult, {
+    ok: false,
+    status: 'error',
+    errors: ['STORAGE_WRITE_FAILED']
+  });
+  assert.deepEqual(asyncBackend.calls.map(call => call.method), ['setItem']);
+});
+
+test('new-schema storage repository should reject invalid injected backend contracts', { concurrency: false }, () => {
+  const invalidBackends = [
+    null,
+    [],
+    1,
+    'backend',
+    new Date(),
+    new Map(),
+    new Set(),
+    new (class Backend {
+      getItem() {}
+      setItem() {}
+    })(),
+    { setItem() {} },
+    { getItem() {} },
+    { getItem: 'not-function', setItem() {} },
+    { getItem() {}, setItem: 'not-function' }
+  ];
+
+  for (const backend of invalidBackends) {
+    const repository = createNewSchemaStorageRepository(backend);
+
+    assert.doesNotThrow(() => repository.load());
+    assert.doesNotThrow(() => repository.save(makeValidNewSchemaState()));
+    assert.deepEqual(repository.load(), {
+      ok: false,
+      status: 'error',
+      state: null,
+      errors: ['INVALID_STORAGE_BACKEND']
+    });
+    assert.deepEqual(repository.save(makeValidNewSchemaState()), {
+      ok: false,
+      status: 'error',
+      errors: ['INVALID_STORAGE_BACKEND']
+    });
+  }
+});
+
+test('new-schema storage repository should never read write delete or scan legacy storage keys', { concurrency: false }, () => {
+  const legacyEntries = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]));
+  const backend = makeInjectedStorageBackend({
+    ...legacyEntries,
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+  backend.removeItem = key => {
+    backend.calls.push({ method: 'removeItem', key });
+    throw new Error('unexpected remove');
+  };
+  backend.key = index => {
+    backend.calls.push({ method: 'key', index });
+    throw new Error('unexpected scan');
+  };
+  Object.defineProperty(backend, 'length', {
+    get() {
+      backend.calls.push({ method: 'length' });
+      throw new Error('unexpected length');
+    }
+  });
+  const repository = createNewSchemaStorageRepository(backend);
+
+  const loadResult = repository.load();
+  const saveResult = repository.save(makeValidNewSchemaState());
+
+  assert.equal(loadResult.ok, true);
+  assert.equal(saveResult.ok, true);
+  assert.deepEqual(
+    backend.calls.map(call => call.key).filter(Boolean),
+    [NEW_SCHEMA_STORAGE_KEY, NEW_SCHEMA_STORAGE_KEY]
+  );
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(backend.entries.get(key), legacyEntries[key]);
+  }
+  assert.equal(backend.calls.some(call => ['removeItem', 'key', 'length'].includes(call.method)), false);
+});
+
+test('new-schema storage repository should remain isolated from global localStorage state startup writer backup and UI', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    inventory: { legacy: { qtyByCity: { Thetford: 1 } } },
+    assets: { cash: 1, debt: 0 },
+    transactions: [{ type: 'legacy' }]
+  });
+  const before = storageSnapshot();
+  const backend = makeInjectedStorageBackend();
+  const repository = createNewSchemaStorageRepository(backend);
+
+  repository.save(makeValidNewSchemaState());
+  repository.load();
+
+  const source = readFileSync('src/adapters/newSchemaStorageRepository.js', 'utf8');
+  assert.equal(storageSnapshot(), before);
+  assert.doesNotMatch(source, /localStorage|window|document|state\.js|src\/app|component|backup|writer|removeItem|key\(|length|albion_crafting/i);
+});
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
