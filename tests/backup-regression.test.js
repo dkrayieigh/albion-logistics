@@ -1788,8 +1788,26 @@ test('new-schema storage codec should validate finite assets cash and debt', { c
 });
 
 test('new-schema storage codec should validate fixed and custom Location Registry entries', { concurrency: false }, () => {
+  const reorderedFixed = makeValidNewSchemaState();
+  reorderedFixed.locationRegistry.thetford = {
+    active: true,
+    type: 'system',
+    displayName: 'Thetford',
+    locationId: 'thetford'
+  };
+  assert.equal(encodeNewSchemaState(reorderedFixed).ok, true);
+
   const fixedChanged = makeValidNewSchemaState();
   fixedChanged.locationRegistry.thetford.type = 'custom';
+
+  const fixedExtraKey = makeValidNewSchemaState();
+  fixedExtraKey.locationRegistry.thetford.extra = true;
+
+  const fixedInactive = makeValidNewSchemaState();
+  fixedInactive.locationRegistry.thetford.active = false;
+
+  const fixedIdMismatch = makeValidNewSchemaState();
+  fixedIdMismatch.locationRegistry.thetford.locationId = 'martlock';
 
   const hideoutEntry = makeValidNewSchemaState();
   hideoutEntry.locationRegistry.hideout = {
@@ -1823,7 +1841,16 @@ test('new-schema storage codec should validate fixed and custom Location Registr
     active: true
   };
 
-  for (const state of [fixedChanged, hideoutEntry, invalidCustomId, duplicateCustomName, systemNameConflict]) {
+  for (const state of [
+    fixedChanged,
+    fixedExtraKey,
+    fixedInactive,
+    fixedIdMismatch,
+    hideoutEntry,
+    invalidCustomId,
+    duplicateCustomName,
+    systemNameConflict
+  ]) {
     const encoded = encodeNewSchemaState(state);
 
     assert.equal(encoded.ok, false);
@@ -1902,8 +1929,23 @@ test('new-schema storage codec should validate transactions and laborerLogs cont
   });
   assert.equal(encodeNewSchemaState(validUnknownFields).ok, true);
 
+  const shared = { note: 'shared' };
+  const sharedReferenceState = makeValidNewSchemaState();
+  sharedReferenceState.transactions = [
+    { payload: shared },
+    { payload: shared }
+  ];
+  const sharedEncoded = encodeNewSchemaState(sharedReferenceState);
+  const sharedDecoded = decodeNewSchemaState(sharedEncoded.serialized);
+
+  assert.equal(sharedEncoded.ok, true);
+  assert.equal(sharedDecoded.ok, true);
+  assert.deepEqual(sharedDecoded.state.transactions[0].payload, sharedDecoded.state.transactions[1].payload);
+
   const cyclicTransaction = {};
   cyclicTransaction.self = cyclicTransaction;
+  const indirectCycle = { child: {} };
+  indirectCycle.child.parent = indirectCycle;
   const cases = [
     {
       mutate: state => {
@@ -1931,6 +1973,30 @@ test('new-schema storage codec should validate transactions and laborerLogs cont
     },
     {
       mutate: state => {
+        state.transactions = [indirectCycle];
+      },
+      errors: ['INVALID_TRANSACTIONS']
+    },
+    {
+      mutate: state => {
+        state.transactions = [{ unsafe: undefined }];
+      },
+      errors: ['INVALID_TRANSACTIONS']
+    },
+    {
+      mutate: state => {
+        state.transactions = [{ unsafe: NaN }];
+      },
+      errors: ['INVALID_TRANSACTIONS']
+    },
+    {
+      mutate: state => {
+        state.transactions = [{ unsafe: Infinity }];
+      },
+      errors: ['INVALID_TRANSACTIONS']
+    },
+    {
+      mutate: state => {
         state.laborerLogs = [new Date()];
       },
       errors: ['INVALID_LABORER_LOGS']
@@ -1938,6 +2004,12 @@ test('new-schema storage codec should validate transactions and laborerLogs cont
     {
       mutate: state => {
         state.laborerLogs = [{ unsafe: new Map() }];
+      },
+      errors: ['INVALID_LABORER_LOGS']
+    },
+    {
+      mutate: state => {
+        state.laborerLogs = [{ unsafe: new Set() }];
       },
       errors: ['INVALID_LABORER_LOGS']
     }

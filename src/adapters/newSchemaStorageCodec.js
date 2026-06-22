@@ -90,9 +90,24 @@ function isJsonSafe(value, seen = new WeakSet()) {
   if (seen.has(value)) return false;
   seen.add(value);
 
-  if (Array.isArray(value)) return value.every(item => isJsonSafe(item, seen));
-  if (!isPlainObject(value)) return false;
-  return Object.values(value).every(item => isJsonSafe(item, seen));
+  try {
+    if (Array.isArray(value)) return value.every(item => isJsonSafe(item, seen));
+    if (!isPlainObject(value)) return false;
+    return Object.values(value).every(item => isJsonSafe(item, seen));
+  } finally {
+    seen.delete(value);
+  }
+}
+
+function matchesFixedLocationEntry(entry, fixedEntry) {
+  return (
+    isPlainObject(entry) &&
+    hasExactKeys(entry, ['locationId', 'displayName', 'type', 'active']) &&
+    entry.locationId === fixedEntry.locationId &&
+    entry.displayName === fixedEntry.displayName &&
+    entry.type === fixedEntry.type &&
+    entry.active === fixedEntry.active
+  );
 }
 
 function validateAssets(assets, errors) {
@@ -121,7 +136,7 @@ function validateLocationRegistry(locationRegistry, errors) {
 
   for (const [locationId, fixedEntry] of Object.entries(FIXED_LOCATION_REGISTRY)) {
     const entry = locationRegistry[locationId];
-    if (!isPlainObject(entry) || JSON.stringify(entry) !== JSON.stringify(fixedEntry)) valid = false;
+    if (!matchesFixedLocationEntry(entry, fixedEntry)) valid = false;
   }
 
   for (const [key, entry] of Object.entries(locationRegistry)) {
