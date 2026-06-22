@@ -2164,6 +2164,24 @@ test('new-schema storage repository should load a valid state from the fixed sto
   assert.deepEqual(result.state, decodeNewSchemaState(serialized).state);
   assert.notEqual(result.state, decodeNewSchemaState(serialized).state);
   assert.deepEqual(backend.calls, [{ method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }]);
+
+  const thisBoundBackend = {
+    entries: new Map([[NEW_SCHEMA_STORAGE_KEY, serialized]]),
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      return this.entries.has(key) ? this.entries.get(key) : null;
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+      this.entries.set(key, value);
+    }
+  };
+  const thisBoundResult = createNewSchemaStorageRepository(thisBoundBackend).load();
+
+  assert.equal(thisBoundResult.ok, true);
+  assert.equal(thisBoundResult.status, 'loaded');
+  assert.deepEqual(thisBoundBackend.calls, [{ method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }]);
 });
 
 test('new-schema storage repository should report missing storage without creating or writing state', { concurrency: false }, () => {
@@ -2234,7 +2252,14 @@ test('new-schema storage repository should handle backend read failures without 
     makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: 1 }),
     makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: {} }),
     makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: undefined }),
-    makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: Promise.resolve('{}') })
+    makeInjectedStorageBackend({ [NEW_SCHEMA_STORAGE_KEY]: Promise.resolve('{}') }),
+    makeInjectedStorageBackend({
+      [NEW_SCHEMA_STORAGE_KEY]: {
+        get then() {
+          throw new Error('then getter failure');
+        }
+      }
+    })
   ];
 
   for (const backend of readFailureBackends) {
@@ -2271,6 +2296,25 @@ test('new-schema storage repository should save a valid state through one encode
   assert.deepEqual(backend.calls.map(call => call.method), ['setItem']);
   assert.equal(backend.calls[0].key, NEW_SCHEMA_STORAGE_KEY);
   assert.deepEqual(decodeNewSchemaState(stored).state, state);
+
+  const thisBoundBackend = {
+    entries: new Map(),
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      return this.entries.has(key) ? this.entries.get(key) : null;
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+      this.entries.set(key, value);
+    }
+  };
+  const thisBoundSave = createNewSchemaStorageRepository(thisBoundBackend).save(state);
+
+  assert.equal(thisBoundSave.ok, true);
+  assert.equal(thisBoundSave.status, 'saved');
+  assert.deepEqual(thisBoundBackend.calls.map(call => call.method), ['setItem']);
+  assert.deepEqual(decodeNewSchemaState(thisBoundBackend.entries.get(NEW_SCHEMA_STORAGE_KEY)).state, state);
 });
 
 test('new-schema storage repository should reject invalid state without attempting a write', { concurrency: false }, () => {
@@ -2345,6 +2389,24 @@ test('new-schema storage repository should handle backend write failures without
     errors: ['STORAGE_WRITE_FAILED']
   });
   assert.deepEqual(asyncBackend.calls.map(call => call.method), ['setItem']);
+
+  const thenGetterBackend = makeInjectedStorageBackend();
+  thenGetterBackend.setItem = (key, value) => {
+    thenGetterBackend.calls.push({ method: 'setItem', key, value });
+    return {
+      get then() {
+        throw new Error('then getter failure');
+      }
+    };
+  };
+  const thenGetterResult = createNewSchemaStorageRepository(thenGetterBackend).save(makeValidNewSchemaState());
+
+  assert.deepEqual(thenGetterResult, {
+    ok: false,
+    status: 'error',
+    errors: ['STORAGE_WRITE_FAILED']
+  });
+  assert.deepEqual(thenGetterBackend.calls.map(call => call.method), ['setItem']);
 });
 
 test('new-schema storage repository should reject invalid injected backend contracts', { concurrency: false }, () => {
@@ -2360,6 +2422,20 @@ test('new-schema storage repository should reject invalid injected backend contr
       getItem() {}
       setItem() {}
     })(),
+    {
+      get getItem() {
+        throw new Error('getter failure');
+      },
+      setItem() {}
+    },
+    {
+      getItem() {
+        return null;
+      },
+      get setItem() {
+        throw new Error('getter failure');
+      }
+    },
     { setItem() {} },
     { getItem() {} },
     { getItem: 'not-function', setItem() {} },

@@ -12,15 +12,50 @@ function isPlainObject(value) {
 }
 
 function isThenable(value) {
-  return value !== null && typeof value === 'object' && typeof value.then === 'function';
+  try {
+    return (
+      value !== null &&
+      (typeof value === 'object' || typeof value === 'function') &&
+      typeof value.then === 'function'
+    );
+  } catch {
+    return true;
+  }
 }
 
-function isValidBackend(backend) {
-  return (
-    isPlainObject(backend) &&
-    typeof backend.getItem === 'function' &&
-    typeof backend.setItem === 'function'
-  );
+function resolveBackendMethods(backend) {
+  if (!isPlainObject(backend)) {
+    return {
+      ok: false,
+      getItem: null,
+      setItem: null
+    };
+  }
+
+  try {
+    const getItem = backend.getItem;
+    const setItem = backend.setItem;
+
+    if (typeof getItem !== 'function' || typeof setItem !== 'function') {
+      return {
+        ok: false,
+        getItem: null,
+        setItem: null
+      };
+    }
+
+    return {
+      ok: true,
+      getItem,
+      setItem
+    };
+  } catch {
+    return {
+      ok: false,
+      getItem: null,
+      setItem: null
+    };
+  }
 }
 
 function invalidBackendLoadResult() {
@@ -43,11 +78,12 @@ function invalidBackendSaveResult() {
 export function createNewSchemaStorageRepository(backend) {
   return {
     load() {
-      if (!isValidBackend(backend)) return invalidBackendLoadResult();
+      const methods = resolveBackendMethods(backend);
+      if (!methods.ok) return invalidBackendLoadResult();
 
       let serialized;
       try {
-        serialized = backend.getItem(NEW_SCHEMA_STORAGE_KEY);
+        serialized = methods.getItem.call(backend, NEW_SCHEMA_STORAGE_KEY);
       } catch {
         return {
           ok: false,
@@ -94,7 +130,8 @@ export function createNewSchemaStorageRepository(backend) {
     },
 
     save(state) {
-      if (!isValidBackend(backend)) return invalidBackendSaveResult();
+      const methods = resolveBackendMethods(backend);
+      if (!methods.ok) return invalidBackendSaveResult();
 
       const encoded = encodeNewSchemaState(state);
       if (!encoded.ok) {
@@ -106,7 +143,7 @@ export function createNewSchemaStorageRepository(backend) {
       }
 
       try {
-        const result = backend.setItem(NEW_SCHEMA_STORAGE_KEY, encoded.serialized);
+        const result = methods.setItem.call(backend, NEW_SCHEMA_STORAGE_KEY, encoded.serialized);
         if (isThenable(result)) {
           return {
             ok: false,
