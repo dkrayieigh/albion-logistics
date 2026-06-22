@@ -402,6 +402,30 @@ function makeValidSerializedNewSchemaState() {
   return encoded.serialized;
 }
 
+const BROWSER_STORAGE_BACKEND_ERROR_ORDER = [
+  'INVALID_BROWSER_STORAGE'
+];
+
+function makeBrowserStorageDouble(initialEntries = {}) {
+  const entries = new Map(Object.entries(initialEntries));
+  const calls = [];
+
+  return {
+    entries,
+    calls,
+
+    getItem(key) {
+      calls.push({ method: 'getItem', key });
+      return entries.has(key) ? entries.get(key) : null;
+    },
+
+    setItem(key, value) {
+      calls.push({ method: 'setItem', key, value });
+      entries.set(key, String(value));
+    }
+  };
+}
+
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
   resetMocks();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '測試交易' }));
@@ -2516,6 +2540,20 @@ test('new-schema storage repository should remain isolated from global localStor
   assert.equal(storageSnapshot(), before);
   assert.doesNotMatch(source, /localStorage|window|document|state\.js|src\/app|component|backup|writer|removeItem|key\(|length|albion_crafting/i);
 });
+
+// Future browser Storage backend binding contract:
+// createBrowserStorageBackend(storage) accepts only an explicit Storage-like object and
+// returns repository-compatible getItem/setItem methods. It must preserve storage as method
+// this, forward arguments without key transformation, and leave read/write operation errors
+// to the repository. The binding must not read global localStorage/window/document, import
+// repository/codec/state/startup/writer/backup/UI paths, inspect schema or keys, scan length,
+// call key(index), or delete storage entries.
+test.todo('browser storage backend should wrap a valid Storage-like object');
+test.todo('browser storage backend should preserve the original storage as method this');
+test.todo('browser storage backend should forward getItem and setItem arguments without transformation');
+test.todo('browser storage backend should reject invalid or throwing storage method contracts');
+test.todo('browser storage backend should not scan delete or inspect unrelated storage keys');
+test.todo('browser storage backend should remain isolated from global localStorage state startup writer backup and UI');
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
