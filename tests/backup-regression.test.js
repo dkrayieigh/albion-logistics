@@ -1,9 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { normalizeLocationMap } from '../src/adapters/locationAdapter.js';
 import { resolveLocationIdentity } from '../src/adapters/locationIdentity.js';
 import { validateLocationMigration } from '../src/adapters/locationMigrationValidator.js';
 import { createCleanInitialState } from '../src/adapters/cleanInitialState.js';
+import {
+  encodeNewSchemaState,
+  decodeNewSchemaState
+} from '../src/adapters/newSchemaStorageCodec.js';
 import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -1657,18 +1662,370 @@ test('createCleanInitialState does not mutate input or legacy state and remains 
 // and 滿日記本, while the canonical laborer category is 滿日誌. Transaction arrays are only
 // container-validated here; canonical event payload validation remains out of scope.
 // Invalid encode/decode returns no serialized/state payload, ordered unique errors, and no mutation.
-test.todo('encodeNewSchemaState should serialize a valid schemaVersion 1 clean state');
-test.todo('decodeNewSchemaState should parse and return an equivalent independent new-schema state');
-test.todo('new-schema storage codec should reject malformed JSON and non-string serialized input');
-test.todo('new-schema storage codec should reject missing or unsupported schemaVersion');
-test.todo('new-schema storage codec should validate finite assets cash and debt');
-test.todo('new-schema storage codec should validate fixed and custom Location Registry entries');
-test.todo('new-schema storage codec should validate qtyByLocation inventory and referenced locationIds');
-test.todo('new-schema storage codec should reject legacy customLocations and qtyByCity fields');
-test.todo('new-schema storage codec should validate transactions and laborerLogs containers without defining canonical events');
-test.todo('new-schema storage codec should validate canonical laborer inventory using 滿日誌 only');
-test.todo('new-schema storage codec should reject legacy 滿日記本 output keys');
-test.todo('new-schema storage codec should remain pure atomic and must not access localStorage');
+test('encodeNewSchemaState should serialize a valid schemaVersion 1 clean state', { concurrency: false }, () => {
+  const state = makeValidNewSchemaState();
+  const before = JSON.stringify(state);
+
+  const encoded = encodeNewSchemaState(state);
+
+  assert.equal(encoded.ok, true);
+  assert.equal(typeof encoded.serialized, 'string');
+  assert.deepEqual(encoded.errors, []);
+  assert.deepEqual(JSON.parse(encoded.serialized), state);
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(encoded.serialized.includes(NEW_SCHEMA_STORAGE_KEY), false);
+});
+
+test('decodeNewSchemaState should parse and return an equivalent independent new-schema state', { concurrency: false }, () => {
+  const state = makeValidNewSchemaState();
+  const encoded = encodeNewSchemaState(state);
+
+  const decoded = decodeNewSchemaState(encoded.serialized);
+
+  assert.equal(decoded.ok, true);
+  assert.deepEqual(decoded.errors, []);
+  assert.deepEqual(decoded.state, state);
+  assert.notEqual(decoded.state, state);
+  assert.notEqual(decoded.state.assets, state.assets);
+  assert.notEqual(decoded.state.inventory, state.inventory);
+  assert.notEqual(decoded.state.locationRegistry, state.locationRegistry);
+});
+
+test('new-schema storage codec should reject malformed JSON and non-string serialized input', { concurrency: false }, () => {
+  const validState = makeValidNewSchemaState();
+  const cases = [
+    {
+      result: decodeNewSchemaState(null),
+      errors: ['INVALID_SERIALIZED_INPUT']
+    },
+    {
+      result: decodeNewSchemaState({}),
+      errors: ['INVALID_SERIALIZED_INPUT']
+    },
+    {
+      result: decodeNewSchemaState('{invalid'),
+      errors: ['INVALID_JSON']
+    },
+    {
+      result: decodeNewSchemaState(JSON.stringify(JSON.stringify(validState))),
+      errors: ['INVALID_ROOT_STATE']
+    }
+  ];
+
+  for (const { result, errors } of cases) {
+    assert.equal(result.ok, false);
+    assert.equal(result.state, null);
+    assert.deepEqual(result.errors, errors);
+  }
+});
+
+test('new-schema storage codec should reject missing or unsupported schemaVersion', { concurrency: false }, () => {
+  const state = makeValidNewSchemaState();
+  const missingSchema = { ...state };
+  const extraRoot = { ...state, extra: true };
+  const missingRootField = { ...state };
+  delete missingSchema.schemaVersion;
+  delete missingRootField.assets;
+
+  const cases = [
+    {
+      state: missingSchema,
+      errors: ['INVALID_ROOT_STATE', 'UNSUPPORTED_SCHEMA_VERSION']
+    },
+    {
+      state: { ...state, schemaVersion: 2 },
+      errors: ['UNSUPPORTED_SCHEMA_VERSION']
+    },
+    {
+      state: extraRoot,
+      errors: ['INVALID_ROOT_STATE']
+    },
+    {
+      state: missingRootField,
+      errors: ['INVALID_ROOT_STATE', 'INVALID_ASSETS']
+    },
+    {
+      state: [],
+      errors: ['INVALID_ROOT_STATE']
+    },
+    {
+      state: new (class InvalidRoot {})(),
+      errors: ['INVALID_ROOT_STATE']
+    }
+  ];
+
+  for (const testCase of cases) {
+    const encoded = encodeNewSchemaState(testCase.state);
+
+    assert.equal(encoded.ok, false);
+    assert.equal(encoded.serialized, null);
+    assert.deepEqual(encoded.errors, testCase.errors);
+  }
+});
+
+test('new-schema storage codec should validate finite assets cash and debt', { concurrency: false }, () => {
+  const validNegativeAssets = makeValidNewSchemaState();
+  validNegativeAssets.assets.cash = -1;
+  validNegativeAssets.assets.debt = -2;
+
+  assert.equal(encodeNewSchemaState(validNegativeAssets).ok, true);
+
+  for (const assets of [
+    { cash: 1 },
+    { cash: 1, debt: 0, extra: true },
+    { cash: NaN, debt: 0 },
+    { cash: Infinity, debt: 0 },
+    { cash: 1, debt: '0' }
+  ]) {
+    const state = makeValidNewSchemaState();
+    state.assets = assets;
+    const encoded = encodeNewSchemaState(state);
+
+    assert.equal(encoded.ok, false);
+    assert.equal(encoded.serialized, null);
+    assert.deepEqual(encoded.errors, ['INVALID_ASSETS']);
+  }
+});
+
+test('new-schema storage codec should validate fixed and custom Location Registry entries', { concurrency: false }, () => {
+  const fixedChanged = makeValidNewSchemaState();
+  fixedChanged.locationRegistry.thetford.type = 'custom';
+
+  const hideoutEntry = makeValidNewSchemaState();
+  hideoutEntry.locationRegistry.hideout = {
+    locationId: 'hideout',
+    displayName: 'Hideout',
+    type: 'custom',
+    active: true
+  };
+
+  const invalidCustomId = makeValidNewSchemaState();
+  invalidCustomId.locationRegistry['custom:   '] = {
+    locationId: 'custom:   ',
+    displayName: 'Warehouse B',
+    type: 'custom',
+    active: true
+  };
+
+  const duplicateCustomName = makeValidNewSchemaState();
+  duplicateCustomName.locationRegistry['custom:test-002'] = {
+    locationId: 'custom:test-002',
+    displayName: ' 公會倉庫 ',
+    type: 'custom',
+    active: true
+  };
+
+  const systemNameConflict = makeValidNewSchemaState();
+  systemNameConflict.locationRegistry['custom:test-003'] = {
+    locationId: 'custom:test-003',
+    displayName: 'thetford',
+    type: 'custom',
+    active: true
+  };
+
+  for (const state of [fixedChanged, hideoutEntry, invalidCustomId, duplicateCustomName, systemNameConflict]) {
+    const encoded = encodeNewSchemaState(state);
+
+    assert.equal(encoded.ok, false);
+    assert.equal(encoded.serialized, null);
+    assert.deepEqual(encoded.errors, ['INVALID_LOCATION_REGISTRY']);
+  }
+});
+
+test('new-schema storage codec should validate qtyByLocation inventory and referenced locationIds', { concurrency: false }, () => {
+  const valid = makeValidNewSchemaState();
+  const itemKey = Object.keys(valid.inventory)[0];
+  valid.inventory[itemKey].qtyByLocation.martlock = -5;
+  valid.inventory[itemKey].globalAvgCost = 0;
+  assert.equal(encodeNewSchemaState(valid).ok, true);
+
+  const nullCost = makeValidNewSchemaState();
+  nullCost.inventory[itemKey].globalAvgCost = null;
+  assert.equal(encodeNewSchemaState(nullCost).ok, true);
+
+  for (const mutate of [
+    state => {
+      state.inventory[itemKey].qtyByLocation.unknown = 1;
+    },
+    state => {
+      state.inventory[itemKey].qtyByLocation.thetford = Infinity;
+    },
+    state => {
+      delete state.inventory[itemKey].globalAvgCost;
+    },
+    state => {
+      state.inventory[itemKey].globalAvgCost = '0';
+    },
+    state => {
+      state.inventory[` ${itemKey}`] = state.inventory[itemKey];
+      delete state.inventory[itemKey];
+    },
+    state => {
+      state.inventory[itemKey].extra = true;
+    }
+  ]) {
+    const state = makeValidNewSchemaState();
+    mutate(state);
+    const encoded = encodeNewSchemaState(state);
+
+    assert.equal(encoded.ok, false);
+    assert.equal(encoded.serialized, null);
+    assert.deepEqual(encoded.errors, ['INVALID_INVENTORY']);
+  }
+});
+
+test('new-schema storage codec should reject legacy customLocations and qtyByCity fields', { concurrency: false }, () => {
+  const rootLegacy = makeValidNewSchemaState();
+  rootLegacy.customLocations = ['Legacy Warehouse'];
+  const itemLegacy = makeValidNewSchemaState();
+  const itemKey = Object.keys(itemLegacy.inventory)[0];
+  itemLegacy.inventory[itemKey].qtyByCity = { Thetford: 1 };
+
+  const rootEncoded = encodeNewSchemaState(rootLegacy);
+  const itemEncoded = encodeNewSchemaState(itemLegacy);
+
+  assert.equal(rootEncoded.ok, false);
+  assert.deepEqual(rootEncoded.errors, ['INVALID_ROOT_STATE', 'LEGACY_FIELD_NOT_ALLOWED']);
+  assert.equal(itemEncoded.ok, false);
+  assert.deepEqual(itemEncoded.errors, ['INVALID_INVENTORY', 'LEGACY_FIELD_NOT_ALLOWED']);
+});
+
+test('new-schema storage codec should validate transactions and laborerLogs containers without defining canonical events', { concurrency: false }, () => {
+  const validUnknownFields = makeValidNewSchemaState();
+  validUnknownFields.transactions.push({
+    action: 'UNKNOWN_FUTURE_EVENT',
+    nested: { arbitrary: [null, true, 'text', 1] }
+  });
+  validUnknownFields.laborerLogs.push({
+    kind: 'UNKNOWN_FUTURE_LOG',
+    details: { note: 'json-safe' }
+  });
+  assert.equal(encodeNewSchemaState(validUnknownFields).ok, true);
+
+  const cyclicTransaction = {};
+  cyclicTransaction.self = cyclicTransaction;
+  const cases = [
+    {
+      mutate: state => {
+        state.transactions = {};
+      },
+      errors: ['INVALID_TRANSACTIONS']
+    },
+    {
+      mutate: state => {
+        state.transactions = [{ unsafe: () => 1 }];
+      },
+      errors: ['INVALID_TRANSACTIONS']
+    },
+    {
+      mutate: state => {
+        state.transactions = [{ unsafe: 1n }];
+      },
+      errors: ['INVALID_TRANSACTIONS']
+    },
+    {
+      mutate: state => {
+        state.transactions = [cyclicTransaction];
+      },
+      errors: ['INVALID_TRANSACTIONS']
+    },
+    {
+      mutate: state => {
+        state.laborerLogs = [new Date()];
+      },
+      errors: ['INVALID_LABORER_LOGS']
+    },
+    {
+      mutate: state => {
+        state.laborerLogs = [{ unsafe: new Map() }];
+      },
+      errors: ['INVALID_LABORER_LOGS']
+    }
+  ];
+
+  for (const { mutate, errors } of cases) {
+    const state = makeValidNewSchemaState();
+    mutate(state);
+    const encoded = encodeNewSchemaState(state);
+
+    assert.equal(encoded.ok, false);
+    assert.equal(encoded.serialized, null);
+    assert.deepEqual(encoded.errors, errors);
+  }
+});
+
+test('new-schema storage codec should validate canonical laborer inventory using 滿日誌 only', { concurrency: false }, () => {
+  const valid = makeValidNewSchemaState();
+  valid.laborerInventory['滿日誌']['6.1'] = -10;
+  assert.equal(encodeNewSchemaState(valid).ok, true);
+
+  const missingCategory = makeValidNewSchemaState();
+  delete missingCategory.laborerInventory['滿日誌'];
+
+  const extraCategory = makeValidNewSchemaState();
+  extraCategory.laborerInventory.Extra = {};
+
+  const missingQuality = makeValidNewSchemaState();
+  delete missingQuality.laborerInventory['滿日誌']['4.0'];
+
+  const extraQuality = makeValidNewSchemaState();
+  extraQuality.laborerInventory['滿日誌']['9.0'] = 0;
+
+  const invalidQuantity = makeValidNewSchemaState();
+  invalidQuantity.laborerInventory['滿日誌']['4.0'] = Infinity;
+
+  for (const state of [missingCategory, extraCategory, missingQuality, extraQuality, invalidQuantity]) {
+    const encoded = encodeNewSchemaState(state);
+
+    assert.equal(encoded.ok, false);
+    assert.equal(encoded.serialized, null);
+    assert.deepEqual(encoded.errors, ['INVALID_LABORER_INVENTORY']);
+  }
+});
+
+test('new-schema storage codec should reject legacy 滿日記本 output keys', { concurrency: false }, () => {
+  const state = makeValidNewSchemaState();
+  state.laborerInventory['滿日記本'] = {};
+
+  const encoded = encodeNewSchemaState(state);
+  const valid = makeValidNewSchemaState();
+
+  assert.equal(encoded.ok, false);
+  assert.equal(encoded.serialized, null);
+  assert.deepEqual(encoded.errors, ['INVALID_LABORER_INVENTORY', 'LEGACY_FIELD_NOT_ALLOWED']);
+  assert.equal(Object.hasOwn(valid.laborerInventory, '滿日誌'), true);
+  assert.equal(Object.hasOwn(valid.laborerInventory, '滿日記本'), false);
+});
+
+test('new-schema storage codec should remain pure atomic and must not access localStorage', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    inventory: { legacy: { qtyByCity: { Thetford: 1 } } },
+    assets: { cash: 1, debt: 0 },
+    transactions: [{ type: 'legacy' }]
+  });
+  const state = makeValidNewSchemaState();
+  const invalidState = makeValidNewSchemaState();
+  invalidState.assets.cash = NaN;
+  const stateBefore = JSON.stringify(state);
+  const invalidBeforeKeys = Object.keys(invalidState);
+  const storageBefore = storageSnapshot();
+
+  const encoded = encodeNewSchemaState(state);
+  const failedEncode = encodeNewSchemaState(invalidState);
+  const decoded = decodeNewSchemaState(encoded.serialized);
+  const source = readFileSync('src/adapters/newSchemaStorageCodec.js', 'utf8');
+
+  assert.equal(encoded.ok, true);
+  assert.equal(failedEncode.ok, false);
+  assert.equal(failedEncode.serialized, null);
+  assert.deepEqual(failedEncode.errors, ['INVALID_ASSETS']);
+  assert.equal(decoded.ok, true);
+  assert.equal(JSON.stringify(state), stateBefore);
+  assert.deepEqual(Object.keys(invalidState), invalidBeforeKeys);
+  assert.equal(storageSnapshot(), storageBefore);
+  assert.doesNotMatch(source, /localStorage|saveState|loadState|state\.js|document|window|src\/app|backup|writer/i);
+});
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
