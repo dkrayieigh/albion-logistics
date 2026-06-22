@@ -359,6 +359,48 @@ function makeValidNewSchemaState() {
   return result.state;
 }
 
+const NEW_SCHEMA_STORAGE_REPOSITORY_ERROR_ORDER = [
+  'INVALID_STORAGE_BACKEND',
+  'STORAGE_READ_FAILED',
+  'STORAGE_WRITE_FAILED'
+];
+
+const LEGACY_STORAGE_KEYS = [
+  'albion_crafting_stocks',
+  'albion_crafting_assets',
+  'albion_crafting_transactions',
+  'albion_crafting_laborer_stocks',
+  'albion_crafting_laborer_logs',
+  'albion_crafting_custom_locs'
+];
+
+function makeInjectedStorageBackend(initialEntries = {}) {
+  const entries = new Map(Object.entries(initialEntries));
+  const calls = [];
+
+  return {
+    calls,
+    entries,
+
+    getItem(key) {
+      calls.push({ method: 'getItem', key });
+      return entries.has(key) ? entries.get(key) : null;
+    },
+
+    setItem(key, value) {
+      calls.push({ method: 'setItem', key, value });
+      entries.set(key, value);
+    }
+  };
+}
+
+function makeValidSerializedNewSchemaState() {
+  const encoded = encodeNewSchemaState(makeValidNewSchemaState());
+
+  assert.equal(encoded.ok, true);
+  return encoded.serialized;
+}
+
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
   resetMocks();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '測試交易' }));
@@ -2098,6 +2140,24 @@ test('new-schema storage codec should remain pure atomic and must not access loc
   assert.equal(storageSnapshot(), storageBefore);
   assert.doesNotMatch(source, /localStorage|saveState|loadState|state\.js|document|window|src\/app|backup|writer/i);
 });
+
+// Future new-schema storage repository contract:
+// createNewSchemaStorageRepository(backend) exposes load() and save(state) over the fixed
+// NEW_SCHEMA_STORAGE_KEY. The repository only coordinates the storage codec and injected
+// key-value backend; it must not use global localStorage, legacy keys, state.js, startup,
+// writer, backup, UI, or migration paths. Missing storage is not an error, corrupt storage
+// is reported without mutation or fallback, invalid state is not written, and backend read
+// or write failures are converted to repository errors without retries or clearing storage.
+test.todo('new-schema storage repository should load a valid state from the fixed storage key');
+test.todo('new-schema storage repository should report missing storage without creating or writing state');
+test.todo('new-schema storage repository should preserve codec errors for corrupt or invalid stored state');
+test.todo('new-schema storage repository should handle backend read failures without throwing');
+test.todo('new-schema storage repository should save a valid state through one encoded fixed-key write');
+test.todo('new-schema storage repository should reject invalid state without attempting a write');
+test.todo('new-schema storage repository should handle backend write failures without retrying or clearing storage');
+test.todo('new-schema storage repository should reject invalid injected backend contracts');
+test.todo('new-schema storage repository should never read write delete or scan legacy storage keys');
+test.todo('new-schema storage repository should remain isolated from global localStorage state startup writer backup and UI');
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
