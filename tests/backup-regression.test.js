@@ -10,6 +10,7 @@ import {
   decodeNewSchemaState
 } from '../src/adapters/newSchemaStorageCodec.js';
 import { createNewSchemaStorageRepository } from '../src/adapters/newSchemaStorageRepository.js';
+import { createBrowserStorageBackend } from '../src/adapters/browserStorageBackend.js';
 import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -2548,12 +2549,197 @@ test('new-schema storage repository should remain isolated from global localStor
 // to the repository. The binding must not read global localStorage/window/document, import
 // repository/codec/state/startup/writer/backup/UI paths, inspect schema or keys, scan length,
 // call key(index), or delete storage entries.
-test.todo('browser storage backend should wrap a valid Storage-like object');
-test.todo('browser storage backend should preserve the original storage as method this');
-test.todo('browser storage backend should forward getItem and setItem arguments without transformation');
-test.todo('browser storage backend should reject invalid or throwing storage method contracts');
-test.todo('browser storage backend should not scan delete or inspect unrelated storage keys');
-test.todo('browser storage backend should remain isolated from global localStorage state startup writer backup and UI');
+test('browser storage backend should wrap a valid Storage-like object', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble();
+  const binding = createBrowserStorageBackend(storageDouble);
+
+  assert.deepEqual(binding, {
+    ok: true,
+    backend: binding.backend,
+    errors: []
+  });
+  assert.equal(typeof binding.backend.getItem, 'function');
+  assert.equal(typeof binding.backend.setItem, 'function');
+
+  const repository = createNewSchemaStorageRepository(binding.backend);
+  const state = makeValidNewSchemaState();
+  const saveResult = repository.save(state);
+  const loadResult = repository.load();
+
+  assert.equal(saveResult.ok, true);
+  assert.equal(saveResult.status, 'saved');
+  assert.equal(loadResult.ok, true);
+  assert.equal(loadResult.status, 'loaded');
+  assert.deepEqual(loadResult.state, state);
+});
+
+test('browser storage backend should preserve the original storage as method this', { concurrency: false }, () => {
+  class StorageDouble {
+    constructor(initialEntries = {}) {
+      this.entries = new Map(Object.entries(initialEntries));
+      this.calls = [];
+    }
+
+    getItem(key) {
+      this.calls.push({ method: 'getItem', thisValue: this, key });
+      return this.entries.has(key) ? this.entries.get(key) : null;
+    }
+
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', thisValue: this, key, value });
+      this.entries.set(key, String(value));
+    }
+  }
+
+  const storageDouble = new StorageDouble();
+  const binding = createBrowserStorageBackend(storageDouble);
+  const repository = createNewSchemaStorageRepository(binding.backend);
+
+  assert.equal(binding.ok, true);
+  assert.equal(repository.save(makeValidNewSchemaState()).ok, true);
+  assert.equal(repository.load().ok, true);
+  assert.equal(storageDouble.calls.every(call => call.thisValue === storageDouble), true);
+});
+
+test('browser storage backend should forward getItem and setItem arguments without transformation', { concurrency: false }, () => {
+  const key = { marker: 'key' };
+  const value = { marker: 'value' };
+  const calls = [];
+  const storageDouble = {
+    getItem(receivedKey) {
+      calls.push({ method: 'getItem', key: receivedKey });
+      return null;
+    },
+
+    setItem(receivedKey, receivedValue) {
+      calls.push({ method: 'setItem', key: receivedKey, value: receivedValue });
+    }
+  };
+  const binding = createBrowserStorageBackend(storageDouble);
+
+  assert.equal(binding.ok, true);
+  binding.backend.getItem(key);
+  binding.backend.setItem(key, value);
+
+  assert.equal(calls[0].key, key);
+  assert.equal(calls[1].key, key);
+  assert.equal(calls[1].value, value);
+});
+
+test('browser storage backend should reject invalid or throwing storage method contracts', { concurrency: false }, () => {
+  const invalidContracts = [
+    null,
+    undefined,
+    1,
+    'storage',
+    [],
+    new Date(),
+    new Map(),
+    new Set(),
+    {},
+    { getItem() {} },
+    { setItem() {} },
+    { getItem: 'not a function', setItem() {} },
+    { getItem() {}, setItem: 'not a function' },
+    {
+      get getItem() {
+        throw new Error('getter failure');
+      },
+      setItem() {}
+    },
+    {
+      getItem() {},
+      get setItem() {
+        throw new Error('getter failure');
+      }
+    }
+  ];
+
+  for (const storageContract of invalidContracts) {
+    assert.doesNotThrow(() => createBrowserStorageBackend(storageContract));
+    assert.deepEqual(createBrowserStorageBackend(storageContract), {
+      ok: false,
+      backend: null,
+      errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+    });
+  }
+
+  const readFailureBinding = createBrowserStorageBackend({
+    getItem() {
+      throw new Error('read failure');
+    },
+    setItem() {}
+  });
+  const writeFailureBinding = createBrowserStorageBackend({
+    getItem() {
+      return null;
+    },
+    setItem() {
+      throw new Error('write failure');
+    }
+  });
+
+  assert.equal(readFailureBinding.ok, true);
+  assert.deepEqual(createNewSchemaStorageRepository(readFailureBinding.backend).load(), {
+    ok: false,
+    status: 'error',
+    state: null,
+    errors: ['STORAGE_READ_FAILED']
+  });
+  assert.equal(writeFailureBinding.ok, true);
+  assert.deepEqual(createNewSchemaStorageRepository(writeFailureBinding.backend).save(makeValidNewSchemaState()), {
+    ok: false,
+    status: 'error',
+    errors: ['STORAGE_WRITE_FAILED']
+  });
+});
+
+test('browser storage backend should not scan delete or inspect unrelated storage keys', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble({
+    unrelated: 'keep',
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+  Object.defineProperty(storageDouble, 'length', {
+    get() {
+      storageDouble.calls.push({ method: 'length' });
+      throw new Error('unexpected length read');
+    }
+  });
+  storageDouble.key = index => {
+    storageDouble.calls.push({ method: 'key', index });
+    throw new Error('unexpected scan');
+  };
+  storageDouble.removeItem = key => {
+    storageDouble.calls.push({ method: 'removeItem', key });
+    throw new Error('unexpected delete');
+  };
+
+  const binding = createBrowserStorageBackend(storageDouble);
+  const repository = createNewSchemaStorageRepository(binding.backend);
+  const loadResult = repository.load();
+  const saveResult = repository.save(makeValidNewSchemaState());
+
+  assert.equal(loadResult.ok, true);
+  assert.equal(saveResult.ok, true);
+  assert.equal(storageDouble.entries.get('unrelated'), 'keep');
+  assert.deepEqual(storageDouble.calls.map(call => call.method), ['getItem', 'setItem']);
+  assert.equal(storageDouble.calls.some(call => ['removeItem', 'key', 'length'].includes(call.method)), false);
+});
+
+test('browser storage backend should remain isolated from global localStorage state startup writer backup and UI', { concurrency: false }, () => {
+  const before = storageSnapshot();
+  const storageDouble = makeBrowserStorageDouble();
+  const binding = createBrowserStorageBackend(storageDouble);
+
+  assert.equal(binding.ok, true);
+  binding.backend.setItem('isolated', 'value');
+  binding.backend.getItem('isolated');
+
+  const source = readFileSync('src/adapters/browserStorageBackend.js', 'utf8');
+  assert.equal(storageSnapshot(), before);
+  assert.doesNotMatch(source, /\bglobalThis\b|\bwindow\b|\bdocument\b|\blocalStorage\b/);
+  assert.doesNotMatch(source, /state\.js|src\/app|component|backup|writer|repository|codec|removeItem|key\(|length|albion_crafting|NEW_SCHEMA_STORAGE_KEY/i);
+});
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
