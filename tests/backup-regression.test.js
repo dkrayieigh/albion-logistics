@@ -325,6 +325,35 @@ function makeCustomLocationIdGenerator() {
   return () => 'custom:test-001';
 }
 
+const NEW_SCHEMA_STORAGE_KEY = 'albion-logistics-v2-state';
+
+const NEW_SCHEMA_STORAGE_ERROR_ORDER = [
+  'INVALID_SERIALIZED_INPUT',
+  'INVALID_JSON',
+  'INVALID_ROOT_STATE',
+  'UNSUPPORTED_SCHEMA_VERSION',
+  'INVALID_ASSETS',
+  'INVALID_LOCATION_REGISTRY',
+  'INVALID_INVENTORY',
+  'INVALID_TRANSACTIONS',
+  'INVALID_LABORER_INVENTORY',
+  'INVALID_LABORER_LOGS',
+  'LEGACY_FIELD_NOT_ALLOWED',
+  'STORAGE_CODEC_ABORTED'
+];
+
+function makeValidNewSchemaState() {
+  const result = createCleanInitialState(
+    makeCleanInitializationInput(),
+    {
+      generateCustomLocationId: makeCustomLocationIdGenerator()
+    }
+  );
+
+  assert.equal(result.ok, true);
+  return result.state;
+}
+
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
   resetMocks();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '測試交易' }));
@@ -1618,6 +1647,28 @@ test('createCleanInitialState does not mutate input or legacy state and remains 
   assert.equal(JSON.stringify([...storage.entries()]), storageBefore);
   assert.doesNotMatch(source, /localStorage|saveState|initDefaultState|document|window/i);
 });
+
+// Future new-schema storage codec contract:
+// encodeNewSchemaState/decodeNewSchemaState are pure validation and serialization boundaries
+// for NEW_SCHEMA_STORAGE_KEY only. They must not access localStorage, current global state,
+// DOM events, writer paths, or backup code, and they must not perform legacy migration.
+// Root state is schemaVersion:1 with assets, inventory, locationRegistry, transactions,
+// laborerInventory, and laborerLogs. New-schema output forbids customLocations, qtyByCity,
+// and 滿日記本, while the canonical laborer category is 滿日誌. Transaction arrays are only
+// container-validated here; canonical event payload validation remains out of scope.
+// Invalid encode/decode returns no serialized/state payload, ordered unique errors, and no mutation.
+test.todo('encodeNewSchemaState should serialize a valid schemaVersion 1 clean state');
+test.todo('decodeNewSchemaState should parse and return an equivalent independent new-schema state');
+test.todo('new-schema storage codec should reject malformed JSON and non-string serialized input');
+test.todo('new-schema storage codec should reject missing or unsupported schemaVersion');
+test.todo('new-schema storage codec should validate finite assets cash and debt');
+test.todo('new-schema storage codec should validate fixed and custom Location Registry entries');
+test.todo('new-schema storage codec should validate qtyByLocation inventory and referenced locationIds');
+test.todo('new-schema storage codec should reject legacy customLocations and qtyByCity fields');
+test.todo('new-schema storage codec should validate transactions and laborerLogs containers without defining canonical events');
+test.todo('new-schema storage codec should validate canonical laborer inventory using 滿日誌 only');
+test.todo('new-schema storage codec should reject legacy 滿日記本 output keys');
+test.todo('new-schema storage codec should remain pure atomic and must not access localStorage');
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
