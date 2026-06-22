@@ -2778,6 +2778,19 @@ test('browser storage backend should remain isolated from global localStorage st
   assert.doesNotMatch(source, /state\.js|src\/app|component|backup|writer|repository|codec|removeItem|key\(|length|albion_crafting|NEW_SCHEMA_STORAGE_KEY/i);
 });
 
+// Future browser new-schema repository composition contract:
+// createBrowserNewSchemaRepository(storage) only composes createBrowserStorageBackend(storage)
+// with createNewSchemaStorageRepository(backend). It accepts explicit Storage-like input only,
+// returns { ok:true, repository, errors:[] } or { ok:false, repository:null, errors:['INVALID_BROWSER_STORAGE'] },
+// preserves browser binding error semantics, creates no new storage error taxonomy, and must not
+// read global localStorage, call load/save, mutate storage, inspect keys, or touch state/startup/writer/backup/UI/migration paths.
+test.todo('createBrowserNewSchemaRepository should compose a repository from an explicitly injected valid Storage-like object');
+test.todo('createBrowserNewSchemaRepository should return a controlled invalid-binding result without creating a repository');
+test.todo('createBrowserNewSchemaRepository should preserve repository fixed-key save/load behavior through the composed boundary');
+test.todo('createBrowserNewSchemaRepository should not read global localStorage when explicit storage is supplied');
+test.todo('createBrowserNewSchemaRepository should not call load save or mutate storage during composition');
+test.todo('createBrowserNewSchemaRepository should remain isolated from state startup writer backup UI and migration paths');
+
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
   const validAssets = { cash: 3000000, debt: 0 };
