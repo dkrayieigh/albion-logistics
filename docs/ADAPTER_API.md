@@ -490,7 +490,7 @@ This codec validates and serializes the documented new schema shape. It is a pur
 
 **future integration boundary**
 
-- Injected storage repository and explicit injected browser Storage backend binding exist; production bootstrap and composition remain future work.
+- Injected storage repository, explicit injected browser Storage backend binding, and explicit browser new-schema repository composition helper exist; production bootstrap invocation remains future work.
 - Actual application `albion-logistics-v2-state` get/set remains future work.
 - Startup load behavior remains future work.
 - Missing/corrupt storage handling remains future work.
@@ -540,8 +540,7 @@ This repository wraps the pure codec with an injected synchronous key-value back
 
 **future integration boundary**
 
-- Explicit browser Storage backend binding exists, but production bootstrap has not acquired global `localStorage`.
-- Production backend + repository composition remains future work.
+- Explicit browser Storage backend binding and browser new-schema repository composition helper exist, but production bootstrap has not acquired global `localStorage` or called the helper.
 - Startup load coordinator remains future work.
 - First-launch decision/confirmation remains future work.
 - Current state replacement remains future work.
@@ -588,6 +587,54 @@ This helper binds an explicitly injected browser `Storage`-like object to the re
 - Does not scan `length`, call `key(index)`, call `removeItem`, delete data, or inspect unrelated keys.
 - Does not compose itself with `createNewSchemaStorageRepository(backend)` in production.
 - Does not connect startup, `state.js`, writers, autosave, backup import/export, UI, migration, or legacy fallback.
+
+## Browser New-Schema Repository Composition API
+
+### `createBrowserNewSchemaRepository(storage)`
+
+Minimal isolated implementation exists in `src/adapters/browserNewSchemaRepository.js`.
+
+This helper only composes two existing helpers:
+
+```js
+explicit Storage-like object
+  -> createBrowserStorageBackend(storage)
+  -> createNewSchemaStorageRepository(binding.backend)
+```
+
+It does not acquire global `localStorage`, does not call `load()`, does not call `save(state)`, does not run at startup, does not persist application state by itself, and does not connect to `state.js`, writers, backup import/export, UI, migration, or legacy fallback.
+
+**input**
+
+- `storage`: an explicit Storage-like object supplied by the caller.
+- Required methods are inherited from `createBrowserStorageBackend(storage)`: synchronous `getItem(key)` and `setItem(key, value)`.
+
+**output**
+
+- Success: `{ ok: true, repository, errors: [] }`.
+- `repository` is the result of `createNewSchemaStorageRepository(binding.backend)`.
+- Failure: `{ ok: false, repository: null, errors: ['INVALID_BROWSER_STORAGE'] }`.
+
+**error behavior**
+
+- Browser storage binding validation errors pass through unchanged.
+- This helper does not create a new storage error taxonomy.
+- Repository operation errors remain handled by repository `load()` / `save(state)` calls after composition.
+
+**composition boundary**
+
+- Composition itself performs zero storage operations.
+- It does not read from storage, write to storage, inspect keys, call `load()`, call `save(state)`, or mutate the injected storage object.
+- It does not read `globalThis`, `window`, `document`, or global `localStorage`.
+
+**production integration boundary**
+
+- Not a startup loader.
+- Not production persistence integration.
+- Not state replacement.
+- Not autosave or writer integration.
+- Not backup import/export integration.
+- Not migration or legacy fallback removal.
 
 ## 7. Backup Compatibility Adapter API
 

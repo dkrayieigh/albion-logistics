@@ -133,6 +133,18 @@ The explicit `createBrowserStorageBackend(storage)` binding is covered by regres
 - Source isolation from global `localStorage`, startup, `state.js`, writers, backup, UI, and migration is covered.
 - This does not implement production bootstrap, state replacement, autosave, writer integration, backup import/export, UI persistence, migration, or legacy fallback removal.
 
+### Browser New-Schema Repository Composition Covered Regression Scope
+
+The explicit `createBrowserNewSchemaRepository(storage)` composition helper is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- Valid explicit Storage-like input composes a repository.
+- Invalid browser storage binding returns `{ ok: false, repository: null, errors: ['INVALID_BROWSER_STORAGE'] }`.
+- Composed repository fixed-key save/load behavior is preserved.
+- Explicit storage input does not cause global `localStorage` reads.
+- Composition itself does not call load/save or mutate storage.
+- Source isolation from startup, `state.js`, writers, backup, UI, migration, global browser storage acquisition, and legacy fallback removal is covered.
+- This does not implement production bootstrap, state replacement, autosave, writer integration, backup import/export, UI persistence, migration, or legacy fallback removal.
+
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。
