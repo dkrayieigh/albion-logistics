@@ -11,6 +11,7 @@ import {
 } from '../src/adapters/newSchemaStorageCodec.js';
 import { createNewSchemaStorageRepository } from '../src/adapters/newSchemaStorageRepository.js';
 import { createBrowserStorageBackend } from '../src/adapters/browserStorageBackend.js';
+import { createBrowserNewSchemaRepository } from '../src/adapters/browserNewSchemaRepository.js';
 import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -2784,12 +2785,91 @@ test('browser storage backend should remain isolated from global localStorage st
 // returns { ok:true, repository, errors:[] } or { ok:false, repository:null, errors:['INVALID_BROWSER_STORAGE'] },
 // preserves browser binding error semantics, creates no new storage error taxonomy, and must not
 // read global localStorage, call load/save, mutate storage, inspect keys, or touch state/startup/writer/backup/UI/migration paths.
-test.todo('createBrowserNewSchemaRepository should compose a repository from an explicitly injected valid Storage-like object');
-test.todo('createBrowserNewSchemaRepository should return a controlled invalid-binding result without creating a repository');
-test.todo('createBrowserNewSchemaRepository should preserve repository fixed-key save/load behavior through the composed boundary');
-test.todo('createBrowserNewSchemaRepository should not read global localStorage when explicit storage is supplied');
-test.todo('createBrowserNewSchemaRepository should not call load save or mutate storage during composition');
-test.todo('createBrowserNewSchemaRepository should remain isolated from state startup writer backup UI and migration paths');
+test('createBrowserNewSchemaRepository should compose a repository from an explicitly injected valid Storage-like object', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble();
+  const result = createBrowserNewSchemaRepository(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.equal(typeof result.repository.load, 'function');
+  assert.equal(typeof result.repository.save, 'function');
+  assert.deepEqual(storageDouble.calls, []);
+});
+
+test('createBrowserNewSchemaRepository should return a controlled invalid-binding result without creating a repository', { concurrency: false }, () => {
+  const result = createBrowserNewSchemaRepository(null);
+  const hostileResult = createBrowserNewSchemaRepository({
+    get [Symbol.toStringTag]() {
+      throw new Error('tag failure');
+    },
+    getItem() {},
+    setItem() {}
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    repository: null,
+    errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+  });
+  assert.deepEqual(hostileResult, {
+    ok: false,
+    repository: null,
+    errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+  });
+  assert.notEqual(result.errors, hostileResult.errors);
+});
+
+test('createBrowserNewSchemaRepository should preserve repository fixed-key save/load behavior through the composed boundary', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble();
+  const result = createBrowserNewSchemaRepository(storageDouble);
+  const state = makeValidNewSchemaState();
+
+  const saveResult = result.repository.save(state);
+  const loadResult = result.repository.load();
+
+  assert.equal(saveResult.ok, true);
+  assert.equal(saveResult.status, 'saved');
+  assert.equal(loadResult.ok, true);
+  assert.equal(loadResult.status, 'loaded');
+  assert.deepEqual(loadResult.state, state);
+  assert.deepEqual(
+    storageDouble.calls.map(call => call.key),
+    [NEW_SCHEMA_STORAGE_KEY, NEW_SCHEMA_STORAGE_KEY]
+  );
+});
+
+test('createBrowserNewSchemaRepository should not read global localStorage when explicit storage is supplied', { concurrency: false }, () => {
+  const before = storageSnapshot();
+  const storageDouble = makeBrowserStorageDouble();
+  const result = createBrowserNewSchemaRepository(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(storageDouble.calls, []);
+  assert.equal(storageSnapshot(), before);
+});
+
+test('createBrowserNewSchemaRepository should not call load save or mutate storage during composition', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble({ existing: 'keep' });
+  const beforeEntries = Array.from(storageDouble.entries.entries());
+  const result = createBrowserNewSchemaRepository(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(storageDouble.calls, []);
+  assert.deepEqual(Array.from(storageDouble.entries.entries()), beforeEntries);
+});
+
+test('createBrowserNewSchemaRepository should remain isolated from state startup writer backup UI and migration paths', { concurrency: false }, () => {
+  const before = storageSnapshot();
+  const storageDouble = makeBrowserStorageDouble();
+  const result = createBrowserNewSchemaRepository(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.equal(storageSnapshot(), before);
+
+  const source = readFileSync('src/adapters/browserNewSchemaRepository.js', 'utf8');
+  assert.doesNotMatch(source, /\bglobalThis\b|\bwindow\b|\bdocument\b|\blocalStorage\b/);
+  assert.doesNotMatch(source, /state\.js|src\/app|component|backup|writer|startup|migration|removeItem|key\(|length|albion_crafting/i);
+});
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
   const validInventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
