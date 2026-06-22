@@ -490,7 +490,7 @@ This codec validates and serializes the documented new schema shape. It is a pur
 
 **future integration boundary**
 
-- Injected storage repository exists; production browser-storage backend binding remains future work.
+- Injected storage repository and explicit injected browser Storage backend binding exist; production bootstrap and composition remain future work.
 - Actual application `albion-logistics-v2-state` get/set remains future work.
 - Startup load behavior remains future work.
 - Missing/corrupt storage handling remains future work.
@@ -540,11 +540,54 @@ This repository wraps the pure codec with an injected synchronous key-value back
 
 **future integration boundary**
 
-- Production browser-storage backend binding remains future work.
+- Explicit browser Storage backend binding exists, but production bootstrap has not acquired global `localStorage`.
+- Production backend + repository composition remains future work.
 - Startup load coordinator remains future work.
 - First-launch decision/confirmation remains future work.
 - Current state replacement remains future work.
 - Writer, backup, and UI integration remain future work.
+
+## Browser Storage Backend Binding API
+
+### `createBrowserStorageBackend(storage)`
+
+Minimal isolated implementation exists in `src/adapters/browserStorageBackend.js`.
+
+This helper binds an explicitly injected browser `Storage`-like object to the repository-compatible key-value backend shape. It does not acquire global `localStorage`, does not run at startup, does not persist application state by itself, and does not connect to `state.js`, writers, backup import/export, UI, or migration.
+
+**input**
+
+- `storage`: an explicit Storage-like object supplied by the caller.
+- Required methods: synchronous `getItem(key)` and `setItem(key, value)`.
+
+**output**
+
+- Success: `{ ok: true, backend, errors: [] }`.
+- `backend.getItem(key)` delegates to `storage.getItem(key)`.
+- `backend.setItem(key, value)` delegates to `storage.setItem(key, value)`.
+- Failure: `{ ok: false, backend: null, errors: ['INVALID_BROWSER_STORAGE'] }`.
+
+**error behavior**
+
+- Factory validation failure returns `INVALID_BROWSER_STORAGE`.
+- Invalid or throwing method getters are factory validation failures.
+- Operation throws from `getItem` / `setItem` are not reclassified here; the repository classifies read/write failures.
+
+**this binding**
+
+- Delegated storage methods are called with the original `storage` object as `this`.
+
+**argument passthrough**
+
+- Keys and values are forwarded unchanged.
+- The helper does not transform keys, coerce values, inspect schema, or choose a storage key.
+
+**isolation boundary**
+
+- Does not access `globalThis`, `window`, `document`, or global `localStorage`.
+- Does not scan `length`, call `key(index)`, call `removeItem`, delete data, or inspect unrelated keys.
+- Does not compose itself with `createNewSchemaStorageRepository(backend)` in production.
+- Does not connect startup, `state.js`, writers, autosave, backup import/export, UI, migration, or legacy fallback.
 
 ## 7. Backup Compatibility Adapter API
 

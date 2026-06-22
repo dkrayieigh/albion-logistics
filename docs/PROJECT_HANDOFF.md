@@ -3,9 +3,9 @@
 ## Current Status
 
 - Phase: legacy-compatible stabilization / clean-cutover preparation.
-- Test baseline: 178 tests / 178 pass / 0 fail / 0 TODO.
+- Test baseline: 184 tests / 184 pass / 0 fail / 0 TODO.
 - Selected Location strategy: single-user clean cutover.
-- Location schema contract, pure state/codec helpers, and injected repository exist; schema persistence and production integration are not implemented.
+- Location schema contract, pure state/codec helpers, injected repository, and browser Storage backend binding exist; schema persistence and production integration are not implemented.
 - Writer/storage migration: not started.
 
 ## Current Implemented Safety Layers
@@ -17,6 +17,7 @@
 - Pure clean-state initializer: `createCleanInitialState()`.
 - Pure new-schema storage codec: `encodeNewSchemaState()` / `decodeNewSchemaState()`.
 - Injected new-schema storage repository: `createNewSchemaStorageRepository(backend)`.
+- Explicit injected browser Storage backend binding: `createBrowserStorageBackend(storage)`.
 - Transaction mixed-format reader.
 - Current regression suite.
 
@@ -34,10 +35,11 @@
 ## Current Blockers
 
 - New Location schema persistence and production integration are not implemented.
-- The fixed storage key `albion-logistics-v2-state` is used by the injected repository; production browser storage binding is not implemented.
+- The fixed storage key `albion-logistics-v2-state` is used by the injected repository; production bootstrap has not acquired global `localStorage`.
+- The explicit browser Storage backend binding is implemented and tested, but backend + repository production composition has not been wired.
 - Pure initializer is implemented and tested but not integrated with state, storage, writer, backup, or UI.
 - The pure storage codec is implemented and tested but is not connected to `localStorage`, `state.js`, writers, backup, startup, or UI.
-- The injected repository is implemented and tested but is not bound to global `localStorage` or connected to startup, `state.js`, writers, backup, or UI.
+- The injected repository and browser Storage backend are implemented and tested in isolation but are not connected to startup, `state.js`, writers, backup, or UI.
 - New writer tests are not created.
 - New backup export/import is not created.
 - Launch confirmation flow is not created.
@@ -45,8 +47,8 @@
 
 ## Next Approved Step
 
-- Define the tests-only production storage backend binding contract.
-- Do not connect startup, `state.js`, writers, backup, or UI yet.
+- Docs sync is complete after this checkpoint; return to Spec Lead for the next decision.
+- Do not self-approve production integration or connect startup, `state.js`, writers, backup, or UI.
 
 ## High-Risk Boundaries
 

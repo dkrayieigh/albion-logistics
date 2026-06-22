@@ -121,6 +121,18 @@ The injected `createNewSchemaStorageRepository(backend)` repository is covered b
 - Source isolation from global `localStorage`, startup, `state.js`, writers, backup, UI, and migration is covered.
 - This does not implement a global `localStorage` adapter, startup loader, autosave, production state writer, backup repository, or migration runner.
 
+### Browser Storage Backend Covered Regression Scope
+
+The explicit `createBrowserStorageBackend(storage)` binding is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- Valid Storage-like object wrapping is covered.
+- Original storage method `this` binding is preserved.
+- `getItem` / `setItem` key and value arguments are forwarded without transformation.
+- Factory validation failures return `INVALID_BROWSER_STORAGE`, while operation throws are left for repository classification.
+- Unrelated keys are not scanned, deleted, or inspected.
+- Source isolation from global `localStorage`, startup, `state.js`, writers, backup, UI, and migration is covered.
+- This does not implement production bootstrap, state replacement, autosave, writer integration, backup import/export, UI persistence, migration, or legacy fallback removal.
+
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)
 - 只要這裡有一項沒過，系統就會發生嚴重的財務與庫存災難。
