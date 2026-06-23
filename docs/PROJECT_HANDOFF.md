@@ -3,9 +3,9 @@
 ## Current Status
 
 - Phase: legacy-compatible stabilization / clean-cutover preparation.
-- Test baseline: 190 tests / 190 pass / 0 fail / 0 TODO.
+- Test baseline: 228 tests / 228 pass / 0 fail / 0 TODO.
 - Selected Location strategy: single-user clean cutover.
-- Location schema contract, pure state/codec helpers, injected repository, browser Storage backend binding, and browser new-schema repository composition helper exist; schema persistence and production integration are not implemented.
+- Location schema contract, pure state/codec helpers, injected repository, browser Storage backend binding, browser new-schema repository composition helper, startup loader/decision helpers, and runtime compatibility bridge exist; schema persistence and production integration are not implemented.
 - Writer/storage migration: not started.
 
 ## Current Implemented Safety Layers
@@ -19,6 +19,9 @@
 - Injected new-schema storage repository: `createNewSchemaStorageRepository(backend)`.
 - Explicit injected browser Storage backend binding: `createBrowserStorageBackend(storage)`.
 - Explicit injected browser new-schema repository composition: `createBrowserNewSchemaRepository(storage)`.
+- Isolated browser new-schema startup loader: `loadBrowserNewSchemaState(storage)`.
+- Startup ready/initialize/blocked decision boundary: `resolveBrowserNewSchemaStartup(storage)`.
+- Bidirectional runtime compatibility bridge: `projectNewSchemaToRuntime(newSchemaState)` / `projectRuntimeToNewSchema(runtimeState)`.
 - Transaction mixed-format reader.
 - Current regression suite.
 
@@ -38,6 +41,9 @@
 - New Location schema persistence and production integration are not implemented.
 - The fixed storage key `albion-logistics-v2-state` is used by the injected repository; production bootstrap has not acquired global `localStorage`.
 - The explicit browser Storage backend binding and browser new-schema repository composition helper are implemented and tested, but production bootstrap has not acquired global `localStorage` and called the helper.
+- Startup loader/decision helpers are implemented and tested in isolation, but the production app does not call them.
+- Runtime bridge helpers are implemented and tested in isolation, but production state replacement and save projection are not wired.
+- Current `saveState()` still writes legacy `albion_crafting_*` keys.
 - Pure initializer is implemented and tested but not integrated with state, storage, writer, backup, or UI.
 - The pure storage codec is implemented and tested but is not connected to `localStorage`, `state.js`, writers, backup, startup, or UI.
 - The injected repository, browser Storage backend, and browser new-schema repository composition helper are implemented and tested in isolation but are not connected to startup, `state.js`, writers, backup, or UI.
@@ -48,8 +54,8 @@
 
 ## Next Approved Step
 
-- Docs sync is complete after this checkpoint; return to Spec Lead for the next decision.
-- Do not self-approve production integration or connect startup, `state.js`, writers, backup, or UI.
+- Return to Spec Lead to design atomic production state/storage integration.
+- Do not self-approve production startup, read/write switch, `state.js`, writers, backup, or UI integration.
 
 ## High-Risk Boundaries
 

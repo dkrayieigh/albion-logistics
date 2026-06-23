@@ -636,6 +636,115 @@ It does not acquire global `localStorage`, does not call `load()`, does not call
 - Not backup import/export integration.
 - Not migration or legacy fallback removal.
 
+## Browser New-Schema Startup API
+
+### `loadBrowserNewSchemaState(storage)`
+
+已存在最小 isolated implementation，位置為 `src/adapters/browserNewSchemaStartup.js`。
+
+**輸入**
+
+- `storage`: 明確傳入的 Storage-like object。
+- 不自行取得 global `localStorage`。
+
+**輸出**
+
+- `loaded`: 固定 key `albion-logistics-v2-state` 內有可解碼的新 schema state。
+- `missing`: 固定 key 不存在。
+- `invalid`: 固定 key 有資料，但 codec validation 失敗。
+- `error`: browser storage binding 或 storage read 失敗。
+
+**隔離邊界**
+
+- 只讀固定 key。
+- 不寫入 storage。
+- 不掃描、刪除或檢查 legacy keys。
+- 不接 app startup、`state.js`、writer/autosave、backup、UI 或 migration。
+
+### `resolveBrowserNewSchemaStartup(storage)`
+
+已存在最小 isolated startup decision helper。
+
+**輸入**
+
+- `storage`: 明確傳入的 Storage-like object。
+
+**輸出**
+
+- `loaded` -> `{ ok: true, mode: 'ready', state, sourceStatus: 'loaded', errors: [] }`。
+- `missing` -> `{ ok: true, mode: 'initialize', state: null, sourceStatus: 'missing', errors: [] }`。
+- `invalid` / `error` -> `{ ok: false, mode: 'blocked', state: null, sourceStatus, errors }`。
+
+**錯誤邊界**
+
+- `invalid` / `error` 絕不建立空資料。
+- 不執行 first-launch UI。
+- 不替換 runtime state。
+- 不開始 production startup integration。
+
+## New-Schema Runtime Bridge API
+
+### `projectNewSchemaToRuntime(newSchemaState)`
+
+已存在最小 isolated bridge implementation，位置為 `src/adapters/newSchemaRuntimeBridge.js`。
+
+**輸入**
+
+- Canonical new-schema state。
+
+**輸出**
+
+- 成功：`{ ok: true, state, errors: [] }`，其中 runtime `state.inventory` 使用 `qtyByCity`。
+- 失敗：`{ ok: false, state: null, errors: ['RUNTIME_LOCATION_MAPPING_FAILED'] }`。
+
+**轉換規則**
+
+- `qtyByLocation` -> `qtyByCity`。
+- `laborer_island` -> `LaborerIsland`。
+- `滿日誌` -> `滿日記本`。
+- 保留 `locationRegistry` 與 custom location ID。
+
+**隔離邊界**
+
+- Pure projection（純轉換）：不 mutate input。
+- 不讀寫 storage。
+- 不接 `state.js`、writer、backup、UI 或 migration。
+- 不是 production state replacement。
+
+### `projectRuntimeToNewSchema(runtimeState)`
+
+已存在最小 isolated reverse bridge implementation。
+
+**輸入**
+
+- Runtime-compatible state，包含保留的 `locationRegistry`。
+
+**輸出**
+
+- 成功：`{ ok: true, state, errors: [] }`，其中 canonical `state.inventory` 使用 `qtyByLocation`。
+- 失敗：`{ ok: false, state: null, errors: ['RUNTIME_LOCATION_MAPPING_FAILED'] }`。
+
+**轉換規則**
+
+- `qtyByCity` -> `qtyByLocation`。
+- `LaborerIsland` -> `laborer_island`。
+- `滿日記本` -> `滿日誌`。
+- 保留 `locationRegistry` 與 custom location ID。
+
+**失敗邊界**
+
+- Unknown location mapping 會整體失敗。
+- Ambiguous display-name mapping 會整體失敗。
+- Runtime `customLocations` 若已和 `locationRegistry` 不一致，會整體失敗；因此自訂倉庫 runtime 變更目前尚不能安全反向儲存。
+
+**production integration boundary**
+
+- 不是正式 writer integration。
+- 不是 canonical save path。
+- 不切換 `saveState()`。
+- 不改 backup import/export。
+- 不開始 migration。
+
 ## 7. Backup Compatibility Adapter API
 
 ### `readBackupSnapshot(input)`

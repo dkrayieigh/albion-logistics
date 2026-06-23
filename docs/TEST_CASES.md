@@ -133,6 +133,51 @@ The explicit `createBrowserStorageBackend(storage)` binding is covered by regres
 - Source isolation from global `localStorage`, startup, `state.js`, writers, backup, UI, and migration is covered.
 - This does not implement production bootstrap, state replacement, autosave, writer integration, backup import/export, UI persistence, migration, or legacy fallback removal.
 
+### Browser New-Schema Startup Loader Covered Regression Scope
+
+`loadBrowserNewSchemaState(storage)` is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- Explicit Storage-like input is required.
+- Fixed key `albion-logistics-v2-state` read behavior is covered.
+- `loaded` / `missing` / `invalid` / `error` statuses are covered.
+- Invalid browser storage and storage read errors are controlled failures.
+- Legacy keys are not read, written, scanned, or deleted.
+- Global `localStorage` is not read when explicit storage is supplied.
+- Input storage and loaded state immutability are covered.
+- Source isolation from app state, writer, backup, UI, and migration paths is covered.
+- This does not implement production bootstrap, runtime state replacement, canonical save path, backup integration, UI, or migration.
+
+### Browser New-Schema Startup Decision Covered Regression Scope
+
+`resolveBrowserNewSchemaStartup(storage)` is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- `loaded` maps to `ready`.
+- `missing` maps to `initialize`.
+- `invalid` maps to `blocked`.
+- `error` maps to `blocked`.
+- Invalid/error paths never create empty data.
+- Loaded state is preserved in ready mode.
+- Legacy keys are not read, written, scanned, or deleted.
+- Global `localStorage` is not read and input storage is not mutated.
+- Source isolation from app state, writer, backup, UI, and migration paths is covered.
+- This does not implement first-launch UI, production startup, runtime state replacement, canonical save path, backup integration, or migration.
+
+### New-Schema Runtime Bridge Covered Regression Scope
+
+`projectNewSchemaToRuntime(newSchemaState)` and `projectRuntimeToNewSchema(runtimeState)` are covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- Canonical `qtyByLocation` projects to runtime `qtyByCity`.
+- Runtime `qtyByCity` projects back to canonical `qtyByLocation`.
+- `laborer_island` maps to `LaborerIsland`.
+- `LaborerIsland` maps back to `laborer_island`.
+- `滿日誌` maps to `滿日記本`.
+- `滿日記本` maps back to `滿日誌`.
+- `locationRegistry` and custom location IDs are preserved.
+- Unknown or ambiguous location mappings fail atomically.
+- Runtime custom location changes fail when they no longer match the retained registry; this means such changes cannot yet be safely reverse-saved.
+- Input immutability, round-trip preservation, and no storage/global access are covered.
+- This does not implement formal writer integration, canonical save path, `saveState()` switch, backup import/export, UI, or migration.
+
 ### Browser New-Schema Repository Composition Covered Regression Scope
 
 The explicit `createBrowserNewSchemaRepository(storage)` composition helper is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
