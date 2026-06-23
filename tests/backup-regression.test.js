@@ -12,6 +12,7 @@ import {
 import { createNewSchemaStorageRepository } from '../src/adapters/newSchemaStorageRepository.js';
 import { createBrowserStorageBackend } from '../src/adapters/browserStorageBackend.js';
 import { createBrowserNewSchemaRepository } from '../src/adapters/browserNewSchemaRepository.js';
+import { loadBrowserNewSchemaState } from '../src/adapters/browserNewSchemaStartup.js';
 import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -2869,6 +2870,167 @@ test('createBrowserNewSchemaRepository should remain isolated from state startup
   const source = readFileSync('src/adapters/browserNewSchemaRepository.js', 'utf8');
   assert.doesNotMatch(source, /\bglobalThis\b|\bwindow\b|\bdocument\b|\blocalStorage\b/);
   assert.doesNotMatch(source, /state\.js|src\/app|component|backup|writer|startup|migration|removeItem|key\(|length|albion_crafting/i);
+});
+
+test('loadBrowserNewSchemaState should return loaded for a valid new-schema state', { concurrency: false }, () => {
+  const serialized = makeValidSerializedNewSchemaState();
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+
+  const result = loadBrowserNewSchemaState(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'loaded');
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.state, decodeNewSchemaState(serialized).state);
+});
+
+test('loadBrowserNewSchemaState should return missing when the fixed key is absent', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble();
+
+  const result = loadBrowserNewSchemaState(storageDouble);
+
+  assert.deepEqual(result, {
+    ok: true,
+    status: 'missing',
+    state: null,
+    errors: []
+  });
+});
+
+test('loadBrowserNewSchemaState should return invalid with codec errors for invalid serialized state', { concurrency: false }, () => {
+  const invalidState = makeValidNewSchemaState();
+  invalidState.schemaVersion = 2;
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: JSON.stringify(invalidState)
+  });
+
+  const result = loadBrowserNewSchemaState(storageDouble);
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 'invalid',
+    state: null,
+    errors: ['UNSUPPORTED_SCHEMA_VERSION']
+  });
+});
+
+test('loadBrowserNewSchemaState should return storage read errors without throwing', { concurrency: false }, () => {
+  const storageDouble = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      throw new Error('read failure');
+    },
+    setItem() {
+      this.calls.push({ method: 'setItem' });
+    }
+  };
+
+  assert.doesNotThrow(() => loadBrowserNewSchemaState(storageDouble));
+  assert.deepEqual(loadBrowserNewSchemaState(storageDouble), {
+    ok: false,
+    status: 'error',
+    state: null,
+    errors: ['STORAGE_READ_FAILED']
+  });
+});
+
+test('loadBrowserNewSchemaState should return invalid browser storage errors for invalid input', { concurrency: false }, () => {
+  const result = loadBrowserNewSchemaState(null);
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 'error',
+    state: null,
+    errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+  });
+});
+
+test('loadBrowserNewSchemaState should call getItem exactly once with the fixed storage key', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+
+  loadBrowserNewSchemaState(storageDouble);
+
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+});
+
+test('loadBrowserNewSchemaState should not write scan delete or access legacy storage keys', { concurrency: false }, () => {
+  const legacyEntries = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]));
+  const storageDouble = makeBrowserStorageDouble({
+    ...legacyEntries,
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+  Object.defineProperty(storageDouble, 'length', {
+    get() {
+      storageDouble.calls.push({ method: 'length' });
+      throw new Error('unexpected length read');
+    }
+  });
+  storageDouble.key = index => {
+    storageDouble.calls.push({ method: 'key', index });
+    throw new Error('unexpected scan');
+  };
+  storageDouble.removeItem = key => {
+    storageDouble.calls.push({ method: 'removeItem', key });
+    throw new Error('unexpected delete');
+  };
+
+  const result = loadBrowserNewSchemaState(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(storageDouble.entries.get(key), legacyEntries[key]);
+  }
+  assert.equal(storageDouble.calls.some(call => ['setItem', 'removeItem', 'key', 'length'].includes(call.method)), false);
+});
+
+test('loadBrowserNewSchemaState should not read global localStorage when explicit storage is supplied', { concurrency: false }, () => {
+  const before = storageSnapshot();
+  const storageDouble = makeBrowserStorageDouble();
+
+  loadBrowserNewSchemaState(storageDouble);
+
+  assert.equal(storageSnapshot(), before);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+});
+
+test('loadBrowserNewSchemaState should not mutate input storage or returned loaded state unexpectedly', { concurrency: false }, () => {
+  const serialized = makeValidSerializedNewSchemaState();
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+  const beforeEntries = Array.from(storageDouble.entries.entries());
+
+  const result = loadBrowserNewSchemaState(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(Array.from(storageDouble.entries.entries()), beforeEntries);
+  result.state.assets.cash = 999;
+  assert.equal(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY), serialized);
+  assert.notEqual(result.state, decodeNewSchemaState(serialized).state);
+});
+
+test('loadBrowserNewSchemaState should remain isolated from app state writer backup UI and migration paths', { concurrency: false }, () => {
+  const before = storageSnapshot();
+  const storageDouble = makeBrowserStorageDouble();
+
+  loadBrowserNewSchemaState(storageDouble);
+
+  const source = readFileSync('src/adapters/browserNewSchemaStartup.js', 'utf8');
+  assert.equal(storageSnapshot(), before);
+  assert.doesNotMatch(source, /\bglobalThis\b|\bwindow\b|\bdocument\b|\blocalStorage\b/);
+  assert.doesNotMatch(source, /core\/state|state\.js|src\/app|component|backup|writer|migration|removeItem|key\(|length|albion_crafting/i);
 });
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
