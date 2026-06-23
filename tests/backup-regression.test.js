@@ -9,6 +9,10 @@ import {
   encodeNewSchemaState,
   decodeNewSchemaState
 } from '../src/adapters/newSchemaStorageCodec.js';
+import {
+  projectNewSchemaToRuntime,
+  projectRuntimeToNewSchema
+} from '../src/adapters/newSchemaRuntimeBridge.js';
 import { createNewSchemaStorageRepository } from '../src/adapters/newSchemaStorageRepository.js';
 import { createBrowserStorageBackend } from '../src/adapters/browserStorageBackend.js';
 import { createBrowserNewSchemaRepository } from '../src/adapters/browserNewSchemaRepository.js';
@@ -364,6 +368,27 @@ function makeValidNewSchemaState() {
 
   assert.equal(result.ok, true);
   return result.state;
+}
+
+function makeRuntimeBridgeNewSchemaState() {
+  const state = makeValidNewSchemaState();
+  const systemItemKey = Object.keys(state.inventory)[0];
+
+  state.inventory[systemItemKey].qtyByLocation.laborer_island = 5;
+  state.inventory[systemItemKey].globalAvgCost = 1234;
+  state.transactions.push({
+    type: 'bridge-sample',
+    locationId: 'thetford',
+    quantity: 2
+  });
+  state.laborerInventory['滿日誌']['6.1'] = 3;
+  state.laborerLogs.push({
+    type: 'bridge-laborer-sample',
+    item: '滿日誌',
+    quality: '6.1'
+  });
+
+  return state;
 }
 
 const NEW_SCHEMA_STORAGE_REPOSITORY_ERROR_ORDER = [
@@ -2168,6 +2193,248 @@ test('new-schema storage codec should remain pure atomic and must not access loc
   assert.equal(decoded.ok, true);
   assert.equal(JSON.stringify(state), stateBefore);
   assert.deepEqual(Object.keys(invalidState), invalidBeforeKeys);
+  assert.equal(storageSnapshot(), storageBefore);
+  assert.doesNotMatch(source, /localStorage|saveState|loadState|state\.js|document|window|src\/app|backup|writer/i);
+});
+
+test('new-schema runtime bridge should project a valid clean state to runtime root shape', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const result = projectNewSchemaToRuntime(state);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(Object.keys(result.state), [
+    'schemaVersion',
+    'assets',
+    'inventory',
+    'customLocations',
+    'locationRegistry',
+    'transactions',
+    'laborerInventory',
+    'laborerLogs'
+  ]);
+  assert.equal(result.state.schemaVersion, 1);
+  assert.deepEqual(result.state.assets, state.assets);
+  assert.notEqual(result.state.assets, state.assets);
+  assert.deepEqual(result.state.transactions, state.transactions);
+  assert.notEqual(result.state.transactions, state.transactions);
+  assert.deepEqual(result.state.laborerLogs, state.laborerLogs);
+  assert.notEqual(result.state.laborerLogs, state.laborerLogs);
+});
+
+test('new-schema runtime bridge should map system location IDs to current runtime display keys', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const itemKey = Object.keys(state.inventory)[0];
+  const result = projectNewSchemaToRuntime(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.inventory[itemKey].qtyByCity.Thetford, state.inventory[itemKey].qtyByLocation.thetford);
+  assert.equal(Object.hasOwn(result.state.inventory[itemKey].qtyByCity, 'thetford'), false);
+});
+
+test('new-schema runtime bridge should map laborer_island to LaborerIsland', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const itemKey = Object.keys(state.inventory)[0];
+  const result = projectNewSchemaToRuntime(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.inventory[itemKey].qtyByCity.LaborerIsland, 5);
+  assert.equal(Object.hasOwn(result.state.inventory[itemKey].qtyByCity, 'laborer_island'), false);
+});
+
+test('new-schema runtime bridge should map custom location IDs to display names and customLocations', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const customLocationId = 'custom:test-001';
+  const customDisplayName = state.locationRegistry[customLocationId].displayName;
+  const customItemKey = Object.entries(state.inventory).find(([, item]) =>
+    Object.hasOwn(item.qtyByLocation, customLocationId)
+  )[0];
+  const result = projectNewSchemaToRuntime(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.inventory[customItemKey].qtyByCity[customDisplayName], state.inventory[customItemKey].qtyByLocation[customLocationId]);
+  assert.deepEqual(result.state.customLocations, [customDisplayName]);
+  assert.deepEqual(result.state.locationRegistry, state.locationRegistry);
+  assert.notEqual(result.state.locationRegistry, state.locationRegistry);
+});
+
+test('new-schema runtime bridge should convert canonical laborer journal key to runtime journal key', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const result = projectNewSchemaToRuntime(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.laborerInventory['滿日記本']['6.1'], 3);
+  assert.equal(Object.hasOwn(result.state.laborerInventory, '滿日誌'), false);
+});
+
+test('new-schema runtime bridge should not keep qtyByLocation in runtime inventory', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const result = projectNewSchemaToRuntime(state);
+
+  assert.equal(result.ok, true);
+  for (const item of Object.values(result.state.inventory)) {
+    assert.equal(Object.hasOwn(item, 'qtyByLocation'), false);
+    assert.equal(Object.hasOwn(item, 'qtyByCity'), true);
+  }
+});
+
+test('new-schema runtime bridge should fail atomically for unknown canonical location IDs', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const itemKey = Object.keys(state.inventory)[0];
+
+  state.inventory[itemKey].qtyByLocation.unknown_location = 9;
+  const before = JSON.stringify(state);
+  const result = projectNewSchemaToRuntime(state);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, null);
+  assert.deepEqual(result.errors, ['RUNTIME_LOCATION_MAPPING_FAILED']);
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(Object.hasOwn(state.inventory[itemKey].qtyByLocation, 'unknown_location'), true);
+});
+
+test('new-schema runtime bridge should not mutate new-schema input', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const before = JSON.stringify(state);
+
+  projectNewSchemaToRuntime(state);
+
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('new-schema runtime bridge should map runtime qtyByCity keys back to location IDs', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state).state;
+  const result = projectRuntimeToNewSchema(runtime);
+  const itemKey = Object.keys(state.inventory)[0];
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.inventory[itemKey].qtyByLocation.thetford, state.inventory[itemKey].qtyByLocation.thetford);
+  assert.equal(result.state.inventory[itemKey].qtyByLocation.laborer_island, 5);
+  assert.equal(Object.hasOwn(result.state.inventory[itemKey].qtyByLocation, 'Thetford'), false);
+  assert.equal(Object.hasOwn(result.state.inventory[itemKey].qtyByLocation, 'LaborerIsland'), false);
+});
+
+test('new-schema runtime bridge should preserve custom location IDs when projecting runtime to canonical', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state).state;
+  const result = projectRuntimeToNewSchema(runtime);
+  const customLocationId = 'custom:test-001';
+  const customDisplayName = state.locationRegistry[customLocationId].displayName;
+  const customItemKey = Object.entries(state.inventory).find(([, item]) =>
+    Object.hasOwn(item.qtyByLocation, customLocationId)
+  )[0];
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.inventory[customItemKey].qtyByLocation[customLocationId], runtime.inventory[customItemKey].qtyByCity[customDisplayName]);
+  assert.equal(Object.hasOwn(result.state.inventory[customItemKey].qtyByLocation, customDisplayName), false);
+  assert.equal(result.state.locationRegistry[customLocationId].displayName, customDisplayName);
+});
+
+test('new-schema runtime bridge should convert runtime laborer journal key back to canonical', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state).state;
+  const result = projectRuntimeToNewSchema(runtime);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.laborerInventory['滿日誌']['6.1'], 3);
+  assert.equal(Object.hasOwn(result.state.laborerInventory, '滿日記本'), false);
+});
+
+test('new-schema runtime bridge should return canonical output without legacy fields and pass codec validation', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state).state;
+  const result = projectRuntimeToNewSchema(runtime);
+
+  assert.equal(result.ok, true);
+  assert.equal(Object.hasOwn(result.state, 'customLocations'), false);
+  assert.equal(Object.values(result.state.inventory).some(item => Object.hasOwn(item, 'qtyByCity')), false);
+  assert.equal(Object.hasOwn(result.state.laborerInventory, '滿日記本'), false);
+  assert.equal(encodeNewSchemaState(result.state).ok, true);
+});
+
+test('new-schema runtime bridge should fail atomically for unknown runtime locations', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state).state;
+  const itemKey = Object.keys(runtime.inventory)[0];
+
+  runtime.inventory[itemKey].qtyByCity.UnknownRuntimeLocation = 4;
+  const result = projectRuntimeToNewSchema(runtime);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, null);
+  assert.deepEqual(result.errors, ['RUNTIME_LOCATION_MAPPING_FAILED']);
+  assert.equal(runtime.inventory[itemKey].qtyByCity.UnknownRuntimeLocation, 4);
+});
+
+test('new-schema runtime bridge should fail atomically for ambiguous runtime location display names', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state).state;
+
+  runtime.locationRegistry['custom:duplicate-display'] = {
+    locationId: 'custom:duplicate-display',
+    displayName: 'Thetford',
+    type: 'custom',
+    active: true
+  };
+  runtime.customLocations.push('Thetford');
+  const result = projectRuntimeToNewSchema(runtime);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, null);
+  assert.deepEqual(result.errors, ['RUNTIME_LOCATION_MAPPING_FAILED']);
+});
+
+test('new-schema runtime bridge should fail when runtime customLocations no longer match registry', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state).state;
+
+  runtime.customLocations[0] = 'Renamed Warehouse';
+  const result = projectRuntimeToNewSchema(runtime);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, null);
+  assert.deepEqual(result.errors, ['RUNTIME_LOCATION_MAPPING_FAILED']);
+});
+
+test('new-schema runtime bridge should not mutate runtime input', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state).state;
+  const before = JSON.stringify(runtime);
+
+  projectRuntimeToNewSchema(runtime);
+
+  assert.equal(JSON.stringify(runtime), before);
+});
+
+test('new-schema runtime bridge should preserve state data across new runtime new round trip', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(state);
+  const roundTrip = projectRuntimeToNewSchema(runtime.state);
+
+  assert.equal(runtime.ok, true);
+  assert.equal(roundTrip.ok, true);
+  assert.deepEqual(roundTrip.state.assets, state.assets);
+  assert.deepEqual(roundTrip.state.inventory, state.inventory);
+  assert.deepEqual(roundTrip.state.locationRegistry, state.locationRegistry);
+  assert.deepEqual(roundTrip.state.transactions, state.transactions);
+  assert.deepEqual(roundTrip.state.laborerInventory, state.laborerInventory);
+  assert.deepEqual(roundTrip.state.laborerLogs, state.laborerLogs);
+});
+
+test('new-schema runtime bridge should remain pure and must not access storage or runtime globals', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    inventory: { legacy: { qtyByCity: { Thetford: 1 } } },
+    assets: { cash: 1, debt: 0 },
+    customLocations: ['Legacy Warehouse']
+  });
+  const state = makeRuntimeBridgeNewSchemaState();
+  const storageBefore = storageSnapshot();
+  const source = readFileSync('src/adapters/newSchemaRuntimeBridge.js', 'utf8');
+
+  assert.equal(projectNewSchemaToRuntime(state).ok, true);
+  assert.equal(projectRuntimeToNewSchema(projectNewSchemaToRuntime(state).state).ok, true);
   assert.equal(storageSnapshot(), storageBefore);
   assert.doesNotMatch(source, /localStorage|saveState|loadState|state\.js|document|window|src\/app|backup|writer/i);
 });
