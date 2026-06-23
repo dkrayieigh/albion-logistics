@@ -12,7 +12,10 @@ import {
 import { createNewSchemaStorageRepository } from '../src/adapters/newSchemaStorageRepository.js';
 import { createBrowserStorageBackend } from '../src/adapters/browserStorageBackend.js';
 import { createBrowserNewSchemaRepository } from '../src/adapters/browserNewSchemaRepository.js';
-import { loadBrowserNewSchemaState } from '../src/adapters/browserNewSchemaStartup.js';
+import {
+  loadBrowserNewSchemaState,
+  resolveBrowserNewSchemaStartup
+} from '../src/adapters/browserNewSchemaStartup.js';
 import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -3026,6 +3029,188 @@ test('loadBrowserNewSchemaState should remain isolated from app state writer bac
   const storageDouble = makeBrowserStorageDouble();
 
   loadBrowserNewSchemaState(storageDouble);
+
+  const source = readFileSync('src/adapters/browserNewSchemaStartup.js', 'utf8');
+  assert.equal(storageSnapshot(), before);
+  assert.doesNotMatch(source, /\bglobalThis\b|\bwindow\b|\bdocument\b|\blocalStorage\b/);
+  assert.doesNotMatch(source, /core\/state|state\.js|src\/app|component|backup|writer|migration|removeItem|key\(|length|albion_crafting/i);
+});
+
+test('resolveBrowserNewSchemaStartup should return ready for a loaded new-schema state', { concurrency: false }, () => {
+  const serialized = makeValidSerializedNewSchemaState();
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+
+  const result = resolveBrowserNewSchemaStartup(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.mode, 'ready');
+  assert.equal(result.sourceStatus, 'loaded');
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.state, decodeNewSchemaState(serialized).state);
+});
+
+test('resolveBrowserNewSchemaStartup should return initialize only for missing storage', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble();
+
+  const result = resolveBrowserNewSchemaStartup(storageDouble);
+
+  assert.deepEqual(result, {
+    ok: true,
+    mode: 'initialize',
+    state: null,
+    sourceStatus: 'missing',
+    errors: []
+  });
+});
+
+test('resolveBrowserNewSchemaStartup should block invalid serialized state without initializing', { concurrency: false }, () => {
+  const invalidState = makeValidNewSchemaState();
+  invalidState.schemaVersion = 2;
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: JSON.stringify(invalidState)
+  });
+
+  const result = resolveBrowserNewSchemaStartup(storageDouble);
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'invalid',
+    errors: ['UNSUPPORTED_SCHEMA_VERSION']
+  });
+});
+
+test('resolveBrowserNewSchemaStartup should block storage read errors without initializing', { concurrency: false }, () => {
+  const storageDouble = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      throw new Error('read failure');
+    },
+    setItem() {
+      this.calls.push({ method: 'setItem' });
+    }
+  };
+
+  const result = resolveBrowserNewSchemaStartup(storageDouble);
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'error',
+    errors: ['STORAGE_READ_FAILED']
+  });
+});
+
+test('resolveBrowserNewSchemaStartup should block invalid Storage-like input', { concurrency: false }, () => {
+  const result = resolveBrowserNewSchemaStartup(null);
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'error',
+    errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+  });
+});
+
+test('resolveBrowserNewSchemaStartup should never convert invalid or error results to initialize', { concurrency: false }, () => {
+  const invalidState = makeValidNewSchemaState();
+  invalidState.schemaVersion = 2;
+  const invalidStorage = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: JSON.stringify(invalidState)
+  });
+  const errorStorage = {
+    getItem() {
+      throw new Error('read failure');
+    },
+    setItem() {}
+  };
+
+  const invalidResult = resolveBrowserNewSchemaStartup(invalidStorage);
+  const errorResult = resolveBrowserNewSchemaStartup(errorStorage);
+
+  assert.equal(invalidResult.mode, 'blocked');
+  assert.equal(invalidResult.sourceStatus, 'invalid');
+  assert.equal(errorResult.mode, 'blocked');
+  assert.equal(errorResult.sourceStatus, 'error');
+  assert.notEqual(invalidResult.mode, 'initialize');
+  assert.notEqual(errorResult.mode, 'initialize');
+});
+
+test('resolveBrowserNewSchemaStartup should preserve the loaded state in ready mode', { concurrency: false }, () => {
+  const serialized = makeValidSerializedNewSchemaState();
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+
+  const result = resolveBrowserNewSchemaStartup(storageDouble);
+
+  assert.equal(result.mode, 'ready');
+  assert.deepEqual(result.state, decodeNewSchemaState(serialized).state);
+  result.state.assets.cash = 12345;
+  assert.equal(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY), serialized);
+});
+
+test('resolveBrowserNewSchemaStartup should not write scan delete or access legacy storage keys', { concurrency: false }, () => {
+  const legacyEntries = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]));
+  const storageDouble = makeBrowserStorageDouble({
+    ...legacyEntries,
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+  Object.defineProperty(storageDouble, 'length', {
+    get() {
+      storageDouble.calls.push({ method: 'length' });
+      throw new Error('unexpected length read');
+    }
+  });
+  storageDouble.key = index => {
+    storageDouble.calls.push({ method: 'key', index });
+    throw new Error('unexpected scan');
+  };
+  storageDouble.removeItem = key => {
+    storageDouble.calls.push({ method: 'removeItem', key });
+    throw new Error('unexpected delete');
+  };
+
+  const result = resolveBrowserNewSchemaStartup(storageDouble);
+
+  assert.equal(result.mode, 'ready');
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(storageDouble.entries.get(key), legacyEntries[key]);
+  }
+  assert.equal(storageDouble.calls.some(call => ['setItem', 'removeItem', 'key', 'length'].includes(call.method)), false);
+});
+
+test('resolveBrowserNewSchemaStartup should not read global localStorage or mutate input storage', { concurrency: false }, () => {
+  const before = storageSnapshot();
+  const serialized = makeValidSerializedNewSchemaState();
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+  const beforeEntries = Array.from(storageDouble.entries.entries());
+
+  resolveBrowserNewSchemaStartup(storageDouble);
+
+  assert.equal(storageSnapshot(), before);
+  assert.deepEqual(Array.from(storageDouble.entries.entries()), beforeEntries);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+});
+
+test('resolveBrowserNewSchemaStartup should remain isolated from app state writer backup UI and migration paths', { concurrency: false }, () => {
+  const before = storageSnapshot();
+  const storageDouble = makeBrowserStorageDouble();
+
+  resolveBrowserNewSchemaStartup(storageDouble);
 
   const source = readFileSync('src/adapters/browserNewSchemaStartup.js', 'utf8');
   assert.equal(storageSnapshot(), before);
