@@ -20,6 +20,7 @@ import {
   loadBrowserNewSchemaState,
   resolveBrowserNewSchemaStartup
 } from '../src/adapters/browserNewSchemaStartup.js';
+import { createBrowserNewSchemaRuntimeController } from '../src/adapters/browserNewSchemaRuntimeController.js';
 import { QUAL_GROUPS, SYSTEM_CITIES } from '../src/data/constants.js';
 
 const elements = new Map();
@@ -388,6 +389,22 @@ function makeRuntimeBridgeNewSchemaState() {
     quality: '6.1'
   });
 
+  return state;
+}
+
+function makeRuntimeControllerProjectionFailureState() {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const itemKey = Object.keys(state.inventory)[0];
+
+  state.locationRegistry['custom:laborer-collision'] = {
+    locationId: 'custom:laborer-collision',
+    displayName: 'LaborerIsland',
+    type: 'custom',
+    active: true
+  };
+  state.inventory[itemKey].qtyByLocation['custom:laborer-collision'] = 2;
+
+  assert.equal(encodeNewSchemaState(state).ok, true);
   return state;
 }
 
@@ -3483,6 +3500,390 @@ test('resolveBrowserNewSchemaStartup should remain isolated from app state write
   assert.equal(storageSnapshot(), before);
   assert.doesNotMatch(source, /\bglobalThis\b|\bwindow\b|\bdocument\b|\blocalStorage\b/);
   assert.doesNotMatch(source, /core\/state|state\.js|src\/app|component|backup|writer|migration|removeItem|key\(|length|albion_crafting/i);
+});
+
+test('browser new-schema runtime controller should create from valid explicit storage', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble();
+
+  const result = createBrowserNewSchemaRuntimeController(storageDouble);
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.equal(typeof result.controller.start, 'function');
+  assert.equal(typeof result.controller.save, 'function');
+  assert.deepEqual(storageDouble.calls, []);
+});
+
+test('browser new-schema runtime controller should reject invalid storage with controlled errors', { concurrency: false }, () => {
+  const result = createBrowserNewSchemaRuntimeController(null);
+
+  assert.deepEqual(result, {
+    ok: false,
+    controller: null,
+    errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+  });
+});
+
+test('browser new-schema runtime controller start should project loaded canonical state to runtime ready state', { concurrency: false }, () => {
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  const serialized = encodeNewSchemaState(canonical).serialized;
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+  const itemKey = Object.keys(canonical.inventory)[0];
+
+  const result = controller.start();
+
+  assert.equal(result.ok, true);
+  assert.equal(result.mode, 'ready');
+  assert.equal(result.sourceStatus, 'loaded');
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.state.inventory[itemKey].qtyByCity.Thetford, canonical.inventory[itemKey].qtyByLocation.thetford);
+  assert.equal(Object.hasOwn(result.state.inventory[itemKey], 'qtyByLocation'), false);
+  assert.equal(result.state.laborerInventory['滿日記本']['6.1'], 3);
+});
+
+test('browser new-schema runtime controller start should preserve initialize for missing storage', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble();
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  const result = controller.start();
+
+  assert.deepEqual(result, {
+    ok: true,
+    mode: 'initialize',
+    state: null,
+    sourceStatus: 'missing',
+    errors: []
+  });
+});
+
+test('browser new-schema runtime controller start should preserve blocked invalid canonical data', { concurrency: false }, () => {
+  const invalidState = makeValidNewSchemaState();
+  invalidState.schemaVersion = 2;
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: JSON.stringify(invalidState)
+  });
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  const result = controller.start();
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'invalid',
+    errors: ['UNSUPPORTED_SCHEMA_VERSION']
+  });
+});
+
+test('browser new-schema runtime controller start should preserve blocked storage read errors', { concurrency: false }, () => {
+  const storageDouble = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      throw new Error('read failed');
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+    }
+  };
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  const result = controller.start();
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'error',
+    errors: ['STORAGE_READ_FAILED']
+  });
+  assert.deepEqual(storageDouble.calls, [{ method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }]);
+});
+
+test('browser new-schema runtime controller start should block runtime projection failures as projection-error', { concurrency: false }, () => {
+  const canonical = makeRuntimeControllerProjectionFailureState();
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
+  });
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  const result = controller.start();
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'projection-error',
+    errors: ['RUNTIME_LOCATION_MAPPING_FAILED']
+  });
+});
+
+test('browser new-schema runtime controller start should read the fixed key exactly once', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  controller.start();
+
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+});
+
+test('browser new-schema runtime controller start should not write storage', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+  const beforeEntries = Array.from(storageDouble.entries.entries());
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  controller.start();
+
+  assert.deepEqual(Array.from(storageDouble.entries.entries()), beforeEntries);
+  assert.equal(storageDouble.calls.some(call => call.method === 'setItem'), false);
+});
+
+test('browser new-schema runtime controller start should not read legacy keys', { concurrency: false }, () => {
+  const legacyEntries = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]));
+  const storageDouble = makeBrowserStorageDouble({
+    ...legacyEntries,
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  controller.start();
+
+  assert.deepEqual(storageDouble.calls.map(call => call.key), [NEW_SCHEMA_STORAGE_KEY]);
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(storageDouble.entries.get(key), legacyEntries[key]);
+  }
+});
+
+test('browser new-schema runtime controller save should project valid runtime state and save canonical state', { concurrency: false }, () => {
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(canonical).state;
+  const storageDouble = makeBrowserStorageDouble();
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  const result = controller.save(runtime);
+  const stored = decodeNewSchemaState(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'saved');
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(stored.state, result.state);
+  assert.deepEqual(result.state.inventory, canonical.inventory);
+  assert.equal(Object.hasOwn(result.state, 'customLocations'), false);
+});
+
+test('browser new-schema runtime controller save should set the fixed key exactly once', { concurrency: false }, () => {
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const storageDouble = makeBrowserStorageDouble();
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  controller.save(runtime);
+
+  assert.equal(storageDouble.calls.length, 1);
+  assert.equal(storageDouble.calls[0].method, 'setItem');
+  assert.equal(storageDouble.calls[0].key, NEW_SCHEMA_STORAGE_KEY);
+});
+
+test('browser new-schema runtime controller save should not write legacy keys', { concurrency: false }, () => {
+  const legacyEntries = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]));
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const storageDouble = makeBrowserStorageDouble(legacyEntries);
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  controller.save(runtime);
+
+  assert.deepEqual(storageDouble.calls.map(call => call.key), [NEW_SCHEMA_STORAGE_KEY]);
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(storageDouble.entries.get(key), legacyEntries[key]);
+  }
+});
+
+test('browser new-schema runtime controller save should reject runtime mapping failures without writing', { concurrency: false }, () => {
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const itemKey = Object.keys(runtime.inventory)[0];
+  const storageDouble = makeBrowserStorageDouble({ existing: 'keep' });
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  runtime.inventory[itemKey].qtyByCity.UnknownRuntimeLocation = 1;
+  const result = controller.save(runtime);
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 'invalid-runtime',
+    state: null,
+    errors: ['RUNTIME_LOCATION_MAPPING_FAILED']
+  });
+  assert.deepEqual(storageDouble.calls, []);
+  assert.deepEqual(Array.from(storageDouble.entries.entries()), [['existing', 'keep']]);
+});
+
+test('browser new-schema runtime controller save should preserve codec validation failures without writing invalid data', { concurrency: false }, () => {
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const storageDouble = makeBrowserStorageDouble({ existing: 'keep' });
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  runtime.assets.cash = NaN;
+  const result = controller.save(runtime);
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 'invalid',
+    state: null,
+    errors: ['INVALID_ASSETS']
+  });
+  assert.deepEqual(storageDouble.calls, []);
+  assert.deepEqual(Array.from(storageDouble.entries.entries()), [['existing', 'keep']]);
+});
+
+test('browser new-schema runtime controller save should preserve storage write failures', { concurrency: false }, () => {
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const storageDouble = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      return null;
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+      throw new Error('write failed');
+    }
+  };
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  const result = controller.save(runtime);
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 'error',
+    state: null,
+    errors: ['STORAGE_WRITE_FAILED']
+  });
+  assert.deepEqual(storageDouble.calls.map(call => call.method), ['setItem']);
+  assert.equal(storageDouble.calls[0].key, NEW_SCHEMA_STORAGE_KEY);
+});
+
+test('browser new-schema runtime controller save should return canonical state rather than runtime state', { concurrency: false }, () => {
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const storageDouble = makeBrowserStorageDouble();
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  const result = controller.save(runtime);
+
+  assert.equal(result.ok, true);
+  assert.equal(Object.hasOwn(result.state, 'customLocations'), false);
+  assert.equal(Object.values(result.state.inventory).some(item => Object.hasOwn(item, 'qtyByCity')), false);
+  assert.equal(Object.values(result.state.inventory).some(item => Object.hasOwn(item, 'qtyByLocation')), true);
+  assert.equal(Object.hasOwn(result.state.laborerInventory, '滿日記本'), false);
+});
+
+test('browser new-schema runtime controller save should not mutate runtime input', { concurrency: false }, () => {
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const before = JSON.stringify(runtime);
+  const storageDouble = makeBrowserStorageDouble();
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  controller.save(runtime);
+
+  assert.equal(JSON.stringify(runtime), before);
+});
+
+test('browser new-schema runtime controller should preserve runtime edits through save and next start', { concurrency: false }, () => {
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  const runtime = projectNewSchemaToRuntime(canonical).state;
+  const itemKey = Object.keys(runtime.inventory)[0];
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
+  });
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  const firstStart = controller.start();
+  runtime.assets.cash = 777;
+  runtime.inventory[itemKey].qtyByCity.Thetford = 88;
+  runtime.inventory[itemKey].globalAvgCost = 4321;
+  runtime.laborerInventory['滿日記本']['6.1'] = 9;
+  const saveResult = controller.save(runtime);
+  const secondStart = controller.start();
+
+  assert.equal(firstStart.ok, true);
+  assert.equal(saveResult.ok, true);
+  assert.equal(secondStart.ok, true);
+  assert.equal(secondStart.state.assets.cash, 777);
+  assert.equal(secondStart.state.inventory[itemKey].qtyByCity.Thetford, 88);
+  assert.equal(secondStart.state.inventory[itemKey].globalAvgCost, 4321);
+  assert.equal(secondStart.state.locationRegistry['custom:test-001'].locationId, 'custom:test-001');
+  assert.equal(secondStart.state.laborerInventory['滿日記本']['6.1'], 9);
+});
+
+test('browser new-schema runtime controller should not read global localStorage', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    inventory: { legacy: { qtyByCity: { Thetford: 1 } } },
+    assets: { cash: 1, debt: 0 },
+    customLocations: ['Legacy Warehouse']
+  });
+  const before = storageSnapshot();
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const storageDouble = makeBrowserStorageDouble();
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  controller.start();
+  controller.save(runtime);
+
+  assert.equal(storageSnapshot(), before);
+});
+
+test('browser new-schema runtime controller should remain isolated from app state backup UI and migration paths', { concurrency: false }, () => {
+  const source = readFileSync('src/adapters/browserNewSchemaRuntimeController.js', 'utf8');
+
+  assert.doesNotMatch(source, /\bglobalThis\b|\bwindow\b|\bdocument\b|\blocalStorage\b/);
+  assert.doesNotMatch(source, /core\/state|state\.js|src\/app|component|backup|writer|migration|albion_crafting/i);
+});
+
+test('browser new-schema runtime controller should not scan delete or inspect storage collection APIs', { concurrency: false }, () => {
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: makeValidSerializedNewSchemaState()
+  });
+  Object.defineProperty(storageDouble, 'length', {
+    get() {
+      storageDouble.calls.push({ method: 'length' });
+      throw new Error('unexpected length read');
+    }
+  });
+  storageDouble.key = index => {
+    storageDouble.calls.push({ method: 'key', index });
+    throw new Error('unexpected scan');
+  };
+  storageDouble.removeItem = key => {
+    storageDouble.calls.push({ method: 'removeItem', key });
+    throw new Error('unexpected delete');
+  };
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  assert.equal(controller.start().ok, true);
+  assert.equal(controller.save(runtime).ok, true);
+  assert.equal(storageDouble.calls.some(call => ['removeItem', 'key', 'length'].includes(call.method)), false);
+});
+
+test('browser new-schema runtime controller should not dual write', { concurrency: false }, () => {
+  const runtime = projectNewSchemaToRuntime(makeRuntimeBridgeNewSchemaState()).state;
+  const storageDouble = makeBrowserStorageDouble();
+  const controller = createBrowserNewSchemaRuntimeController(storageDouble).controller;
+
+  controller.save(runtime);
+
+  const setCalls = storageDouble.calls.filter(call => call.method === 'setItem');
+  assert.equal(setCalls.length, 1);
+  assert.equal(setCalls[0].key, NEW_SCHEMA_STORAGE_KEY);
+  assert.deepEqual([...storageDouble.entries.keys()], [NEW_SCHEMA_STORAGE_KEY]);
 });
 
 test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { concurrency: false }, async t => {
