@@ -283,6 +283,7 @@ const CLEAN_INITIALIZATION_LABORER_CATEGORIES = [
   '鋼條',
   '布料',
   '板材',
+  '皮革',
   '滿日誌'
 ];
 
@@ -390,6 +391,7 @@ function makeRuntimeBridgeNewSchemaState() {
     quantity: 2
   });
   state.laborerInventory['滿日誌']['6.1'] = 3;
+  state.laborerInventory['皮革']['6.2'] = 11;
   state.laborerLogs.push({
     type: 'bridge-laborer-sample',
     item: '滿日誌',
@@ -924,6 +926,8 @@ test('D80: LaborerIsland remains a reserved legacy inventory key and not a custo
   assert.equal(Object.hasOwn(inventoryEntry.qtyByCity, 'LaborerIsland'), true);
   assert.equal(inventoryEntry.qtyByCity.LaborerIsland, 0);
   assert.equal(state.customLocations.includes('LaborerIsland'), false);
+  assert.equal(Object.hasOwn(state.laborerInventory, '皮革'), true);
+  assert.equal(state.laborerInventory['皮革']['6.1'], 0);
 });
 
 test('D80: Hideout remains a current compatibility key without asserting future registry identity', { concurrency: false }, () => {
@@ -1364,7 +1368,7 @@ test('D84: validateLocationMigration rejects malformed snapshots and invalid map
 // Future clean initialization contract:
 // Success returns ok:true with a complete new state, schemaVersion:1, debt defaulting to 0,
 // the full fixed registry, qtyByLocation inventory, empty transactions and laborerLogs,
-// laborer categories for 鋼條/布料/板材/滿日誌, every supported laborer quality initialized
+// laborer categories for 鋼條/布料/板材/皮革/滿日誌, every supported laborer quality initialized
 // to 0, and no future output key for 滿日記本.
 // Failure returns ok:false, state:null, ordered unique machine-readable errors, no partial
 // state, no input mutation, no legacy state mutation, and no localStorage access.
@@ -1743,6 +1747,16 @@ test('createCleanInitialState initializes empty transactions and canonical labor
     assert.deepEqual(Object.keys(result.state.laborerInventory[category]), CLEAN_INITIALIZATION_ALL_LABORER_QUALITIES);
     assert.equal(Object.values(result.state.laborerInventory[category]).every(value => value === 0), true);
   }
+});
+
+test('createCleanInitialState initializes canonical leather laborer inventory with every supported quality at zero', { concurrency: false }, () => {
+  const result = createCleanInitialState({ cash: 0 });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(Object.keys(result.state.laborerInventory), CLEAN_INITIALIZATION_LABORER_CATEGORIES);
+  assert.equal(Object.hasOwn(result.state.laborerInventory, '皮革'), true);
+  assert.deepEqual(Object.keys(result.state.laborerInventory['皮革']), CLEAN_INITIALIZATION_ALL_LABORER_QUALITIES);
+  assert.equal(Object.values(result.state.laborerInventory['皮革']).every(value => value === 0), true);
 });
 
 test('createCleanInitialState does not mutate input or legacy state and remains atomic on failure', { concurrency: false }, () => {
@@ -2151,10 +2165,11 @@ test('new-schema storage codec should validate transactions and laborerLogs cont
 test('new-schema storage codec should validate canonical laborer inventory using 滿日誌 only', { concurrency: false }, () => {
   const valid = makeValidNewSchemaState();
   valid.laborerInventory['滿日誌']['6.1'] = -10;
+  valid.laborerInventory['皮革']['6.2'] = 15;
   assert.equal(encodeNewSchemaState(valid).ok, true);
 
   const missingCategory = makeValidNewSchemaState();
-  delete missingCategory.laborerInventory['滿日誌'];
+  delete missingCategory.laborerInventory['皮革'];
 
   const extraCategory = makeValidNewSchemaState();
   extraCategory.laborerInventory.Extra = {};
@@ -2175,6 +2190,22 @@ test('new-schema storage codec should validate canonical laborer inventory using
     assert.equal(encoded.serialized, null);
     assert.deepEqual(encoded.errors, ['INVALID_LABORER_INVENTORY']);
   }
+});
+
+test('new-schema storage codec should round trip canonical leather laborer inventory exactly', { concurrency: false }, () => {
+  const state = makeValidNewSchemaState();
+  state.laborerInventory['皮革']['4.0'] = 5;
+  state.laborerInventory['皮革']['6.2'] = -3;
+
+  const encoded = encodeNewSchemaState(state);
+  const decoded = decodeNewSchemaState(encoded.serialized);
+
+  assert.equal(encoded.ok, true);
+  assert.equal(decoded.ok, true);
+  assert.deepEqual(decoded.state.laborerInventory, state.laborerInventory);
+  assert.equal(decoded.state.laborerInventory['皮革']['4.0'], 5);
+  assert.equal(decoded.state.laborerInventory['皮革']['6.2'], -3);
+  assert.equal(Object.hasOwn(decoded.state.laborerInventory, '滿日記本'), false);
 });
 
 test('new-schema storage codec should reject legacy 滿日記本 output keys', { concurrency: false }, () => {
@@ -2289,6 +2320,24 @@ test('new-schema runtime bridge should convert canonical laborer journal key to 
   assert.equal(result.ok, true);
   assert.equal(result.state.laborerInventory['滿日記本']['6.1'], 3);
   assert.equal(Object.hasOwn(result.state.laborerInventory, '滿日誌'), false);
+});
+
+test('new-schema runtime bridge should preserve leather laborer inventory through runtime round trip', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  state.laborerInventory['皮革']['4.1'] = 6;
+  const runtime = projectNewSchemaToRuntime(state);
+  const roundTrip = projectRuntimeToNewSchema(runtime.state);
+
+  assert.equal(runtime.ok, true);
+  assert.equal(roundTrip.ok, true);
+  assert.equal(runtime.state.laborerInventory['皮革']['6.2'], 11);
+  assert.equal(runtime.state.laborerInventory['皮革']['4.1'], 6);
+  assert.equal(roundTrip.state.laborerInventory['皮革']['6.2'], 11);
+  assert.equal(roundTrip.state.laborerInventory['皮革']['4.1'], 6);
+  assert.equal(runtime.state.laborerInventory['滿日記本']['6.1'], 3);
+  assert.equal(Object.hasOwn(runtime.state.laborerInventory, '滿日誌'), false);
+  assert.equal(roundTrip.state.laborerInventory['滿日誌']['6.1'], 3);
+  assert.equal(Object.hasOwn(roundTrip.state.laborerInventory, '滿日記本'), false);
 });
 
 test('new-schema runtime bridge should not keep qtyByLocation in runtime inventory', { concurrency: false }, () => {
@@ -4154,6 +4203,7 @@ test('state integration should enable ready new-schema runtime without replacing
     assert.equal(state.inventory[itemKey].qtyByCity.Thetford, canonical.inventory[itemKey].qtyByLocation.thetford);
     assert.equal(Object.hasOwn(state.inventory[itemKey], 'qtyByLocation'), false);
     assert.equal(state.laborerInventory['滿日記本']['6.1'], 3);
+    assert.equal(state.laborerInventory['皮革']['6.2'], 11);
     assert.equal(updateCount, 1);
     assert.deepEqual(storageDouble.calls, [
       { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
@@ -4296,6 +4346,7 @@ test('state integration saveState should write only the new-schema key when cont
     state.assets.cash = 777;
     state.inventory[itemKey].qtyByCity.Thetford = 88;
     state.laborerInventory['滿日記本']['6.1'] = 9;
+    state.laborerInventory['皮革']['6.2'] = 12;
     state.laborerLogs = Array.from({ length: 105 }, (_, index) => ({ index }));
 
     const result = saveState();
@@ -4307,6 +4358,7 @@ test('state integration saveState should write only the new-schema key when cont
     assert.equal(stored.state.assets.cash, 777);
     assert.equal(stored.state.inventory[itemKey].qtyByLocation.thetford, 88);
     assert.equal(stored.state.laborerInventory['滿日誌']['6.1'], 9);
+    assert.equal(stored.state.laborerInventory['皮革']['6.2'], 12);
     assert.equal(stored.state.laborerLogs.length, 100);
     assert.equal(updateCount, 2);
     assert.deepEqual(storageDouble.calls.filter(call => call.method === 'setItem').map(call => call.key), [

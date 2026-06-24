@@ -11,7 +11,7 @@ const FIXED_LOCATION_REGISTRY = {
   laborer_island: { locationId: 'laborer_island', displayName: 'Laborer Island', type: 'system-special', active: true }
 };
 
-const LABORER_CATEGORIES = ['鋼條', '布料', '板材', '滿日誌'];
+const LABORER_CATEGORIES = ['鋼條', '布料', '板材', '皮革', '滿日誌'];
 
 const ERROR_ORDER = [
   'INVALID_CASH',

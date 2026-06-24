@@ -38,7 +38,7 @@ export function renderLaborerTable() {
 
   // Render General Goods
   const ALL_QUALS = ['4.0', '4.1', '4.2', '4.3', '4.4', '5.0', '5.1', '5.2', '5.3', '5.4', '6.0', '6.1', '6.2', '6.3', '6.4', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4'];
-  ['鋼條','布料','板材'].forEach(it => { 
+  ['鋼條','布料','板材','皮革'].forEach(it => {
     ALL_QUALS.forEach(q => { 
       const qty = state.laborerInventory[it]?.[q]||0; 
       if(qty===0) return; 

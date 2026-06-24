@@ -1075,6 +1075,32 @@ test('laborer render table displays journal terminology while preserving legacy 
   assert.doesNotMatch(renderedJournalText, /data-item="滿日誌"/);
 });
 
+test('laborer render table includes leather with general resource actions', { concurrency: false }, () => {
+  resetState();
+  state.laborerInventory = {
+    '鋼條': { '6.1': 10 },
+    '布料': { '6.1': 20 },
+    '板材': { '6.1': 30 },
+    '皮革': { '6.1': 40 },
+    '滿日記本': { '6.0': 1 }
+  };
+  const before = JSON.stringify(state.laborerInventory);
+
+  Laborer.renderLaborerTable();
+
+  assert.equal(JSON.stringify(state.laborerInventory), before);
+  const renderedGoodsText = getElement('labor-tbody').rows
+    .map(row => row.innerHTML)
+    .join('\n');
+
+  for (const item of ['鋼條', '布料', '板材', '皮革']) {
+    assert.match(renderedGoodsText, new RegExp(`<strong>${item}</strong>`));
+    assert.match(renderedGoodsText, new RegExp(`data-action="edit-labor" data-item="${item}"`));
+    assert.match(renderedGoodsText, new RegExp(`data-action="import-labor" data-item="${item}"`));
+    assert.match(renderedGoodsText, new RegExp(`data-action="sell-labor" data-item="${item}"`));
+  }
+});
+
 test('laborer import with null cost basis is blocked before any state change', { concurrency: false }, () => {
   resetState();
   const item = 'TestMaterial';
