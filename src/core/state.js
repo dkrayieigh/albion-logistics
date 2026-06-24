@@ -6,7 +6,7 @@ export const state = {
   assets: { cash: 0, debt: 0 },
   customLocations: [], 
   inventory: {}, 
-  laborerInventory: { '鋼條': {}, '布料': {}, '板材': {}, '滿日記本': {} }, 
+  laborerInventory: { '鋼條': {}, '布料': {}, '板材': {}, '皮革': {}, '滿日記本': {} },
   laborerLogs: [], 
   transactions: [] 
 };
@@ -15,6 +15,14 @@ export const craftingQueue = [];
 export let currentCraftQuality = '';
 export let currentBuyQuality = '';
 let activeNewSchemaRuntimeController = null;
+const CURRENT_RUNTIME_LOCATION_KEYS = [
+  'LaborerIsland',
+  'Fort Sterling',
+  'Bridgewatch',
+  'Lymhurst',
+  'Martlock',
+  'Thetford'
+];
 
 export function setCurrentCraftQuality(val) { currentCraftQuality = val || ''; }
 export function setCurrentBuyQuality(val) { currentBuyQuality = val || ''; }
@@ -24,13 +32,22 @@ function callUIUpdate() {
   document.dispatchEvent(new Event('stateUpdated'));
 }
 
+function cloneStateValue(value) {
+  if (Array.isArray(value)) return value.map(item => cloneStateValue(item));
+  if (value === null || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, cloneStateValue(item)])
+  );
+}
+
 export function replaceStateContents(target, source) {
   for (const key of Object.keys(target)) {
     delete target[key];
   }
 
   for (const [key, value] of Object.entries(source)) {
-    target[key] = value;
+    target[key] = cloneStateValue(value);
   }
 }
 
@@ -52,6 +69,7 @@ export function enableNewSchemaRuntime(storage) {
 
   if (result.ok && result.mode === 'ready') {
     replaceStateContents(state, result.state);
+    initDefaultState();
     activeNewSchemaRuntimeController = created.controller;
     callUIUpdate();
   } else {
@@ -81,10 +99,14 @@ export function initDefaultState() {
     ALL_QUALS.forEach(q => {
       const key = `${item}_${q}`;
       if (!state.inventory[key]) {
-         let initialQty = { 'LaborerIsland': 0, 'Fort Sterling': 0, 'Bridgewatch': 0, 'Lymhurst': 0, 'Martlock': 0, 'Thetford': 0 };
+         let initialQty = Object.fromEntries(CURRENT_RUNTIME_LOCATION_KEYS.map(location => [location, 0]));
          state.customLocations.forEach(c => initialQty[c] = 0);
          state.inventory[key] = { qtyByCity: initialQty, globalAvgCost: null };
       } else {
+         if (!state.inventory[key].qtyByCity) state.inventory[key].qtyByCity = {};
+         CURRENT_RUNTIME_LOCATION_KEYS.forEach(location => {
+             if(state.inventory[key].qtyByCity[location] === undefined) state.inventory[key].qtyByCity[location] = 0;
+         });
          state.customLocations.forEach(c => {
              if(state.inventory[key].qtyByCity[c] === undefined) state.inventory[key].qtyByCity[c] = 0;
          });

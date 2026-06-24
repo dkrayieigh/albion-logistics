@@ -432,6 +432,15 @@ const LEGACY_STORAGE_KEYS = [
   'albion_crafting_custom_locs'
 ];
 
+const CURRENT_RUNTIME_LOCATION_KEYS = [
+  'LaborerIsland',
+  'Fort Sterling',
+  'Bridgewatch',
+  'Lymhurst',
+  'Martlock',
+  'Thetford'
+];
+
 function makeInjectedStorageBackend(initialEntries = {}) {
   const entries = new Map(Object.entries(initialEntries));
   const calls = [];
@@ -572,7 +581,11 @@ test('TEST-B04: readable JSON backup imports, reloads, and remains loadState-com
 
   loadState();
   assert.deepEqual(state.assets, assets);
-  assert.deepEqual(state.inventory['布料_6.1'], inventory['布料_6.1']);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity.Thetford, 500);
+  assert.equal(state.inventory['布料_6.1'].globalAvgCost, 6000);
+  for (const location of CURRENT_RUNTIME_LOCATION_KEYS) {
+    assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, location), true);
+  }
   assert.equal(state.transactions.length, 150);
 });
 
@@ -928,6 +941,43 @@ test('D80: LaborerIsland remains a reserved legacy inventory key and not a custo
   assert.equal(state.customLocations.includes('LaborerIsland'), false);
   assert.equal(Object.hasOwn(state.laborerInventory, '皮革'), true);
   assert.equal(state.laborerInventory['皮革']['6.1'], 0);
+});
+
+test('initDefaultState hydrates existing runtime inventory items without overwriting seeded values', { concurrency: false }, () => {
+  resetMocks();
+  replaceStateContents(state, {
+    assets: { cash: 0, debt: 0 },
+    customLocations: ['Custom Warehouse'],
+    inventory: {
+      '布料_6.1': {
+        qtyByCity: {
+          Thetford: 5
+        },
+        globalAvgCost: 12345
+      },
+      '皮革_6.2': {
+        globalAvgCost: 67890
+      }
+    },
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+
+  initDefaultState();
+
+  assert.equal(state.inventory['布料_6.1'].qtyByCity.Thetford, 5);
+  assert.equal(state.inventory['布料_6.1'].globalAvgCost, 12345);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity.Martlock, 0);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity['Custom Warehouse'], 0);
+  assert.equal(state.inventory['皮革_6.2'].globalAvgCost, 67890);
+  for (const location of CURRENT_RUNTIME_LOCATION_KEYS) {
+    assert.equal(state.inventory['皮革_6.2'].qtyByCity[location], 0);
+  }
+  assert.equal(state.inventory['皮革_6.2'].qtyByCity['Custom Warehouse'], 0);
+  assert.equal(state.laborerInventory['皮革']['6.2'], 0);
+  assert.equal(state.laborerInventory['滿日記本']['6.2'], 0);
+  assert.equal(Object.hasOwn(state.laborerInventory, '滿日誌'), false);
 });
 
 test('D80: Hideout remains a current compatibility key without asserting future registry identity', { concurrency: false }, () => {
@@ -4182,6 +4232,7 @@ test('state integration should enable ready new-schema runtime without replacing
   resetMocks();
   const canonical = makeRuntimeBridgeNewSchemaState();
   const itemKey = Object.keys(canonical.inventory)[0];
+  const customLocation = canonical.locationRegistry['custom:test-001'].displayName;
   const storageDouble = makeBrowserStorageDouble({
     [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
   });
@@ -4201,9 +4252,20 @@ test('state integration should enable ready new-schema runtime without replacing
     assert.equal(state, originalState);
     assert.deepEqual(state.assets, result.state.assets);
     assert.equal(state.inventory[itemKey].qtyByCity.Thetford, canonical.inventory[itemKey].qtyByLocation.thetford);
+    assert.equal(state.inventory[itemKey].qtyByCity[customLocation], 0);
+    for (const location of CURRENT_RUNTIME_LOCATION_KEYS) {
+      assert.equal(Object.hasOwn(state.inventory[itemKey].qtyByCity, location), true);
+    }
+    assert.deepEqual(Object.keys(state.inventory['皮革_6.2'].qtyByCity), [
+      ...CURRENT_RUNTIME_LOCATION_KEYS,
+      customLocation
+    ]);
+    assert.equal(state.inventory['皮革_6.2'].globalAvgCost, null);
     assert.equal(Object.hasOwn(state.inventory[itemKey], 'qtyByLocation'), false);
     assert.equal(state.laborerInventory['滿日記本']['6.1'], 3);
     assert.equal(state.laborerInventory['皮革']['6.2'], 11);
+    assert.equal(Object.hasOwn(state.laborerInventory, '滿日誌'), false);
+    assert.equal(Object.hasOwn(result.state.inventory, '皮革_6.2'), false);
     assert.equal(updateCount, 1);
     assert.deepEqual(storageDouble.calls, [
       { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
@@ -4228,10 +4290,13 @@ test('replaceStateContents should replace enumerable root fields without mutatin
   const sourceBefore = JSON.stringify(source);
 
   replaceStateContents(target, source);
+  target.assets.cash = 3;
+  target.inventory.item.qtyByCity.Thetford = 2;
 
   assert.equal(target, originalTarget);
   assert.equal(Object.hasOwn(target, 'oldField'), false);
-  assert.deepEqual(target, source);
+  assert.equal(source.assets.cash, 2);
+  assert.equal(source.inventory.item.qtyByCity.Thetford, 1);
   assert.equal(JSON.stringify(source), sourceBefore);
 });
 
@@ -4343,6 +4408,9 @@ test('state integration saveState should write only the new-schema key when cont
 
   try {
     assert.equal(enableNewSchemaRuntime(storageDouble).mode, 'ready');
+    assert.deepEqual(storageDouble.calls, [
+      { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+    ]);
     state.assets.cash = 777;
     state.inventory[itemKey].qtyByCity.Thetford = 88;
     state.laborerInventory['滿日記本']['6.1'] = 9;
@@ -4354,13 +4422,16 @@ test('state integration saveState should write only the new-schema key when cont
 
     assert.equal(result.ok, true);
     assert.equal(result.status, 'saved');
+    assert.equal(stored.ok, true);
     assert.equal(state.laborerLogs.length, 100);
     assert.equal(stored.state.assets.cash, 777);
     assert.equal(stored.state.inventory[itemKey].qtyByLocation.thetford, 88);
     assert.equal(stored.state.laborerInventory['滿日誌']['6.1'], 9);
     assert.equal(stored.state.laborerInventory['皮革']['6.2'], 12);
+    assert.deepEqual(Object.keys(stored.state.laborerInventory), CLEAN_INITIALIZATION_LABORER_CATEGORIES);
     assert.equal(stored.state.laborerLogs.length, 100);
     assert.equal(updateCount, 2);
+    assert.deepEqual(storageDouble.calls.map(call => call.method), ['getItem', 'setItem']);
     assert.deepEqual(storageDouble.calls.filter(call => call.method === 'setItem').map(call => call.key), [
       NEW_SCHEMA_STORAGE_KEY
     ]);
