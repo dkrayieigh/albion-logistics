@@ -1,6 +1,15 @@
 import { QUAL_GROUPS } from './data/constants.js';
 import { escapeHTML } from './utils/formatters.js';
-import { state, loadState, currentCraftQuality, setCurrentCraftQuality, currentBuyQuality, setCurrentBuyQuality } from './core/state.js';
+import {
+  state,
+  enableNewSchemaRuntime,
+  initializeNewSchemaRuntime,
+  loadState,
+  currentCraftQuality,
+  setCurrentCraftQuality,
+  currentBuyQuality,
+  setCurrentBuyQuality
+} from './core/state.js';
 
 import * as Crafting from './components/crafting.js';
 import * as Inventory from './components/inventory.js';
@@ -251,6 +260,46 @@ export function initGlobalEvents() {
   });
 }
 
+const NEW_SCHEMA_INITIALIZATION_CONFIRM_MESSAGE = `找不到新版資料。
+
+是否建立全新的新版資料庫？
+
+舊版庫存、交易與設定不會自動匯入，也不會被刪除。
+新版將從現金 0、空交易與空庫存開始，資料可在系統內重新輸入。`;
+
+function formatBlockedMessage(errors) {
+  return `新版資料無法安全載入。系統已停止載入資料，避免覆寫。請保留現有資料並回報錯誤代碼：${errors.join(', ')}`;
+}
+
+export function startApplicationState(storage, dialogs = {}) {
+  const confirmEnableNewSchema = dialogs.confirmEnableNewSchema || (() => window.confirm(NEW_SCHEMA_INITIALIZATION_CONFIRM_MESSAGE));
+  const showBlockedError = dialogs.showBlockedError || (errors => window.alert(formatBlockedMessage(errors)));
+  const startup = enableNewSchemaRuntime(storage);
+
+  if (startup.ok && startup.mode === 'ready') return startup;
+
+  if (startup.ok && startup.mode === 'initialize') {
+    if (confirmEnableNewSchema()) {
+      const initialized = initializeNewSchemaRuntime(storage);
+      if (initialized.ok && initialized.mode === 'ready') return initialized;
+      showBlockedError(initialized.errors);
+      return initialized;
+    }
+
+    loadState();
+    return {
+      ok: true,
+      mode: 'legacy',
+      state: null,
+      sourceStatus: 'user-cancelled',
+      errors: []
+    };
+  }
+
+  showBlockedError(startup.errors);
+  return startup;
+}
+
 window.onload = () => {
   WindowControls.initWindowControls();
   initGlobalEvents();
@@ -261,7 +310,8 @@ window.onload = () => {
   
   updateCraftQualityPills();
   updateBuyQualityPills();
-  loadState();
+  const startupResult = startApplicationState(localStorage);
+  if (startupResult.mode === 'blocked') return;
   document.getElementById('craft-recipe').value = Crafting.RECIPES[0].name;
   Crafting.onRecipeChange();
   Ledger.updateDashboardUI();

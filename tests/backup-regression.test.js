@@ -98,9 +98,10 @@ globalThis.FileReader = class FileReader {
   }
 };
 
-const { initGlobalEvents } = await import('../src/app.js');
+const { initGlobalEvents, startApplicationState } = await import('../src/app.js');
 const {
   enableNewSchemaRuntime,
+  initializeNewSchemaRuntime,
   initDefaultState,
   loadState,
   replaceStateContents,
@@ -4524,4 +4525,553 @@ test('state integration should keep loadState legacy-only and avoid app componen
   assert.equal(Object.hasOwn(state, 'locationRegistry'), false);
   assert.doesNotMatch(source, /from ['"].*app\.js|from ['"].*components\//);
   assert.doesNotMatch(enableNewSchemaRuntime.toString(), /\bloadState\b|\blocalStorage\b/);
+});
+
+test('initializeNewSchemaRuntime should create a clean default runtime and write the new-schema key once', { concurrency: false }, () => {
+  resetMocks();
+  const originalState = state;
+  const storageDouble = makeBrowserStorageDouble({
+    ...Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]))
+  });
+  let updateCount = 0;
+  const originalDispatch = document.dispatchEvent;
+  document.dispatchEvent = event => {
+    if (event.type === 'stateUpdated') updateCount++;
+  };
+
+  try {
+    const result = initializeNewSchemaRuntime(storageDouble);
+    const decoded = decodeNewSchemaState(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY));
+
+    assert.equal(result.ok, true);
+    assert.equal(result.mode, 'ready');
+    assert.equal(state, originalState);
+    assert.equal(state.assets.cash, 0);
+    assert.equal(state.assets.debt, 0);
+    assert.deepEqual(state.transactions, []);
+    assert.equal(state.laborerInventory['皮革']['6.1'], 0);
+    assert.equal(state.laborerInventory['滿日記本']['6.1'], 0);
+    assert.equal(Object.hasOwn(state.laborerInventory, '滿日誌'), false);
+    assert.equal(decoded.ok, true);
+    assert.deepEqual(Object.keys(decoded.state.laborerInventory), CLEAN_INITIALIZATION_LABORER_CATEGORIES);
+    assert.equal(updateCount, 1);
+    assert.deepEqual(storageDouble.calls.map(call => call.method), ['setItem', 'getItem']);
+    assert.deepEqual(storageDouble.calls.filter(call => call.method === 'setItem').map(call => call.key), [
+      NEW_SCHEMA_STORAGE_KEY
+    ]);
+    for (const key of LEGACY_STORAGE_KEYS) {
+      assert.equal(storageDouble.entries.get(key), `legacy:${key}`);
+      assert.equal(storage.has(key), false);
+    }
+  } finally {
+    document.dispatchEvent = originalDispatch;
+  }
+});
+
+test('initializeNewSchemaRuntime should block initializer failures without writing storage or changing state', { concurrency: false }, () => {
+  resetMocks();
+  replaceStateContents(state, {
+    assets: { cash: 55, debt: 0 },
+    customLocations: [],
+    inventory: {},
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  const beforeState = JSON.stringify(state);
+  const storageDouble = makeBrowserStorageDouble();
+
+  const result = initializeNewSchemaRuntime(storageDouble, { cash: 'bad' });
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'initialization-error',
+    errors: ['INVALID_CASH']
+  });
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.deepEqual(storageDouble.calls, []);
+  assert.equal(storageDouble.entries.size, 0);
+});
+
+test('initializeNewSchemaRuntime should block initial save failures without enabling controller', { concurrency: false }, () => {
+  resetMocks();
+  replaceStateContents(state, {
+    assets: { cash: 66, debt: 0 },
+    customLocations: [],
+    inventory: {},
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  const beforeState = JSON.stringify(state);
+  const storageDouble = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      return null;
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+      throw new Error('write failed');
+    }
+  };
+
+  const result = initializeNewSchemaRuntime(storageDouble);
+  const fallbackSave = saveState();
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'initial-save-error',
+    errors: ['STORAGE_WRITE_FAILED']
+  });
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.deepEqual(storageDouble.calls.map(call => call.method), ['setItem']);
+  assert.equal(fallbackSave.status, 'legacy-saved');
+});
+
+test('initializeNewSchemaRuntime should persist explicit clean input without reading legacy storage', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    assets: { cash: 9999, debt: 0 },
+    inventory: { legacy: { qtyByCity: { Thetford: 7 }, globalAvgCost: 1 } },
+    transactions: [{ type: 'legacy' }],
+    laborerInventory: {},
+    laborerLogs: [],
+    customLocations: ['Legacy Warehouse']
+  });
+  const legacyBefore = storageSnapshot();
+  const storageDouble = makeBrowserStorageDouble();
+  const input = {
+    cash: 500,
+    debt: 25,
+    customLocations: [{ clientRef: 'warehouse', displayName: 'New Warehouse' }],
+    inventorySeeds: [{
+      itemKey: '布料_6.1',
+      customLocationRef: 'warehouse',
+      quantity: 4,
+      globalAvgCost: 100
+    }]
+  };
+
+  const result = initializeNewSchemaRuntime(storageDouble, input, {
+    generateCustomLocationId: makeCustomLocationIdGenerator()
+  });
+  const decoded = decodeNewSchemaState(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY));
+
+  assert.equal(result.ok, true);
+  assert.equal(decoded.state.assets.cash, 500);
+  assert.equal(decoded.state.assets.debt, 25);
+  assert.equal(decoded.state.inventory['布料_6.1'].qtyByLocation['custom:test-001'], 4);
+  assert.equal(decoded.state.inventory['布料_6.1'].globalAvgCost, 100);
+  assert.equal(storageSnapshot(), legacyBefore);
+});
+
+test('initializeNewSchemaRuntime should block invalid browser storage without state mutation', { concurrency: false }, () => {
+  resetMocks();
+  replaceStateContents(state, {
+    assets: { cash: 77, debt: 0 },
+    customLocations: [],
+    inventory: {},
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  const beforeState = JSON.stringify(state);
+
+  const result = initializeNewSchemaRuntime(null);
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'error',
+    errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+  });
+  assert.equal(JSON.stringify(state), beforeState);
+});
+
+test('initializeNewSchemaRuntime should keep controller active for later new-schema saves', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = makeBrowserStorageDouble({
+    ...Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]))
+  });
+
+  const initialized = initializeNewSchemaRuntime(storageDouble);
+  state.assets.cash = 123;
+  const saved = saveState();
+  const decoded = decodeNewSchemaState(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY));
+
+  assert.equal(initialized.ok, true);
+  assert.equal(saved.ok, true);
+  assert.equal(saved.status, 'saved');
+  assert.equal(decoded.state.assets.cash, 123);
+  assert.deepEqual(storageDouble.calls.map(call => call.method), ['setItem', 'getItem', 'setItem']);
+  assert.deepEqual(storageDouble.calls.filter(call => call.method === 'setItem').map(call => call.key), [
+    NEW_SCHEMA_STORAGE_KEY,
+    NEW_SCHEMA_STORAGE_KEY
+  ]);
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(storageDouble.entries.get(key), `legacy:${key}`);
+  }
+});
+
+test('startApplicationState should use existing valid new-schema data without confirmation or legacy load', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    assets: { cash: 999, debt: 0 },
+    inventory: {},
+    transactions: [],
+    laborerInventory: {},
+    laborerLogs: [],
+    customLocations: []
+  });
+  const beforeLegacyStorage = storageSnapshot();
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(makeRuntimeBridgeNewSchemaState()).serialized
+  });
+  let confirmCount = 0;
+  let blockedErrors = null;
+
+  const result = startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => {
+      confirmCount++;
+      return true;
+    },
+    showBlockedError: errors => {
+      blockedErrors = errors;
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.mode, 'ready');
+  assert.equal(confirmCount, 0);
+  assert.equal(blockedErrors, null);
+  assert.equal(storageSnapshot(), beforeLegacyStorage);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+});
+
+test('startApplicationState should initialize missing new-schema storage after one confirmation', { concurrency: false }, () => {
+  resetMocks();
+  const legacyEntries = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]));
+  const storageDouble = makeBrowserStorageDouble(legacyEntries);
+  let confirmCount = 0;
+
+  const result = startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => {
+      confirmCount++;
+      return true;
+    },
+    showBlockedError: errors => assert.fail(`unexpected blocked startup: ${errors.join(',')}`)
+  });
+  const decoded = decodeNewSchemaState(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.mode, 'ready');
+  assert.equal(confirmCount, 1);
+  assert.equal(decoded.ok, true);
+  assert.equal(decoded.state.assets.cash, 0);
+  assert.equal(decoded.state.assets.debt, 0);
+  assert.deepEqual(decoded.state.transactions, []);
+  assert.deepEqual(Object.keys(decoded.state.laborerInventory), CLEAN_INITIALIZATION_LABORER_CATEGORIES);
+  assert.deepEqual(storageDouble.calls.map(call => call.method), ['getItem', 'setItem', 'getItem']);
+  assert.deepEqual(storageDouble.calls.filter(call => call.method === 'setItem').map(call => call.key), [
+    NEW_SCHEMA_STORAGE_KEY
+  ]);
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(storageDouble.entries.get(key), legacyEntries[key]);
+  }
+});
+
+test('startApplicationState should use legacy mode on missing storage when confirmation is cancelled', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    assets: { cash: 1234, debt: 0 },
+    inventory: { legacy: { qtyByCity: { Thetford: 2 }, globalAvgCost: 10 } },
+    transactions: [{ type: 'legacy' }],
+    laborerInventory: {},
+    laborerLogs: [],
+    customLocations: []
+  });
+  const storageDouble = makeBrowserStorageDouble();
+  let confirmCount = 0;
+
+  const result = startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => {
+      confirmCount++;
+      return false;
+    },
+    showBlockedError: errors => assert.fail(`unexpected blocked startup: ${errors.join(',')}`)
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    mode: 'legacy',
+    state: null,
+    sourceStatus: 'user-cancelled',
+    errors: []
+  });
+  assert.equal(confirmCount, 1);
+  assert.equal(state.assets.cash, 1234);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(storageDouble.entries.has(NEW_SCHEMA_STORAGE_KEY), false);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+});
+
+test('startApplicationState should block invalid new-schema data without legacy fallback or empty initialization', { concurrency: false }, () => {
+  resetMocks();
+  seedStorage({
+    assets: { cash: 4321, debt: 0 },
+    inventory: { legacy: { qtyByCity: { Thetford: 3 }, globalAvgCost: 20 } },
+    transactions: [{ type: 'legacy' }],
+    laborerInventory: {},
+    laborerLogs: [],
+    customLocations: []
+  });
+  replaceStateContents(state, {
+    assets: { cash: 0, debt: 0 },
+    customLocations: [],
+    inventory: {},
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  const invalidState = makeValidNewSchemaState();
+  invalidState.schemaVersion = 2;
+  const serialized = JSON.stringify(invalidState);
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+  let blockedErrors = null;
+
+  const result = startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => assert.fail('blocked startup should not confirm initialization'),
+    showBlockedError: errors => {
+      blockedErrors = errors;
+    }
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'invalid',
+    errors: ['UNSUPPORTED_SCHEMA_VERSION']
+  });
+  assert.deepEqual(blockedErrors, ['UNSUPPORTED_SCHEMA_VERSION']);
+  assert.equal(state.assets.cash, 0);
+  assert.equal(state.transactions.length, 0);
+  assert.equal(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY), serialized);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+});
+
+test('startApplicationState should block read errors and report error codes', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      throw new Error('read failed');
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+    }
+  };
+  let blockedErrors = null;
+
+  const result = startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => assert.fail('read-error startup should not confirm initialization'),
+    showBlockedError: errors => {
+      blockedErrors = errors;
+    }
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.mode, 'blocked');
+  assert.deepEqual(result.errors, ['STORAGE_READ_FAILED']);
+  assert.deepEqual(blockedErrors, ['STORAGE_READ_FAILED']);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+});
+
+test('startApplicationState should block missing-confirm initialization save failures', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      return null;
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+      throw new Error('write failed');
+    }
+  };
+  let blockedErrors = null;
+
+  const result = startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => true,
+    showBlockedError: errors => {
+      blockedErrors = errors;
+    }
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'initial-save-error',
+    errors: ['STORAGE_WRITE_FAILED']
+  });
+  assert.deepEqual(blockedErrors, ['STORAGE_WRITE_FAILED']);
+  assert.deepEqual(storageDouble.calls.map(call => call.method), ['getItem', 'setItem']);
+});
+
+test('startApplicationState should block invalid storage binding without confirmation', { concurrency: false }, () => {
+  resetMocks();
+  let confirmCount = 0;
+  let blockedErrors = null;
+
+  const result = startApplicationState(null, {
+    confirmEnableNewSchema: () => {
+      confirmCount++;
+      return true;
+    },
+    showBlockedError: errors => {
+      blockedErrors = errors;
+    }
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'error',
+    errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+  });
+  assert.equal(confirmCount, 0);
+  assert.deepEqual(blockedErrors, BROWSER_STORAGE_BACKEND_ERROR_ORDER);
+});
+
+test('startApplicationState should show blocked errors only after confirmed initialization failure', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = {
+    calls: [],
+    getItem(key) {
+      this.calls.push({ method: 'getItem', key });
+      return null;
+    },
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', key, value });
+      throw new Error('write failed');
+    }
+  };
+  let confirmCount = 0;
+  let blockedCount = 0;
+
+  startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => {
+      confirmCount++;
+      return true;
+    },
+    showBlockedError: () => {
+      blockedCount++;
+    }
+  });
+
+  assert.equal(confirmCount, 1);
+  assert.equal(blockedCount, 1);
+});
+
+test('startApplicationState should not show blocked errors when missing storage is cancelled', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = makeBrowserStorageDouble();
+  let blockedCount = 0;
+
+  const result = startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => false,
+    showBlockedError: () => {
+      blockedCount++;
+    }
+  });
+
+  assert.equal(result.mode, 'legacy');
+  assert.equal(blockedCount, 0);
+});
+
+test('startApplicationState should leave legacy keys untouched across missing-confirm startup', { concurrency: false }, () => {
+  resetMocks();
+  const legacyEntries = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]));
+  const storageDouble = makeBrowserStorageDouble(legacyEntries);
+
+  startApplicationState(storageDouble, {
+    confirmEnableNewSchema: () => true,
+    showBlockedError: errors => assert.fail(`unexpected blocked startup: ${errors.join(',')}`)
+  });
+
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(storageDouble.entries.get(key), legacyEntries[key]);
+  }
+  assert.equal(storageDouble.calls.some(call => call.method === 'removeItem'), false);
+});
+
+test('app startup blocked message should include preservation guidance and error codes', { concurrency: false }, () => {
+  const source = readFileSync('src/app.js', 'utf8');
+
+  assert.match(source, /新版資料無法安全載入/);
+  assert.match(source, /系統已停止載入資料，避免覆寫/);
+  assert.match(source, /請保留現有資料並回報錯誤代碼/);
+  assert.match(source, /errors\.join\(', '\)/);
+});
+
+test('app startup missing-data confirmation should describe no automatic legacy import or deletion', { concurrency: false }, () => {
+  const source = readFileSync('src/app.js', 'utf8');
+
+  assert.match(source, /找不到新版資料/);
+  assert.match(source, /是否建立全新的新版資料庫/);
+  assert.match(source, /舊版庫存、交易與設定不會自動匯入，也不會被刪除/);
+  assert.match(source, /現金 0、空交易與空庫存/);
+});
+
+test('window startup should continue final render only after ready or legacy startup result', { concurrency: false }, () => {
+  const source = readFileSync('src/app.js', 'utf8');
+  const onloadSource = source.slice(source.indexOf('window.onload'));
+
+  assert.match(onloadSource, /const startupResult = startApplicationState\(localStorage\);/);
+  assert.match(onloadSource, /if \(startupResult\.mode === 'blocked'\) return;/);
+  assert.match(onloadSource, /Crafting\.onRecipeChange\(\);/);
+  assert.match(onloadSource, /Ledger\.updateDashboardUI\(\);/);
+});
+
+test('app startup source should not directly reference new-schema or legacy storage keys', { concurrency: false }, () => {
+  const source = readFileSync('src/app.js', 'utf8');
+  const startupSource = startApplicationState.toString();
+
+  assert.doesNotMatch(source, /albion-logistics-v2-state/);
+  assert.doesNotMatch(startupSource, /albion_crafting_|removeItem|key\(|length/);
+});
+
+test('window startup should register global events before state decision and stop final render when blocked', { concurrency: false }, () => {
+  const source = readFileSync('src/app.js', 'utf8');
+  const onloadSource = source.slice(source.indexOf('window.onload'));
+  const globalEventsIndex = onloadSource.indexOf('initGlobalEvents()');
+  const startupIndex = onloadSource.indexOf('startApplicationState(localStorage)');
+  const blockedReturnIndex = onloadSource.indexOf("startupResult.mode === 'blocked'");
+  const recipeIndex = onloadSource.indexOf('Crafting.onRecipeChange()');
+
+  assert.ok(globalEventsIndex >= 0);
+  assert.ok(startupIndex > globalEventsIndex);
+  assert.ok(blockedReturnIndex > startupIndex);
+  assert.ok(recipeIndex > blockedReturnIndex);
+  assert.match(onloadSource, /if \(startupResult\.mode === 'blocked'\) return;/);
 });

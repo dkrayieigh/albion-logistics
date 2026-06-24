@@ -1,4 +1,6 @@
 import { createBrowserNewSchemaRuntimeController } from '../adapters/browserNewSchemaRuntimeController.js';
+import { createCleanInitialState } from '../adapters/cleanInitialState.js';
+import { projectNewSchemaToRuntime } from '../adapters/newSchemaRuntimeBridge.js';
 import { QUAL_GROUPS } from '../data/constants.js';
 import { ALBION_DB } from '../data/albion_db.js';
 
@@ -23,6 +25,12 @@ const CURRENT_RUNTIME_LOCATION_KEYS = [
   'Martlock',
   'Thetford'
 ];
+const DEFAULT_NEW_SCHEMA_INITIALIZATION_INPUT = {
+  cash: 0,
+  debt: 0,
+  customLocations: [],
+  inventorySeeds: []
+};
 
 export function setCurrentCraftQuality(val) { currentCraftQuality = val || ''; }
 export function setCurrentBuyQuality(val) { currentBuyQuality = val || ''; }
@@ -77,6 +85,64 @@ export function enableNewSchemaRuntime(storage) {
   }
 
   return result;
+}
+
+export function initializeNewSchemaRuntime(storage, input = DEFAULT_NEW_SCHEMA_INITIALIZATION_INPUT, options = {}) {
+  activeNewSchemaRuntimeController = null;
+
+  const initialized = createCleanInitialState(input, options);
+  if (!initialized.ok) {
+    return {
+      ok: false,
+      mode: 'blocked',
+      state: null,
+      sourceStatus: 'initialization-error',
+      errors: [...initialized.errors]
+    };
+  }
+
+  const created = createBrowserNewSchemaRuntimeController(storage);
+  if (!created.ok) {
+    return {
+      ok: false,
+      mode: 'blocked',
+      state: null,
+      sourceStatus: 'error',
+      errors: [...created.errors]
+    };
+  }
+
+  const projected = projectNewSchemaToRuntime(initialized.state);
+  if (!projected.ok) {
+    return {
+      ok: false,
+      mode: 'blocked',
+      state: null,
+      sourceStatus: 'initial-save-error',
+      errors: [...projected.errors]
+    };
+  }
+
+  const saved = created.controller.save(projected.state);
+  if (!saved.ok) {
+    return {
+      ok: false,
+      mode: 'blocked',
+      state: null,
+      sourceStatus: 'initial-save-error',
+      errors: [...saved.errors]
+    };
+  }
+
+  const ready = created.controller.start();
+  if (ready.ok && ready.mode === 'ready') {
+    replaceStateContents(state, ready.state);
+    initDefaultState();
+    activeNewSchemaRuntimeController = created.controller;
+    callUIUpdate();
+  }
+
+  return ready;
 }
 
 export function initDefaultState() {
