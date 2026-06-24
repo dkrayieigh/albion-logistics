@@ -1,3 +1,4 @@
+import { createBrowserNewSchemaRuntimeController } from '../adapters/browserNewSchemaRuntimeController.js';
 import { QUAL_GROUPS } from '../data/constants.js';
 import { ALBION_DB } from '../data/albion_db.js';
 
@@ -13,6 +14,7 @@ export const state = {
 export const craftingQueue = [];
 export let currentCraftQuality = '';
 export let currentBuyQuality = '';
+let activeNewSchemaRuntimeController = null;
 
 export function setCurrentCraftQuality(val) { currentCraftQuality = val || ''; }
 export function setCurrentBuyQuality(val) { currentBuyQuality = val || ''; }
@@ -20,6 +22,43 @@ export function setCurrentBuyQuality(val) { currentBuyQuality = val || ''; }
 // 不再依賴 window 全域變數，改用 CustomEvent 發送廣播
 function callUIUpdate() {
   document.dispatchEvent(new Event('stateUpdated'));
+}
+
+export function replaceStateContents(target, source) {
+  for (const key of Object.keys(target)) {
+    delete target[key];
+  }
+
+  for (const [key, value] of Object.entries(source)) {
+    target[key] = value;
+  }
+}
+
+export function enableNewSchemaRuntime(storage) {
+  const created = createBrowserNewSchemaRuntimeController(storage);
+
+  if (!created.ok) {
+    activeNewSchemaRuntimeController = null;
+    return {
+      ok: false,
+      mode: 'blocked',
+      state: null,
+      sourceStatus: 'error',
+      errors: [...created.errors]
+    };
+  }
+
+  const result = created.controller.start();
+
+  if (result.ok && result.mode === 'ready') {
+    replaceStateContents(state, result.state);
+    activeNewSchemaRuntimeController = created.controller;
+    callUIUpdate();
+  } else {
+    activeNewSchemaRuntimeController = null;
+  }
+
+  return result;
 }
 
 export function initDefaultState() {
@@ -94,6 +133,13 @@ export function loadState() {
 
 export function saveState() {
   if (state.laborerLogs.length > 100) state.laborerLogs.splice(100);
+
+  if (activeNewSchemaRuntimeController) {
+    const result = activeNewSchemaRuntimeController.save(state);
+
+    if (result.ok) callUIUpdate();
+    return result;
+  }
   
   localStorage.setItem('albion_crafting_stocks', JSON.stringify(state.inventory));
   localStorage.setItem('albion_crafting_assets', JSON.stringify(state.assets));
@@ -102,4 +148,10 @@ export function saveState() {
   localStorage.setItem('albion_crafting_laborer_logs', JSON.stringify(state.laborerLogs));
   localStorage.setItem('albion_crafting_custom_locs', JSON.stringify(state.customLocations));
   callUIUpdate();
+  return {
+    ok: true,
+    status: 'legacy-saved',
+    state: null,
+    errors: []
+  };
 }

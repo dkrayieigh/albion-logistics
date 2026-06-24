@@ -99,7 +99,14 @@ globalThis.FileReader = class FileReader {
 };
 
 const { initGlobalEvents } = await import('../src/app.js');
-const { initDefaultState, loadState, state } = await import('../src/core/state.js');
+const {
+  enableNewSchemaRuntime,
+  initDefaultState,
+  loadState,
+  replaceStateContents,
+  saveState,
+  state
+} = await import('../src/core/state.js');
 
 window.showToast = () => {};
 initGlobalEvents();
@@ -4120,4 +4127,278 @@ test('location adapter read-only: boundary does not touch storage writers or reg
   assert.equal(JSON.stringify(input), before);
   assert.equal(Object.hasOwn(input, 'qtyByCity'), true);
   assert.doesNotMatch(source, /localStorage|saveState|LocationRegistry|purchase|transport|submitPurchase|submitTransport/i);
+});
+
+test('state integration should enable ready new-schema runtime without replacing exported state identity', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  const itemKey = Object.keys(canonical.inventory)[0];
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
+  });
+  const originalState = state;
+  let updateCount = 0;
+  const originalDispatch = document.dispatchEvent;
+  document.dispatchEvent = event => {
+    if (event.type === 'stateUpdated') updateCount++;
+  };
+
+  try {
+    const result = enableNewSchemaRuntime(storageDouble);
+
+    assert.equal(result.ok, true);
+    assert.equal(result.mode, 'ready');
+    assert.equal(result.sourceStatus, 'loaded');
+    assert.equal(state, originalState);
+    assert.deepEqual(state.assets, result.state.assets);
+    assert.equal(state.inventory[itemKey].qtyByCity.Thetford, canonical.inventory[itemKey].qtyByLocation.thetford);
+    assert.equal(Object.hasOwn(state.inventory[itemKey], 'qtyByLocation'), false);
+    assert.equal(state.laborerInventory['滿日記本']['6.1'], 3);
+    assert.equal(updateCount, 1);
+    assert.deepEqual(storageDouble.calls, [
+      { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+    ]);
+  } finally {
+    document.dispatchEvent = originalDispatch;
+  }
+});
+
+test('replaceStateContents should replace enumerable root fields without mutating source or identity', { concurrency: false }, () => {
+  const target = {
+    oldField: true,
+    assets: { cash: 1 },
+    transactions: [{ id: 1 }]
+  };
+  const source = {
+    assets: { cash: 2, debt: 0 },
+    inventory: { item: { qtyByCity: { Thetford: 1 } } },
+    transactions: []
+  };
+  const originalTarget = target;
+  const sourceBefore = JSON.stringify(source);
+
+  replaceStateContents(target, source);
+
+  assert.equal(target, originalTarget);
+  assert.equal(Object.hasOwn(target, 'oldField'), false);
+  assert.deepEqual(target, source);
+  assert.equal(JSON.stringify(source), sourceBefore);
+});
+
+test('state integration should preserve initialize missing storage without binding controller or touching state storage or legacy load', { concurrency: false }, () => {
+  resetMocks();
+  replaceStateContents(state, {
+    assets: { cash: 42, debt: 0 },
+    customLocations: ['Legacy Warehouse'],
+    inventory: { legacy: { qtyByCity: { Thetford: 1 }, globalAvgCost: null } },
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  const beforeState = JSON.stringify(state);
+  const storageDouble = makeBrowserStorageDouble();
+
+  const result = enableNewSchemaRuntime(storageDouble);
+  const saveResult = saveState();
+
+  assert.deepEqual(result, {
+    ok: true,
+    mode: 'initialize',
+    state: null,
+    sourceStatus: 'missing',
+    errors: []
+  });
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }
+  ]);
+  assert.equal(storageDouble.entries.size, 0);
+  assert.equal(saveResult.status, 'legacy-saved');
+  assert.equal(localStorage.getItem(STORAGE_KEYS.inventory), JSON.stringify(state.inventory));
+  assert.equal(storage.has(NEW_SCHEMA_STORAGE_KEY), false);
+});
+
+test('state integration should preserve blocked invalid storage without binding controller or touching legacy load path', { concurrency: false }, () => {
+  resetMocks();
+  const invalidState = makeValidNewSchemaState();
+  invalidState.schemaVersion = 2;
+  replaceStateContents(state, {
+    assets: { cash: 99, debt: 0 },
+    customLocations: [],
+    inventory: {},
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  const beforeState = JSON.stringify(state);
+  const serialized = JSON.stringify(invalidState);
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: serialized
+  });
+
+  const result = enableNewSchemaRuntime(storageDouble);
+  const saveResult = saveState();
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'invalid',
+    errors: ['UNSUPPORTED_SCHEMA_VERSION']
+  });
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(saveResult.status, 'legacy-saved');
+  assert.equal(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY), serialized);
+  assert.equal(localStorage.getItem(STORAGE_KEYS.assets), JSON.stringify(state.assets));
+});
+
+test('state integration should block invalid storage binding without state storage or legacy load fallback', { concurrency: false }, () => {
+  resetMocks();
+  replaceStateContents(state, {
+    assets: { cash: 7, debt: 0 },
+    customLocations: [],
+    inventory: {},
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  const beforeState = JSON.stringify(state);
+
+  const result = enableNewSchemaRuntime(null);
+
+  assert.deepEqual(result, {
+    ok: false,
+    mode: 'blocked',
+    state: null,
+    sourceStatus: 'error',
+    errors: BROWSER_STORAGE_BACKEND_ERROR_ORDER
+  });
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(storageSnapshot(), '[]');
+});
+
+test('state integration saveState should write only the new-schema key when controller is ready', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  const itemKey = Object.keys(canonical.inventory)[0];
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized,
+    ...Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`]))
+  });
+  let updateCount = 0;
+  const originalDispatch = document.dispatchEvent;
+  document.dispatchEvent = event => {
+    if (event.type === 'stateUpdated') updateCount++;
+  };
+
+  try {
+    assert.equal(enableNewSchemaRuntime(storageDouble).mode, 'ready');
+    state.assets.cash = 777;
+    state.inventory[itemKey].qtyByCity.Thetford = 88;
+    state.laborerInventory['滿日記本']['6.1'] = 9;
+    state.laborerLogs = Array.from({ length: 105 }, (_, index) => ({ index }));
+
+    const result = saveState();
+    const stored = decodeNewSchemaState(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY));
+
+    assert.equal(result.ok, true);
+    assert.equal(result.status, 'saved');
+    assert.equal(state.laborerLogs.length, 100);
+    assert.equal(stored.state.assets.cash, 777);
+    assert.equal(stored.state.inventory[itemKey].qtyByLocation.thetford, 88);
+    assert.equal(stored.state.laborerInventory['滿日誌']['6.1'], 9);
+    assert.equal(stored.state.laborerLogs.length, 100);
+    assert.equal(updateCount, 2);
+    assert.deepEqual(storageDouble.calls.filter(call => call.method === 'setItem').map(call => call.key), [
+      NEW_SCHEMA_STORAGE_KEY
+    ]);
+    for (const key of LEGACY_STORAGE_KEYS) {
+      assert.equal(storageDouble.entries.get(key), `legacy:${key}`);
+      assert.equal(storage.has(key), false);
+    }
+  } finally {
+    document.dispatchEvent = originalDispatch;
+  }
+});
+
+test('state integration saveState should return controller failures without UI update or storage mutation', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
+  });
+  let updateCount = 0;
+  const originalDispatch = document.dispatchEvent;
+  document.dispatchEvent = event => {
+    if (event.type === 'stateUpdated') updateCount++;
+  };
+
+  try {
+    assert.equal(enableNewSchemaRuntime(storageDouble).mode, 'ready');
+    updateCount = 0;
+    const beforeEntries = JSON.stringify([...storageDouble.entries.entries()]);
+    const itemKey = Object.keys(state.inventory)[0];
+    state.inventory[itemKey].qtyByCity.UnknownRuntimeLocation = 1;
+
+    const result = saveState();
+
+    assert.deepEqual(result, {
+      ok: false,
+      status: 'invalid-runtime',
+      state: null,
+      errors: ['RUNTIME_LOCATION_MAPPING_FAILED']
+    });
+    assert.equal(updateCount, 0);
+    assert.equal(JSON.stringify([...storageDouble.entries.entries()]), beforeEntries);
+  } finally {
+    document.dispatchEvent = originalDispatch;
+  }
+});
+
+test('state integration should clear a ready controller after later initialize enable', { concurrency: false }, () => {
+  resetMocks();
+  const readyStorage = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(makeRuntimeBridgeNewSchemaState()).serialized
+  });
+  const missingStorage = makeBrowserStorageDouble();
+
+  assert.equal(enableNewSchemaRuntime(readyStorage).mode, 'ready');
+  assert.equal(enableNewSchemaRuntime(missingStorage).mode, 'initialize');
+
+  const saveResult = saveState();
+
+  assert.equal(saveResult.status, 'legacy-saved');
+  assert.equal(missingStorage.entries.size, 0);
+  assert.equal(localStorage.getItem(STORAGE_KEYS.assets), JSON.stringify(state.assets));
+});
+
+test('state integration should keep loadState legacy-only and avoid app component imports', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  replaceStateContents(state, {
+    assets: { cash: 0, debt: 0 },
+    customLocations: [],
+    inventory: {},
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  localStorage.setItem(NEW_SCHEMA_STORAGE_KEY, encodeNewSchemaState(canonical).serialized);
+  seedStorage({
+    inventory: { legacy: { qtyByCity: { Thetford: 1 }, globalAvgCost: null } },
+    assets: { cash: 321, debt: 0 },
+    transactions: [],
+    laborerInventory: {},
+    laborerLogs: [],
+    customLocations: []
+  });
+
+  loadState();
+
+  const source = readFileSync('src/core/state.js', 'utf8');
+  assert.equal(state.assets.cash, 321);
+  assert.equal(Object.hasOwn(state.inventory, 'legacy'), true);
+  assert.equal(Object.hasOwn(state, 'locationRegistry'), false);
+  assert.doesNotMatch(source, /from ['"].*app\.js|from ['"].*components\//);
+  assert.doesNotMatch(enableNewSchemaRuntime.toString(), /\bloadState\b|\blocalStorage\b/);
 });
