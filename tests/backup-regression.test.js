@@ -106,7 +106,10 @@ const {
   loadState,
   replaceStateContents,
   saveState,
-  state
+  state,
+  addCustomLocation,
+  renameCustomLocation,
+  removeCustomLocation
 } = await import('../src/core/state.js');
 
 window.showToast = () => {};
@@ -491,6 +494,46 @@ function makeBrowserStorageDouble(initialEntries = {}) {
       entries.set(key, String(value));
     }
   };
+}
+
+function makeFailingWriteBrowserStorageDouble(initialEntries = {}) {
+  const storageDouble = makeBrowserStorageDouble(initialEntries);
+  storageDouble.setItem = (key, value) => {
+    storageDouble.calls.push({ method: 'setItem', key, value });
+    throw new Error('write failed');
+  };
+  return storageDouble;
+}
+
+function clearCanonicalCustomLocationQuantities(canonical, locationId = 'custom:test-001') {
+  for (const item of Object.values(canonical.inventory)) {
+    if (item.qtyByLocation && Object.hasOwn(item.qtyByLocation, locationId)) {
+      item.qtyByLocation[locationId] = 0;
+    }
+  }
+}
+
+function startReadyRuntimeWithCanonical(canonical = makeRuntimeBridgeNewSchemaState(), storageOverrides = {}) {
+  const storageDouble = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized,
+    ...storageOverrides
+  });
+
+  const result = enableNewSchemaRuntime(storageDouble);
+  assert.equal(result.ok, true);
+  assert.equal(result.mode, 'ready');
+  return storageDouble;
+}
+
+function decodeStoredRuntime(storageDouble) {
+  const decoded = decodeNewSchemaState(storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY));
+  assert.equal(decoded.ok, true);
+  return decoded.state;
+}
+
+function customIdGenerator(...ids) {
+  let index = 0;
+  return () => ids[index++];
 }
 
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
@@ -4443,6 +4486,400 @@ test('state integration saveState should write only the new-schema key when cont
   } finally {
     document.dispatchEvent = originalDispatch;
   }
+});
+
+test('custom location writer add creates stable custom id, runtime location, and canonical qtyByLocation', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  canonical.inventory['布料_6.1'].qtyByLocation.thetford = 7;
+  const storageDouble = startReadyRuntimeWithCanonical(canonical, Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, `legacy:${key}`])));
+
+  const result = addCustomLocation('  East Hideout  ', {
+    generateCustomLocationId: customIdGenerator('custom:east-001')
+  });
+  const stored = decodeStoredRuntime(storageDouble);
+
+  assert.deepEqual(result, {
+    ok: true,
+    status: 'location-added',
+    locationId: 'custom:east-001',
+    errors: []
+  });
+  assert.deepEqual(state.locationRegistry['custom:east-001'], {
+    locationId: 'custom:east-001',
+    displayName: 'East Hideout',
+    type: 'custom',
+    active: true
+  });
+  assert.equal(state.customLocations.includes('East Hideout'), true);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity['East Hideout'], 0);
+  assert.equal(stored.locationRegistry['custom:east-001'].displayName, 'East Hideout');
+  assert.equal(stored.inventory['布料_6.1'].qtyByLocation['custom:east-001'], 0);
+  assert.equal(Object.hasOwn(stored.inventory['布料_6.1'].qtyByLocation, 'East Hideout'), false);
+  assert.deepEqual(storageDouble.calls.filter(call => call.method === 'setItem').map(call => call.key), [NEW_SCHEMA_STORAGE_KEY]);
+  for (const key of LEGACY_STORAGE_KEYS) assert.equal(storageDouble.entries.get(key), `legacy:${key}`);
+});
+
+test('custom location writer add survives restart with the same stable locationId', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = startReadyRuntimeWithCanonical();
+
+  assert.equal(addCustomLocation('Restart Warehouse', {
+    generateCustomLocationId: customIdGenerator('custom:restart-001')
+  }).ok, true);
+  const storedAfterAdd = storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY);
+
+  const restartStorage = makeBrowserStorageDouble({ [NEW_SCHEMA_STORAGE_KEY]: storedAfterAdd });
+  const restarted = enableNewSchemaRuntime(restartStorage);
+
+  assert.equal(restarted.ok, true);
+  assert.equal(state.locationRegistry['custom:restart-001'].displayName, 'Restart Warehouse');
+  assert.equal(state.customLocations.includes('Restart Warehouse'), true);
+  assert.deepEqual(restartStorage.calls, [{ method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }]);
+});
+
+test('custom location writer rejects duplicate active names and system location conflicts without mutation', { concurrency: false }, () => {
+  resetMocks();
+  startReadyRuntimeWithCanonical();
+  assert.equal(addCustomLocation('Alpha Warehouse', {
+    generateCustomLocationId: customIdGenerator('custom:alpha-001')
+  }).ok, true);
+  const before = JSON.stringify(state);
+
+  const duplicate = addCustomLocation(' alpha warehouse ', {
+    generateCustomLocationId: customIdGenerator('custom:alpha-002')
+  });
+  const systemConflict = addCustomLocation(' LaborerIsland ', {
+    generateCustomLocationId: customIdGenerator('custom:laborer-001')
+  });
+
+  assert.equal(duplicate.ok, false);
+  assert.equal(duplicate.status, 'invalid-location');
+  assert.deepEqual(duplicate.errors, ['DUPLICATE_CUSTOM_LOCATION_NAME']);
+  assert.equal(systemConflict.ok, false);
+  assert.deepEqual(systemConflict.errors, ['SYSTEM_LOCATION_NAME_CONFLICT']);
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('custom location writer rejects invalid id generator without state or storage mutation', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = startReadyRuntimeWithCanonical();
+  const beforeState = JSON.stringify(state);
+  const beforeStorage = JSON.stringify([...storageDouble.entries.entries()]);
+
+  const invalid = addCustomLocation('Bad Generator', { generateCustomLocationId: () => 'bad-id' });
+  const throwing = addCustomLocation('Throwing Generator', { generateCustomLocationId: () => { throw new Error('bad'); } });
+
+  assert.equal(invalid.ok, false);
+  assert.deepEqual(invalid.errors, ['CUSTOM_LOCATION_ID_GENERATION_FAILED']);
+  assert.equal(throwing.ok, false);
+  assert.deepEqual(throwing.errors, ['CUSTOM_LOCATION_ID_GENERATION_FAILED']);
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(JSON.stringify([...storageDouble.entries.entries()]), beforeStorage);
+});
+
+test('custom location writer add rolls back all runtime changes on save failure', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  const storageDouble = makeFailingWriteBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
+  });
+  assert.equal(enableNewSchemaRuntime(storageDouble).mode, 'ready');
+  const beforeState = JSON.stringify(state);
+  const beforeStorage = JSON.stringify([...storageDouble.entries.entries()]);
+
+  const result = addCustomLocation('Rollback Add', {
+    generateCustomLocationId: customIdGenerator('custom:rollback-add')
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'save-failed');
+  assert.equal(result.locationId, 'custom:rollback-add');
+  assert.deepEqual(result.errors, ['STORAGE_WRITE_FAILED']);
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(JSON.stringify([...storageDouble.entries.entries()]), beforeStorage);
+  assert.equal(storageDouble.calls.filter(call => call.method === 'setItem').length, 1);
+});
+
+test('custom location writer rename preserves id, order, zero quantity, transactions, and canonical id', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  canonical.locationRegistry['custom:second-001'] = {
+    locationId: 'custom:second-001',
+    displayName: 'Second Warehouse',
+    type: 'custom',
+    active: true
+  };
+  canonical.inventory['布料_6.1'].qtyByLocation['custom:test-001'] = 0;
+  canonical.inventory['布料_6.1'].qtyByLocation['custom:second-001'] = 4;
+  canonical.transactions = [
+    { date: '2026-06-26', type: '買材料', item: '布料', quality: '6.1', qty: 1, total: 1, unitPrice: 1, location: '公會倉庫' }
+  ];
+  const storageDouble = startReadyRuntimeWithCanonical(canonical);
+
+  const result = renameCustomLocation('公會倉庫', ' Renamed Warehouse ');
+  const stored = decodeStoredRuntime(storageDouble);
+
+  assert.deepEqual(result, {
+    ok: true,
+    status: 'location-renamed',
+    locationId: 'custom:test-001',
+    errors: []
+  });
+  assert.equal(state.locationRegistry['custom:test-001'].displayName, 'Renamed Warehouse');
+  assert.deepEqual(state.customLocations, ['Renamed Warehouse', 'Second Warehouse']);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity['Renamed Warehouse'], 0);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, '公會倉庫'), false);
+  assert.equal(state.transactions[0].location, 'Renamed Warehouse');
+  assert.equal(stored.locationRegistry['custom:test-001'].displayName, 'Renamed Warehouse');
+  assert.equal(stored.inventory['布料_6.1'].qtyByLocation['custom:test-001'], 0);
+  assert.equal(stored.transactions[0].location, 'Renamed Warehouse');
+});
+
+test('custom location writer rename no-op keeps state and storage without another save', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = startReadyRuntimeWithCanonical();
+  const beforeState = JSON.stringify(state);
+  const beforeCalls = storageDouble.calls.length;
+
+  const result = renameCustomLocation('公會倉庫', ' 公會倉庫 ');
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'location-renamed');
+  assert.equal(result.locationId, 'custom:test-001');
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(storageDouble.calls.length, beforeCalls);
+});
+
+test('custom location writer rename rejects duplicate and system conflicts without mutation', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  canonical.locationRegistry['custom:second-001'] = {
+    locationId: 'custom:second-001',
+    displayName: 'Second Warehouse',
+    type: 'custom',
+    active: true
+  };
+  const storageDouble = startReadyRuntimeWithCanonical(canonical);
+  const beforeState = JSON.stringify(state);
+  const beforeStorage = JSON.stringify([...storageDouble.entries.entries()]);
+
+  const duplicate = renameCustomLocation('公會倉庫', ' second warehouse ');
+  const conflict = renameCustomLocation('公會倉庫', 'Caerleon');
+
+  assert.equal(duplicate.ok, false);
+  assert.deepEqual(duplicate.errors, ['DUPLICATE_CUSTOM_LOCATION_NAME']);
+  assert.equal(conflict.ok, false);
+  assert.deepEqual(conflict.errors, ['SYSTEM_LOCATION_NAME_CONFLICT']);
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(JSON.stringify([...storageDouble.entries.entries()]), beforeStorage);
+});
+
+test('custom location writer rename rolls back registry inventory and transactions on save failure', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  const storageDouble = makeFailingWriteBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
+  });
+  assert.equal(enableNewSchemaRuntime(storageDouble).mode, 'ready');
+  state.transactions.push({ location: '公會倉庫', type: '買材料' });
+  const beforeState = JSON.stringify(state);
+  const beforeStorage = JSON.stringify([...storageDouble.entries.entries()]);
+
+  const result = renameCustomLocation('公會倉庫', 'Rollback Rename');
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'save-failed');
+  assert.equal(result.locationId, 'custom:test-001');
+  assert.deepEqual(result.errors, ['STORAGE_WRITE_FAILED']);
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(JSON.stringify([...storageDouble.entries.entries()]), beforeStorage);
+});
+
+test('custom location writer remove rejects finite positive inventory before mutation', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  canonical.inventory['布料_6.1'].qtyByLocation['custom:test-001'] = 5;
+  const storageDouble = startReadyRuntimeWithCanonical(canonical);
+  const beforeState = JSON.stringify(state);
+
+  const result = removeCustomLocation('公會倉庫');
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'invalid-location');
+  assert.equal(result.locationId, 'custom:test-001');
+  assert.deepEqual(result.errors, ['CUSTOM_LOCATION_HAS_INVENTORY']);
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(storageDouble.calls.filter(call => call.method === 'setItem').length, 0);
+});
+
+test('custom location writer remove deactivates registry entry, removes runtime quantities, and preserves transaction history', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  clearCanonicalCustomLocationQuantities(canonical);
+  canonical.transactions = [{ type: '買材料', location: '公會倉庫' }];
+  const storageDouble = startReadyRuntimeWithCanonical(canonical);
+
+  const result = removeCustomLocation('公會倉庫');
+  const stored = decodeStoredRuntime(storageDouble);
+
+  assert.deepEqual(result, {
+    ok: true,
+    status: 'location-removed',
+    locationId: 'custom:test-001',
+    errors: []
+  });
+  assert.equal(state.locationRegistry['custom:test-001'].active, false);
+  assert.equal(Object.hasOwn(state.locationRegistry, 'custom:test-001'), true);
+  assert.deepEqual(state.customLocations, []);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, '公會倉庫'), false);
+  assert.deepEqual(state.transactions, [{ type: '買材料', location: '公會倉庫' }]);
+  assert.equal(stored.locationRegistry['custom:test-001'].active, false);
+  assert.equal(Object.hasOwn(stored.inventory['布料_6.1'].qtyByLocation, 'custom:test-001'), false);
+  assert.deepEqual(stored.transactions, [{ type: '買材料', location: '公會倉庫' }]);
+});
+
+test('custom location writer remove rolls back on save failure', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  clearCanonicalCustomLocationQuantities(canonical);
+  const storageDouble = makeFailingWriteBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
+  });
+  assert.equal(enableNewSchemaRuntime(storageDouble).mode, 'ready');
+  const beforeState = JSON.stringify(state);
+  const beforeStorage = JSON.stringify([...storageDouble.entries.entries()]);
+
+  const result = removeCustomLocation('公會倉庫');
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'save-failed');
+  assert.deepEqual(result.errors, ['STORAGE_WRITE_FAILED']);
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(JSON.stringify([...storageDouble.entries.entries()]), beforeStorage);
+});
+
+test('custom location writer re-adding a removed display name uses a new id and does not reactivate inactive entries', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  clearCanonicalCustomLocationQuantities(canonical);
+  const storageDouble = startReadyRuntimeWithCanonical(canonical);
+
+  assert.equal(removeCustomLocation('公會倉庫').ok, true);
+  const added = addCustomLocation('公會倉庫', {
+    generateCustomLocationId: customIdGenerator('custom:test-002')
+  });
+  const stored = decodeStoredRuntime(storageDouble);
+
+  assert.equal(added.ok, true);
+  assert.equal(added.locationId, 'custom:test-002');
+  assert.equal(state.locationRegistry['custom:test-001'].active, false);
+  assert.equal(state.locationRegistry['custom:test-002'].active, true);
+  assert.equal(stored.locationRegistry['custom:test-001'].active, false);
+  assert.equal(stored.locationRegistry['custom:test-002'].displayName, '公會倉庫');
+});
+
+test('custom location writer add purchase transport save and restart round trips stable id and quantities', { concurrency: false }, () => {
+  resetMocks();
+  const storageDouble = startReadyRuntimeWithCanonical();
+  assert.equal(addCustomLocation('Flow Warehouse', {
+    generateCustomLocationId: customIdGenerator('custom:flow-001')
+  }).ok, true);
+  state.inventory['布料_6.1'].qtyByCity.Thetford = 3;
+  state.inventory['布料_6.1'].qtyByCity['Flow Warehouse'] = 11;
+  assert.equal(saveState().ok, true);
+
+  const restartStorage = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY)
+  });
+  assert.equal(enableNewSchemaRuntime(restartStorage).mode, 'ready');
+
+  assert.equal(state.locationRegistry['custom:flow-001'].displayName, 'Flow Warehouse');
+  assert.equal(state.inventory['布料_6.1'].qtyByCity['Flow Warehouse'], 11);
+  assert.equal(decodeStoredRuntime(restartStorage).inventory['布料_6.1'].qtyByLocation['custom:flow-001'], 11);
+});
+
+test('custom location writer rename save and restart preserves quantity and id', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  canonical.inventory['布料_6.1'].qtyByLocation['custom:test-001'] = 9;
+  const storageDouble = startReadyRuntimeWithCanonical(canonical);
+
+  assert.equal(renameCustomLocation('公會倉庫', 'Restart Rename').ok, true);
+  const restartStorage = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY)
+  });
+  assert.equal(enableNewSchemaRuntime(restartStorage).mode, 'ready');
+
+  assert.equal(state.locationRegistry['custom:test-001'].displayName, 'Restart Rename');
+  assert.equal(state.inventory['布料_6.1'].qtyByCity['Restart Rename'], 9);
+});
+
+test('custom location writer remove save and restart hides inactive location from runtime customLocations', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  clearCanonicalCustomLocationQuantities(canonical);
+  const storageDouble = startReadyRuntimeWithCanonical(canonical);
+
+  assert.equal(removeCustomLocation('公會倉庫').ok, true);
+  const restartStorage = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY)
+  });
+  assert.equal(enableNewSchemaRuntime(restartStorage).mode, 'ready');
+
+  assert.equal(state.locationRegistry['custom:test-001'].active, false);
+  assert.equal(state.customLocations.includes('公會倉庫'), false);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, '公會倉庫'), false);
+});
+
+test('custom location writer preserves exported state identity and transaction payload shape', { concurrency: false }, () => {
+  resetMocks();
+  startReadyRuntimeWithCanonical();
+  const originalState = state;
+  state.transactions.push({ date: '2026-06-26', type: '買材料', item: '布料', quality: '6.1', qty: 1, total: 10, unitPrice: 10, location: '公會倉庫' });
+
+  assert.equal(renameCustomLocation('公會倉庫', 'Payload Rename').ok, true);
+  const changedTransaction = state.transactions.find(transaction => transaction.item === '布料' && transaction.location === 'Payload Rename');
+
+  assert.equal(state, originalState);
+  assert.deepEqual(Object.keys(changedTransaction), ['date', 'type', 'item', 'quality', 'qty', 'total', 'unitPrice', 'location']);
+  assert.equal(changedTransaction.location, 'Payload Rename');
+});
+
+test('custom location writer APIs reject legacy mode without incidental registry creation', { concurrency: false }, () => {
+  resetMocks();
+  replaceStateContents(state, {
+    assets: { cash: 1, debt: 0 },
+    customLocations: ['Legacy Warehouse'],
+    inventory: { '布料_6.1': { qtyByCity: { 'Legacy Warehouse': 0 }, globalAvgCost: 100 } },
+    laborerInventory: {},
+    laborerLogs: [],
+    transactions: []
+  });
+  const before = JSON.stringify(state);
+
+  const addResult = addCustomLocation('New Legacy Warehouse', {
+    generateCustomLocationId: customIdGenerator('custom:legacy-001')
+  });
+  const renameResult = renameCustomLocation('Legacy Warehouse', 'Renamed Legacy Warehouse');
+  const removeResult = removeCustomLocation('Legacy Warehouse');
+
+  for (const result of [addResult, renameResult, removeResult]) {
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 'invalid-location');
+    assert.deepEqual(result.errors, ['LOCATION_REGISTRY_UNAVAILABLE']);
+  }
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(Object.hasOwn(state, 'locationRegistry'), false);
+});
+
+test('custom location writer source stays isolated from backup reset migration and storage key logic', { concurrency: false }, () => {
+  const source = readFileSync('src/core/state.js', 'utf8');
+
+  assert.match(source, /export function addCustomLocation/);
+  assert.match(source, /export function renameCustomLocation/);
+  assert.match(source, /export function removeCustomLocation/);
+  assert.doesNotMatch(source, /removeItem|clear\(|migration|backup|albion-logistics-v2-state/);
 });
 
 test('state integration saveState should return controller failures without UI update or storage mutation', { concurrency: false }, () => {

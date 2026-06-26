@@ -21,6 +21,7 @@ function createElement(id = '') {
     parentElement: { style: { display: 'block' } },
     children: [],
     rows: [],
+    attributes: {},
     appendChild(child) {
       this.children.push(child);
       this.rows.push(child);
@@ -28,6 +29,12 @@ function createElement(id = '') {
     removeChild(child) {
       this.children = this.children.filter(item => item !== child);
       this.rows = this.rows.filter(item => item !== child);
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    },
+    getAttribute(name) {
+      return this.attributes[name];
     },
     addEventListener() {},
     focus() {}
@@ -97,6 +104,7 @@ function resetState() {
   state.laborerInventory = {};
   state.laborerLogs = [];
   state.transactions = [];
+  delete state.locationRegistry;
   craftingQueue.splice(0);
   storage.clear();
   elements.clear();
@@ -338,6 +346,67 @@ test('visible laborer journal copy uses 日誌 while runtime key remains 滿日�
   assert.doesNotMatch(html, /日記本消耗/);
   assert.match(laborerSource, /state\.laborerInventory\['滿日記本'\]/);
   assert.match(laborerSource, /data-item="滿日記本"/);
+});
+
+test('app custom location add path calls state API and only reports success behind result.ok', { concurrency: false }, () => {
+  const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+  assert.match(source, /addCustomLocation/);
+  assert.match(source, /const result = state\.locationRegistry \? addCustomLocation\(name\) : addLegacyCustomLocation\(name\)/);
+  assert.match(source, /if \(result\.ok\) \{/);
+  assert.match(source, /showToast\('新增自訂倉庫成功', 'success'\)/);
+  assert.match(source, /showToast\(formatCustomLocationError\(result\), 'error'\)/);
+  assert.doesNotMatch(source, /state\.locationRegistry\s*\[/);
+});
+
+test('inventory rename and delete new-schema paths use state APIs without direct registry mutation', { concurrency: false }, () => {
+  const source = readFileSync(new URL('../src/components/inventory.js', import.meta.url), 'utf8');
+
+  assert.match(source, /renameCustomLocation\(oldName, name\)/);
+  assert.match(source, /removeCustomLocation\(name\)/);
+  assert.match(source, /if \(state\.locationRegistry\) \{/);
+  assert.doesNotMatch(source, /state\.locationRegistry\s*\[/);
+  assert.doesNotMatch(source, /locationRegistry\..*=|delete state\.locationRegistry/);
+});
+
+test('legacy custom location rename keeps current mutation behavior when no registry exists', { concurrency: false }, () => {
+  resetState();
+  state.customLocations = ['Legacy Warehouse', 'Second Warehouse'];
+  state.inventory['布料_6.1'] = {
+    qtyByCity: { 'Legacy Warehouse': 0, 'Second Warehouse': 5 },
+    globalAvgCost: 100
+  };
+  state.transactions = [{ type: '買材料', location: 'Legacy Warehouse' }];
+
+  Inventory.renameLocation('Legacy Warehouse');
+  getElement('custom-location-input').value = 'Renamed Legacy';
+  Inventory.submitCustomLocation();
+
+  assert.deepEqual(state.customLocations, ['Renamed Legacy', 'Second Warehouse']);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity['Renamed Legacy'], 0);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, 'Legacy Warehouse'), false);
+  assert.equal(state.transactions[0].location, 'Renamed Legacy');
+  assert.equal(localStorage.getItem('albion_crafting_custom_locs'), JSON.stringify(state.customLocations));
+  assert.equal(toasts.at(-1)?.type, 'success');
+});
+
+test('legacy custom location delete keeps current compatible path and rejects non-empty locations', { concurrency: false }, () => {
+  resetState();
+  state.customLocations = ['Empty Legacy', 'NonEmpty Legacy'];
+  state.inventory['布料_6.1'] = {
+    qtyByCity: { 'Empty Legacy': 0, 'NonEmpty Legacy': 2 },
+    globalAvgCost: 100
+  };
+
+  Inventory.deleteLocation('NonEmpty Legacy');
+  assert.equal(state.customLocations.includes('NonEmpty Legacy'), true);
+  assert.equal(toasts.at(-1)?.type, 'error');
+
+  Inventory.deleteLocation('Empty Legacy');
+  assert.equal(state.customLocations.includes('Empty Legacy'), false);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, 'Empty Legacy'), false);
+  assert.equal(localStorage.getItem('albion_crafting_custom_locs'), JSON.stringify(state.customLocations));
+  assert.equal(toasts.at(-1)?.type, 'success');
 });
 
 test('non-empty custom location cannot be deleted', { concurrency: false }, () => {

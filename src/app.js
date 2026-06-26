@@ -7,7 +7,9 @@ import {
   currentCraftQuality,
   setCurrentCraftQuality,
   currentBuyQuality,
-  setCurrentBuyQuality
+  setCurrentBuyQuality,
+  addCustomLocation,
+  saveState
 } from './core/state.js';
 
 import * as Crafting from './components/crafting.js';
@@ -110,21 +112,45 @@ function onCityChange() {
   Crafting.runCraftingCalculator();
 }
 
+function formatCustomLocationError(result) {
+  if (result.errors.includes('DUPLICATE_CUSTOM_LOCATION_NAME')) return '倉庫名稱已存在';
+  if (result.errors.includes('SYSTEM_LOCATION_NAME_CONFLICT')) return '倉庫名稱不可與系統城市重複';
+  if (result.errors.includes('INVALID_CUSTOM_LOCATION_NAME')) return '倉庫名稱不可空白';
+  if (result.errors.includes('CUSTOM_LOCATION_ID_GENERATION_FAILED')) return '自訂倉庫 ID 產生失敗';
+  if (result.status === 'save-failed') return '自訂倉庫儲存失敗';
+  return '新增自訂倉庫失敗';
+}
+
+function addLegacyCustomLocation(name) {
+  if (state.customLocations.includes(name)) {
+    return { ok: false, status: 'invalid-location', errors: ['DUPLICATE_CUSTOM_LOCATION_NAME'] };
+  }
+
+  state.customLocations.push(name);
+  for (let key in state.inventory) {
+    if(!state.inventory[key].qtyByCity) state.inventory[key].qtyByCity = {};
+    state.inventory[key].qtyByCity[name] = 0;
+  }
+
+  const saved = saveState();
+  if (!saved.ok) return { ok: false, status: 'save-failed', errors: saved.errors };
+  return { ok: true, status: 'location-added', errors: [] };
+}
+
 function handleCityDropdownChange(event) {
   const targetId = event.target.id;
   if (event.target.value === '__ADD_CUSTOM__') {
     Inventory.openCustomLocationModal('add', '', function(newName) {
       if (!newName || newName.trim() === '') { document.getElementById(targetId).selectedIndex = 0; if (targetId === 'craft-city') onCityChange(); return; }
       const name = newName.trim();
-      if (!state.customLocations.includes(name)) {
-        state.customLocations.push(name);
-        for (let key in state.inventory) { if(!state.inventory[key].qtyByCity) state.inventory[key].qtyByCity = {}; state.inventory[key].qtyByCity[name] = 0; }
+      const result = state.locationRegistry ? addCustomLocation(name) : addLegacyCustomLocation(name);
+      if (result.ok) {
         renderCityDropdowns(); document.getElementById(targetId).value = name;
         if (targetId === 'craft-city') onCityChange();
         if (targetId === 'trans-to' || targetId === 'trans-from') Inventory.updateTransItemOptions();
         showToast('新增自訂倉庫成功', 'success');
       } else {
-        showToast('倉庫名稱已存在', 'error'); document.getElementById(targetId).selectedIndex = 0; if (targetId === 'craft-city') onCityChange();
+        showToast(formatCustomLocationError(result), 'error'); document.getElementById(targetId).selectedIndex = 0; if (targetId === 'craft-city') onCityChange();
       }
     }, function() { document.getElementById(targetId).selectedIndex = 0; if (targetId === 'craft-city') onCityChange(); });
   } else {

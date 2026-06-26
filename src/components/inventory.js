@@ -1,6 +1,13 @@
 import { SYSTEM_CITIES } from '../data/constants.js';
 import { escapeHTML, parseNum, formatSilver } from '../utils/formatters.js';
-import { state, saveState, currentBuyQuality, initDefaultState } from '../core/state.js';
+import {
+  state,
+  saveState,
+  currentBuyQuality,
+  initDefaultState,
+  renameCustomLocation,
+  removeCustomLocation
+} from '../core/state.js';
 
 function getInventoryLocationQuantities(item) {
   return item?.qtyByCity ?? item?.locationEntry?.quantities ?? {};
@@ -141,24 +148,54 @@ export function closeManageLocationsModal() { document.getElementById('manage-lo
 function locationHasInventory(name) {
   return Object.values(state.inventory).some(item => Number(item?.qtyByCity?.[name] || 0) > 0);
 }
+function formatLocationApiError(result) {
+  if (result.errors.includes('DUPLICATE_CUSTOM_LOCATION_NAME')) return '名稱已存在';
+  if (result.errors.includes('SYSTEM_LOCATION_NAME_CONFLICT')) return '倉庫名稱不可與系統城市重複';
+  if (result.errors.includes('INVALID_CUSTOM_LOCATION_NAME')) return '倉庫名稱不可空白';
+  if (result.errors.includes('CUSTOM_LOCATION_NOT_FOUND')) return '找不到自訂倉庫';
+  if (result.errors.includes('CUSTOM_LOCATION_HAS_INVENTORY')) return '此倉庫仍有庫存，請先轉移或清空後再刪除。';
+  if (result.status === 'save-failed') return '自訂倉庫儲存失敗';
+  return '自訂倉庫操作失敗';
+}
+function refreshCustomLocationUI() {
+  window.renderCityDropdowns();
+  openManageLocationsModal();
+  window.updateDashboardUI();
+}
+function renameLegacyLocation(oldName, name) {
+  const idx = state.customLocations.indexOf(oldName); if (idx > -1) state.customLocations[idx] = name;
+  for (let k in state.inventory) {
+    if(state.inventory[k].qtyByCity[oldName] !== undefined) { state.inventory[k].qtyByCity[name] = state.inventory[k].qtyByCity[oldName] || 0; delete state.inventory[k].qtyByCity[oldName]; }
+  }
+  state.transactions.forEach(t => { if (t.location === oldName) t.location = name; });
+  saveState();
+}
+function deleteLegacyLocation(name) {
+  if (locationHasInventory(name)) return { ok: false, errors: ['CUSTOM_LOCATION_HAS_INVENTORY'] };
+  state.customLocations = state.customLocations.filter(c => c !== name);
+  for (let k in state.inventory) { delete state.inventory[k].qtyByCity[name]; }
+  saveState();
+  return { ok: true, errors: [] };
+}
 export function renameLocation(oldName) {
   openCustomLocationModal('edit', oldName, function(newName) {
     if (!newName || newName.trim() === '' || newName === oldName) return;
-    const name = newName.trim(); if (state.customLocations.includes(name)) return window.showToast('名稱已存在', 'error');
-    const idx = state.customLocations.indexOf(oldName); if (idx > -1) state.customLocations[idx] = name;
-    for (let k in state.inventory) {
-      if(state.inventory[k].qtyByCity[oldName] !== undefined) { state.inventory[k].qtyByCity[name] = state.inventory[k].qtyByCity[oldName] || 0; delete state.inventory[k].qtyByCity[oldName]; }
+    const name = newName.trim();
+    if (state.locationRegistry) {
+      const result = renameCustomLocation(oldName, name);
+      if (!result.ok) return window.showToast(formatLocationApiError(result), 'error');
+    } else {
+      if (state.customLocations.includes(name)) return window.showToast('名稱已存在', 'error');
+      renameLegacyLocation(oldName, name);
     }
-    state.transactions.forEach(t => { if (t.location === oldName) t.location = name; });
-    saveState(); window.renderCityDropdowns(); openManageLocationsModal(); window.updateDashboardUI(); window.showToast('更名成功，庫存已無損轉移', 'success');
+    refreshCustomLocationUI(); window.showToast('更名成功，庫存已無損轉移', 'success');
   });
 }
 export function deleteLocation(name) {
-  if (locationHasInventory(name)) return window.showToast('此倉庫仍有庫存，請先轉移或清空後再刪除。', 'error');
   if (!confirm(`警告：確定要刪除倉庫「${name}」嗎？\n如果裡面還有庫存，該庫存將永遠遺失！`)) return;
-  state.customLocations = state.customLocations.filter(c => c !== name);
-  for (let k in state.inventory) { delete state.inventory[k].qtyByCity[name]; }
-  saveState(); window.renderCityDropdowns(); openManageLocationsModal(); window.updateDashboardUI(); window.showToast('已刪除自訂倉庫', 'success');
+  const result = state.locationRegistry ? removeCustomLocation(name) : deleteLegacyLocation(name);
+  if (!result.ok) return window.showToast(formatLocationApiError(result), 'error');
+  refreshCustomLocationUI(); window.showToast('已刪除自訂倉庫', 'success');
 }
 
 // ==== EDIT INVENTORY MODAL ====

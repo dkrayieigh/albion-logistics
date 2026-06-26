@@ -25,6 +25,17 @@ const CURRENT_RUNTIME_LOCATION_KEYS = [
   'Martlock',
   'Thetford'
 ];
+const SYSTEM_LOCATION_DISPLAY_NAMES = [
+  'Thetford',
+  'Martlock',
+  'Bridgewatch',
+  'Lymhurst',
+  'Fort Sterling',
+  'Caerleon',
+  'Brecilien',
+  'Laborer Island',
+  'LaborerIsland'
+];
 const DEFAULT_NEW_SCHEMA_INITIALIZATION_INPUT = {
   cash: 0,
   debt: 0,
@@ -47,6 +58,185 @@ function cloneStateValue(value) {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [key, cloneStateValue(item)])
   );
+}
+
+function locationResult(ok, status, locationId, errors = []) {
+  return {
+    ok,
+    status,
+    locationId,
+    errors: [...errors]
+  };
+}
+
+function normalizedLocationName(value) {
+  return typeof value === 'string' ? value.trim().toLocaleLowerCase() : '';
+}
+
+function validateLocationRegistry() {
+  if (!state.locationRegistry || typeof state.locationRegistry !== 'object' || Array.isArray(state.locationRegistry)) {
+    return ['LOCATION_REGISTRY_UNAVAILABLE'];
+  }
+  return [];
+}
+
+function findActiveCustomLocationByName(name) {
+  const normalized = normalizedLocationName(name);
+  return Object.values(state.locationRegistry || {}).find(entry =>
+    entry &&
+    entry.type === 'custom' &&
+    entry.active === true &&
+    normalizedLocationName(entry.displayName) === normalized
+  ) || null;
+}
+
+function validateCustomLocationName(name, existingLocationId = null) {
+  const errors = validateLocationRegistry();
+  const displayName = typeof name === 'string' ? name.trim() : '';
+  const normalized = normalizedLocationName(displayName);
+
+  if (!displayName) errors.push('INVALID_CUSTOM_LOCATION_NAME');
+  if (displayName) {
+    const duplicate = findActiveCustomLocationByName(displayName);
+    if (duplicate && duplicate.locationId !== existingLocationId) errors.push('DUPLICATE_CUSTOM_LOCATION_NAME');
+    if (SYSTEM_LOCATION_DISPLAY_NAMES.some(systemName => normalizedLocationName(systemName) === normalized)) {
+      errors.push('SYSTEM_LOCATION_NAME_CONFLICT');
+    }
+  }
+
+  return { displayName, errors };
+}
+
+function createStateSnapshot() {
+  return cloneStateValue(state);
+}
+
+function restoreStateSnapshot(snapshot) {
+  replaceStateContents(state, snapshot);
+}
+
+function generateCustomLocationId(options) {
+  const generator = options.generateCustomLocationId || (() => `custom:${globalThis.crypto.randomUUID()}`);
+  let locationId;
+
+  try {
+    locationId = generator();
+  } catch {
+    return null;
+  }
+
+  if (
+    typeof locationId !== 'string' ||
+    !locationId.startsWith('custom:') ||
+    locationId.slice('custom:'.length).trim().length === 0 ||
+    Object.hasOwn(state.locationRegistry || {}, locationId)
+  ) {
+    return null;
+  }
+
+  return locationId;
+}
+
+function saveLocationMutation(snapshot, status, locationId) {
+  const saved = saveState();
+  if (saved.ok) return locationResult(true, status, locationId);
+
+  restoreStateSnapshot(snapshot);
+  return locationResult(false, 'save-failed', locationId, saved.errors);
+}
+
+export function addCustomLocation(name, options = {}) {
+  const { displayName, errors } = validateCustomLocationName(name);
+  if (errors.length > 0) return locationResult(false, 'invalid-location', null, errors);
+
+  const locationId = generateCustomLocationId(options);
+  if (!locationId) {
+    return locationResult(false, 'invalid-location', null, ['CUSTOM_LOCATION_ID_GENERATION_FAILED']);
+  }
+
+  const snapshot = createStateSnapshot();
+  for (const entry of Object.values(state.locationRegistry)) {
+    if (
+      entry?.type === 'custom' &&
+      entry.active === false &&
+      normalizedLocationName(entry.displayName) === normalizedLocationName(displayName)
+    ) {
+      entry.displayName = `${entry.displayName} (inactive ${entry.locationId})`;
+    }
+  }
+  state.locationRegistry[locationId] = {
+    locationId,
+    displayName,
+    type: 'custom',
+    active: true
+  };
+  state.customLocations.push(displayName);
+  for (const item of Object.values(state.inventory)) {
+    if (!item.qtyByCity) item.qtyByCity = {};
+    item.qtyByCity[displayName] = 0;
+  }
+
+  return saveLocationMutation(snapshot, 'location-added', locationId);
+}
+
+export function renameCustomLocation(oldName, newName) {
+  const registryErrors = validateLocationRegistry();
+  if (registryErrors.length > 0) return locationResult(false, 'invalid-location', null, registryErrors);
+
+  const currentEntry = findActiveCustomLocationByName(oldName);
+  if (!currentEntry) return locationResult(false, 'invalid-location', null, ['CUSTOM_LOCATION_NOT_FOUND']);
+
+  const { displayName, errors } = validateCustomLocationName(newName, currentEntry.locationId);
+  if (errors.length > 0) return locationResult(false, 'invalid-location', currentEntry.locationId, errors);
+  if (normalizedLocationName(displayName) === normalizedLocationName(currentEntry.displayName)) {
+    return locationResult(true, 'location-renamed', currentEntry.locationId);
+  }
+
+  const oldDisplayName = currentEntry.displayName;
+  const snapshot = createStateSnapshot();
+  currentEntry.displayName = displayName;
+  state.customLocations = state.customLocations.map(location => (
+    normalizedLocationName(location) === normalizedLocationName(oldDisplayName) ? displayName : location
+  ));
+  for (const item of Object.values(state.inventory)) {
+    if (!item.qtyByCity) item.qtyByCity = {};
+    if (Object.hasOwn(item.qtyByCity, oldDisplayName)) {
+      const oldValue = item.qtyByCity[oldDisplayName];
+      item.qtyByCity[displayName] = oldValue;
+      delete item.qtyByCity[oldDisplayName];
+    }
+  }
+  state.transactions.forEach(transaction => {
+    if (transaction.location === oldDisplayName) transaction.location = displayName;
+  });
+
+  return saveLocationMutation(snapshot, 'location-renamed', currentEntry.locationId);
+}
+
+export function removeCustomLocation(name) {
+  const registryErrors = validateLocationRegistry();
+  if (registryErrors.length > 0) return locationResult(false, 'invalid-location', null, registryErrors);
+
+  const currentEntry = findActiveCustomLocationByName(name);
+  if (!currentEntry) return locationResult(false, 'invalid-location', null, ['CUSTOM_LOCATION_NOT_FOUND']);
+
+  const displayName = currentEntry.displayName;
+  const hasInventory = Object.values(state.inventory).some(item => {
+    const quantity = item?.qtyByCity?.[displayName];
+    return typeof quantity === 'number' && Number.isFinite(quantity) && quantity > 0;
+  });
+  if (hasInventory) {
+    return locationResult(false, 'invalid-location', currentEntry.locationId, ['CUSTOM_LOCATION_HAS_INVENTORY']);
+  }
+
+  const snapshot = createStateSnapshot();
+  currentEntry.active = false;
+  state.customLocations = state.customLocations.filter(location => normalizedLocationName(location) !== normalizedLocationName(displayName));
+  for (const item of Object.values(state.inventory)) {
+    if (item.qtyByCity) delete item.qtyByCity[displayName];
+  }
+
+  return saveLocationMutation(snapshot, 'location-removed', currentEntry.locationId);
 }
 
 export function replaceStateContents(target, source) {
