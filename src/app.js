@@ -1,4 +1,3 @@
-import { QUAL_GROUPS } from './data/constants.js';
 import { escapeHTML } from './utils/formatters.js';
 import {
   state,
@@ -20,6 +19,14 @@ import * as WindowControls from './components/window-controls.js';
 // ==========================================
 // 全域共用 UI 函式
 // ==========================================
+const QUALITY_MATRIX_ROWS = [
+  ['4.0', '4.1', '4.2', '4.3', '4.4'],
+  ['5.0', '5.1', '5.2', '5.3', '5.4'],
+  ['6.0', '6.1', '6.2', '6.3', '6.4'],
+  ['7.0', '7.1', '7.2', '7.3', '7.4'],
+  ['8.0', '8.1', '8.2', '8.3', '8.4']
+];
+
 function showToast(m, t='success') {
   const nt=document.getElementById('toast-notification'); const ic=document.getElementById('toast-icon');
   document.getElementById('toast-text').innerText=m; ic.className=`toast-icon ${t}`; ic.innerHTML=t==='success'?'✅':'❌'; nt.classList.add('active'); setTimeout(()=>nt.classList.remove('active'),3000);
@@ -43,7 +50,7 @@ function resetSystemData() {
 }
 
 // 供 Crafting 與 App 共用的品質藥丸渲染
-function renderQualityPillsGroup(containerId, activeQuality, callback) {
+export function renderQualityPillsGroup(containerId, activeQuality, callback) {
   const ctn = document.getElementById(containerId); ctn.innerHTML = '';
   if (!activeQuality) {
     const hint = document.createElement('div');
@@ -53,20 +60,21 @@ function renderQualityPillsGroup(containerId, activeQuality, callback) {
     hint.style.marginBottom = '8px';
     ctn.appendChild(hint);
   }
-  QUAL_GROUPS.forEach(g => {
-    const d = document.createElement('div'); d.style.marginBottom = '10px';
-    const title = document.createElement('div'); title.innerText = g.label; title.style.fontSize = '0.85rem'; title.style.color = 'var(--accent-cyan)'; title.style.marginBottom = '4px';
-    const pg = document.createElement('div'); pg.className = 'pill-group';
-    g.items.forEach(q => {
+  const matrix = document.createElement('div');
+  matrix.className = 'quality-matrix';
+  QUALITY_MATRIX_ROWS.forEach(row => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'quality-matrix-row';
+    row.forEach(q => {
       const btn = document.createElement('button');
       btn.className = `pill-btn ${q === activeQuality ? 'active' : ''}`;
-      btn.innerHTML = q === '6.0' ? `6.0 <span class="pill-hint">(工人島)</span>` : q;
+      btn.textContent = q;
       btn.onclick = () => { callback(q); if (containerId === "craft-quality-pill-group") Crafting.runCraftingCalculator(); };
-      pg.appendChild(btn);
+      rowEl.appendChild(btn);
     });
-    d.appendChild(title); d.appendChild(pg);
-    ctn.appendChild(d);
+    matrix.appendChild(rowEl);
   });
+  ctn.appendChild(matrix);
 }
 
 // 修正：使用 Setter 函式更新狀態，而不是直接綁在 window 上

@@ -124,8 +124,26 @@ export function renderLaborQualityPillsGroup(containerId, activeQuality, callbac
   ctn.appendChild(pg);
 }
 
+function clearLaborHarvestRows() {
+  const list = document.getElementById('labor-dynamic-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (Array.isArray(list.children)) list.children.length = 0;
+  while (list.firstChild && typeof list.removeChild === 'function') {
+    list.removeChild(list.firstChild);
+  }
+}
+
+function handleLaborHarvestQualityChange(q) {
+  if (q === currentLaborHarvestQual) return;
+  currentLaborHarvestQual = q;
+  clearLaborHarvestRows();
+  addLaborItemRow();
+  updateLaborQualityPills();
+}
+
 export function updateLaborQualityPills() { 
-  renderLaborQualityPillsGroup('labor-harvest-pill-group', currentLaborHarvestQual, q => { currentLaborHarvestQual = q; updateLaborQualityPills(); }); 
+  renderLaborQualityPillsGroup('labor-harvest-pill-group', currentLaborHarvestQual, handleLaborHarvestQualityChange);
   renderLaborQualityPillsGroup('labor-add-filled-pill-group', currentLaborAddQual, q => { currentLaborAddQual = q; updateLaborQualityPills(); });
 }
 

@@ -34,7 +34,7 @@
         <button class="btn btn-warning" id="btn-import-data" style="width:100%; font-size:0.85rem;">📥 匯入<br><span style="font-size: 0.8em; opacity: 0.7;">Import</span></button>
       </div>
       <div class="nav-footer">
-        <p>Albion Logistics V4.0.0-beta</p>
+        <p>Albion Logistics v0.4.3</p>
         <button class="btn btn-danger" style="width:100%; margin-top:10px; font-size:0.8rem; padding:8px;" id="btn-reset-system">⚠️ 重置系統<br><span style="font-size: 0.8em; opacity: 0.7;">Factory Reset</span></button>
       </div>
     </aside>
@@ -89,8 +89,8 @@
                   <div style="display:flex; gap:5px; align-items:center;">
                     <input type="number" id="craft-qty" value="20"  style="flex:1; font-weight:bold; color:var(--accent-cyan);">
                     <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-sub-10" data-val="-10">-10</button>
-                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-sub-5" data-val="-5">-5</button>
-                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-add-5" data-val="5">+5</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-sub-1" data-val="-1">-1</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-add-1" data-val="1">+1</button>
                     <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-add-10" data-val="10">+10</button>
                   </div>
                 </div>
@@ -270,11 +270,11 @@
               <div class="card-header"><h3 class="card-title" style="color:var(--accent-purple);">🏡 工人收成紀錄 Harvest Logs</h3></div>
               <div class="form-row">
                 <div class="form-group" style="flex:1;">
-                  <label class="form-label">日記本階級</label>
+                  <label class="form-label">日誌階級</label>
                   <div id="labor-harvest-pill-group"></div>
                 </div>
                 <div class="form-group" style="flex:1;">
-                  <label class="form-label">投入滿日記本數</label>
+                  <label class="form-label">投入滿日誌數</label>
                   <input type="text" class="format-num" id="labor-filled-qty" value="15">
                   <div style="display:flex; gap:5px; margin-top:5px;">
                     <button class="btn btn-secondary" style="padding:2px 5px; flex:1; font-size:0.75rem;" id="btn-labor-qty-sub-15" data-val="-15">-15</button>
@@ -290,10 +290,10 @@
             </div>
             
             <div class="card" style="border-color:var(--accent-cyan);">
-              <div class="card-header"><h3 class="card-title">📝 滿日記本採購/入庫</h3></div>
+              <div class="card-header"><h3 class="card-title">📝 滿日誌採購/入庫</h3></div>
               <div class="form-row">
                 <div class="form-group" style="flex:1;">
-                  <label class="form-label">日記本階級</label>
+                  <label class="form-label">日誌階級</label>
                   <div id="labor-add-filled-pill-group"></div>
                 </div>
                 <div class="form-group" style="flex:1;">
@@ -313,7 +313,7 @@
           
           <div class="right-col">
             <div class="card" style="border-color:var(--accent-cyan); margin-bottom:20px;">
-              <div class="card-header"><h3 class="card-title">📘 滿日記本庫存 Full Journals</h3></div>
+              <div class="card-header"><h3 class="card-title">📘 滿日誌庫存 Full Journals</h3></div>
               <div class="table-wrapper">
                 <table><thead><tr><th>階級</th><th style="white-space: nowrap;">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></th><th>可用操作</th></tr></thead><tbody id="labor-journal-tbody"></tbody></table>
               </div>
@@ -327,7 +327,7 @@
             <div class="card">
               <div class="card-header"><h3 class="card-title">📅 收成歷史紀錄</h3></div>
               <div class="table-wrapper">
-                <table><thead><tr><th style="white-space: nowrap;">日期<br><span style="font-size: 0.8em; opacity: 0.7;">Date</span></th><th>日記本消耗</th><th colspan="2">產出細節</th></tr></thead><tbody id="labor-logs-tbody"></tbody></table>
+                <table><thead><tr><th style="white-space: nowrap;">日期<br><span style="font-size: 0.8em; opacity: 0.7;">Date</span></th><th>日誌消耗</th><th colspan="2">產出細節</th></tr></thead><tbody id="labor-logs-tbody"></tbody></table>
               </div>
               <div id="labor-logs-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:10px;">
                 <button class="btn btn-secondary" id="btn-labor-prev-page">上一頁</button>

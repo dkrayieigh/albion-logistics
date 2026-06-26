@@ -398,6 +398,16 @@ select:focus, input[type="text"]:focus, input[type="number"]:focus {
   background: rgba(8, 9, 13, 0.9);
 }
 
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .input-with-suffix {
   position: relative;
   display: flex;
@@ -418,6 +428,21 @@ select:focus, input[type="text"]:focus, input[type="number"]:focus {
   gap: 8px;
 }
 
+.quality-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.quality-matrix-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
 .pill-btn {
   background: var(--bg-secondary);
   border: 1px solid var(--border-glass);
@@ -429,6 +454,13 @@ select:focus, input[type="text"]:focus, input[type="number"]:focus {
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition-smooth);
+}
+
+.quality-matrix .pill-btn {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 4px;
+  font-size: 0.82rem;
 }
 
 .pill-btn:hover {
@@ -447,6 +479,18 @@ select:focus, input[type="text"]:focus, input[type="number"]:focus {
   font-size: 0.7rem;
   opacity: 0.8;
   margin-left: 4px;
+}
+
+@media (max-width: 900px) {
+  .quality-matrix,
+  .quality-matrix-row {
+    gap: 4px;
+  }
+
+  .quality-matrix .pill-btn {
+    padding: 7px 2px;
+    font-size: 0.75rem;
+  }
 }
 
 /* Slider Controls */

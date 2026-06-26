@@ -25,6 +25,10 @@ function createElement(id = '') {
       this.children.push(child);
       this.rows.push(child);
     },
+    removeChild(child) {
+      this.children = this.children.filter(item => item !== child);
+      this.rows = this.rows.filter(item => item !== child);
+    },
     addEventListener() {},
     focus() {}
   };
@@ -38,6 +42,7 @@ function getElement(id) {
 globalThis.document = {
   getElementById: getElement,
   createElement: () => createElement(),
+  addEventListener: () => {},
   dispatchEvent: () => {}
 };
 globalThis.Event = class Event {
@@ -55,9 +60,12 @@ globalThis.localStorage = {
 
 let toasts = [];
 let confirmResult = true;
+function recordToast(message, type) {
+  toasts.push({ message, type });
+}
 globalThis.confirm = () => confirmResult;
 globalThis.window = {
-  showToast: (message, type) => toasts.push({ message, type }),
+  showToast: recordToast,
   updateDashboardUI: () => {},
   renderCityDropdowns: () => {}
 };
@@ -65,7 +73,9 @@ globalThis.window = {
 const Inventory = await import('../src/components/inventory.js');
 const Laborer = await import('../src/components/laborer.js');
 const Crafting = await import('../src/components/crafting.js');
+const App = await import('../src/app.js');
 const { state, craftingQueue, setCurrentBuyQuality, setCurrentCraftQuality } = await import('../src/core/state.js');
+globalThis.window.showToast = recordToast;
 
 const LOCATION = 'Thetford';
 
@@ -92,6 +102,7 @@ function resetState() {
   elements.clear();
   toasts = [];
   confirmResult = true;
+  globalThis.window.showToast = recordToast;
   setCurrentBuyQuality('');
   setCurrentCraftQuality('');
   getElement('global-shopfee').value = '0';
@@ -109,6 +120,225 @@ function setGlobalShopFeeForTax(recipe, qty, quality, desiredTax) {
 function formatForRegex(value) {
   return value.toLocaleString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+function flattenQualityMatrix(container) {
+  const matrix = container.children.find(child => child.className === 'quality-matrix');
+  const rows = matrix?.children || [];
+  return {
+    matrix,
+    rows,
+    buttons: rows.flatMap(row => row.children)
+  };
+}
+
+function findLaborPill(containerId, label) {
+  const group = getElement(containerId).children[0];
+  return group.children.find(button => button.innerHTML === label);
+}
+
+test('UI version and craft quantity controls use the v0.4.3 / -10 -1 +1 +10 contract', { concurrency: false }, () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /Albion Logistics v0\.4\.3/);
+  assert.doesNotMatch(html, /Albion Logistics V4\.0\.0-beta/);
+  assert.match(html, /<input type="number" id="craft-qty"/);
+  assert.match(html, /id="btn-craft-qty-sub-10" data-val="-10">-10/);
+  assert.match(html, /id="btn-craft-qty-sub-1" data-val="-1">-1/);
+  assert.match(html, /id="btn-craft-qty-add-1" data-val="1">\+1/);
+  assert.match(html, /id="btn-craft-qty-add-10" data-val="10">\+10/);
+  assert.doesNotMatch(html, /btn-craft-qty-sub-5/);
+  assert.doesNotMatch(html, /btn-craft-qty-add-5/);
+  assert.doesNotMatch(html, /data-val="-5">-5/);
+  assert.doesNotMatch(html, /data-val="5">\+5/);
+});
+
+test('CSS hides native number spinners and defines five-column quality matrix layout', { concurrency: false }, () => {
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+
+  assert.match(css, /input\[type="number"\]\s*\{[^}]*-moz-appearance:\s*textfield/s);
+  assert.match(css, /input\[type="number"\]::-webkit-outer-spin-button/);
+  assert.match(css, /input\[type="number"\]::-webkit-inner-spin-button/);
+  assert.match(css, /-webkit-appearance:\s*none/);
+  assert.match(css, /\.quality-matrix\s*\{/);
+  assert.match(css, /\.quality-matrix-row\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(css, /@media \(max-width:\s*900px\)/);
+});
+
+test('quality renderer creates a 5 by 5 matrix in fixed 4.0 through 8.4 order', { concurrency: false }, () => {
+  resetState();
+  let selected = '';
+
+  App.renderQualityPillsGroup('buy-quality-pill-group', '6.2', q => { selected = q; });
+
+  const { matrix, rows, buttons } = flattenQualityMatrix(getElement('buy-quality-pill-group'));
+  assert.equal(matrix.className, 'quality-matrix');
+  assert.equal(rows.length, 5);
+  rows.forEach(row => assert.equal(row.children.length, 5));
+  assert.deepEqual(
+    buttons.map(button => button.textContent),
+    [
+      '4.0', '4.1', '4.2', '4.3', '4.4',
+      '5.0', '5.1', '5.2', '5.3', '5.4',
+      '6.0', '6.1', '6.2', '6.3', '6.4',
+      '7.0', '7.1', '7.2', '7.3', '7.4',
+      '8.0', '8.1', '8.2', '8.3', '8.4'
+    ]
+  );
+  assert.equal(buttons.length, 25);
+  assert.match(buttons.find(button => button.textContent === '6.2').className, /\bactive\b/);
+
+  buttons.find(button => button.textContent === '7.3').onclick();
+
+  assert.equal(selected, '7.3');
+});
+
+test('quality renderer uses matrix rows without tier or enchantment labels', { concurrency: false }, () => {
+  resetState();
+
+  App.renderQualityPillsGroup('buy-quality-pill-group', '4.0', () => {});
+
+  const { matrix, rows } = flattenQualityMatrix(getElement('buy-quality-pill-group'));
+  assert.equal(matrix.children.length, 5);
+  rows.forEach(row => assert.equal(row.className, 'quality-matrix-row'));
+  assert.doesNotMatch(getElement('buy-quality-pill-group').innerHTML, /T4|T5|T6|T7|T8/);
+  assert.doesNotMatch(getElement('buy-quality-pill-group').innerHTML, /\.0|\.1|\.2|\.3|\.4/);
+});
+
+test('quality renderer keeps boundary quality callbacks intact', { concurrency: false }, () => {
+  resetState();
+  const selected = [];
+
+  App.renderQualityPillsGroup('buy-quality-pill-group', '8.4', q => { selected.push(q); });
+  const { buttons } = flattenQualityMatrix(getElement('buy-quality-pill-group'));
+  buttons.find(button => button.textContent === '4.0').onclick();
+  buttons.find(button => button.textContent === '8.4').onclick();
+
+  assert.deepEqual(selected, ['4.0', '8.4']);
+});
+
+test('quality renderer still shows the selection hint without removing the matrix', { concurrency: false }, () => {
+  resetState();
+
+  App.renderQualityPillsGroup('buy-quality-pill-group', '', () => {});
+
+  const container = getElement('buy-quality-pill-group');
+  const { rows, buttons } = flattenQualityMatrix(container);
+  assert.equal(container.children[0].innerText, '請選擇品質');
+  assert.equal(rows.length, 5);
+  assert.equal(buttons.length, 25);
+});
+
+test('crafting and purchase quality controls use the shared matrix renderer', { concurrency: false }, () => {
+  const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+  assert.match(source, /function updateCraftQualityPills\(\) \{ renderQualityPillsGroup\('craft-quality-pill-group'/);
+  assert.match(source, /function updateBuyQualityPills\(\) \{ renderQualityPillsGroup\('buy-quality-pill-group'/);
+  assert.doesNotMatch(source, /QUAL_GROUPS\.forEach/);
+  assert.doesNotMatch(source, /pill-hint.*工人島/s);
+});
+
+test('laborer harvest tier switch resets unsubmitted output rows to the new tier default', { concurrency: false }, () => {
+  resetState();
+  Laborer.updateLaborQualityPills();
+  findLaborPill('labor-harvest-pill-group', 'T6').onclick();
+
+  const list = getElement('labor-dynamic-list');
+  list.children = [createElement('old-1'), createElement('old-2')];
+  list.rows = [...list.children];
+  Laborer.updateLaborQualityPills();
+
+  findLaborPill('labor-harvest-pill-group', 'T8').onclick();
+
+  assert.equal(list.children.length, 1);
+  assert.match(list.children[0].innerHTML, /<option value="鋼條">鋼條<\/option>/);
+  assert.match(list.children[0].innerHTML, /<option value="8\.0">8\.0<\/option>/);
+  assert.match(list.children[0].innerHTML, /class="format-num li-qty"[^>]*value="0"/);
+});
+
+test('laborer harvest tier switch updates the active pill after reset', { concurrency: false }, () => {
+  resetState();
+  Laborer.updateLaborQualityPills();
+  findLaborPill('labor-harvest-pill-group', 'T6').onclick();
+
+  Laborer.updateLaborQualityPills();
+  findLaborPill('labor-harvest-pill-group', 'T8').onclick();
+
+  const activeButtons = getElement('labor-harvest-pill-group').children[0].children.filter(button => /\bactive\b/.test(button.className));
+  assert.equal(activeButtons.length, 1);
+  assert.equal(activeButtons[0].innerHTML, 'T8');
+});
+
+test('laborer harvest tier click on the already selected tier does not clear draft rows', { concurrency: false }, () => {
+  resetState();
+  Laborer.updateLaborQualityPills();
+  findLaborPill('labor-harvest-pill-group', 'T8').onclick();
+
+  const list = getElement('labor-dynamic-list');
+  const existing = createElement('draft-row');
+  existing.innerHTML = 'draft row';
+  list.children = [existing];
+  list.rows = [existing];
+  Laborer.updateLaborQualityPills();
+
+  findLaborPill('labor-harvest-pill-group', 'T8').onclick();
+
+  assert.equal(list.children.length, 1);
+  assert.equal(list.children[0], existing);
+});
+
+test('laborer harvest tier switch does not create or dual-write journal state keys', { concurrency: false }, () => {
+  resetState();
+  state.laborerInventory = {
+    '滿日記本': { '6.0': 1 },
+    '皮革': { '6.0': 2 }
+  };
+  const before = JSON.stringify(state.laborerInventory);
+
+  Laborer.updateLaborQualityPills();
+  findLaborPill('labor-harvest-pill-group', 'T6').onclick();
+  Laborer.updateLaborQualityPills();
+  findLaborPill('labor-harvest-pill-group', 'T8').onclick();
+
+  assert.equal(JSON.stringify(state.laborerInventory), before);
+  assert.equal(Object.hasOwn(state.laborerInventory, '滿日誌'), false);
+});
+
+test('filled journal tier switch does not clear harvest output rows or mutate laborer state', { concurrency: false }, () => {
+  resetState();
+  state.laborerInventory = {
+    '滿日記本': { '8.0': 3 },
+    '鋼條': { '8.0': 9 }
+  };
+  state.laborerLogs = [{ date: '2026-06-26', filled: 1, details: '鋼條(8.0)x9' }];
+  const beforeInventory = JSON.stringify(state.laborerInventory);
+  const beforeLogs = JSON.stringify(state.laborerLogs);
+  const list = getElement('labor-dynamic-list');
+  const rowA = createElement('draft-a');
+  const rowB = createElement('draft-b');
+  list.children = [rowA, rowB];
+  list.rows = [rowA, rowB];
+
+  Laborer.updateLaborQualityPills();
+  findLaborPill('labor-add-filled-pill-group', 'T7').onclick();
+
+  assert.deepEqual(list.children, [rowA, rowB]);
+  assert.equal(JSON.stringify(state.laborerInventory), beforeInventory);
+  assert.equal(JSON.stringify(state.laborerLogs), beforeLogs);
+});
+
+test('visible laborer journal copy uses 日誌 while runtime key remains 滿日記本', { concurrency: false }, () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const laborerSource = readFileSync(new URL('../src/components/laborer.js', import.meta.url), 'utf8');
+
+  assert.match(html, /日誌階級/);
+  assert.match(html, /滿日誌庫存/);
+  assert.match(html, /日誌消耗/);
+  assert.doesNotMatch(html, /日記本階級/);
+  assert.doesNotMatch(html, /滿日記本庫存/);
+  assert.doesNotMatch(html, /日記本消耗/);
+  assert.match(laborerSource, /state\.laborerInventory\['滿日記本'\]/);
+  assert.match(laborerSource, /data-item="滿日記本"/);
+});
 
 test('non-empty custom location cannot be deleted', { concurrency: false }, () => {
   resetState();
