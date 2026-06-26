@@ -131,7 +131,50 @@ The explicit `createBrowserStorageBackend(storage)` binding is covered by regres
 - Factory validation failures return `INVALID_BROWSER_STORAGE`, while operation throws are left for repository classification.
 - Unrelated keys are not scanned, deleted, or inspected.
 - Source isolation from global `localStorage`, startup, `state.js`, writers, backup, UI, and migration is covered.
-- This does not implement production bootstrap, state replacement, autosave, writer integration, backup import/export, UI persistence, migration, or legacy fallback removal.
+- This helper alone does not represent production bootstrap, state replacement, autosave, writer integration, backup import/export, UI persistence, migration, or legacy fallback removal; production startup coverage is listed separately below.
+
+### Browser New-Schema Runtime Controller Covered Regression Scope
+
+`createBrowserNewSchemaRuntimeController(storage)` is covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- `controller.start()` covers ready, initialize, blocked, and projection-error paths.
+- `controller.save(runtimeState)` covers runtime-to-canonical projection and new-schema repository save.
+- Invalid runtime projection is blocked with `invalid-runtime`.
+- Storage/repository errors are returned without silent fallback.
+- This is production state persistence boundary coverage, not backup import/export or migration coverage.
+
+### Production New-Schema Startup Covered Regression Scope
+
+Production app startup and state API integration are covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- Ready startup reads the new key, projects to runtime state, hydrates defaults, and enables new-schema `saveState()`.
+- Confirmed initialize creates clean canonical state, writes the new key, and activates runtime state.
+- Cancelled initialize explicitly enters legacy mode.
+- Invalid/error startup is blocked and does not fallback or overwrite with empty data.
+- `saveState()` writes the new-schema key when runtime controller is active.
+- Legacy mode still uses the legacy save path.
+- This is not migration and does not update backup import/export.
+
+### Runtime Hydration And Laborer Inventory Covered Regression Scope
+
+Runtime compatibility additions are covered by regression tests. Current totals remain sourced from `PROJECT_HANDOFF.md`, not duplicated here.
+
+- Runtime default hydration preserves active state identity while adding missing inventory defaults.
+- Canonical/runtime laborer inventory includes leather support.
+- `滿日誌` / `滿日記本` bridge behavior remains covered.
+- Laborer form polish includes quality matrix behavior and harvest draft reset.
+- This does not complete custom location writer integration or backup migration.
+
+### UI Quality And Tauri Build Covered Scope
+
+UI quality and build readiness are tracked as current release-prep coverage.
+
+- 5 x 5 quality matrix behavior is covered.
+- Laborer form polish is covered.
+- Tauri release executable build: pass.
+- MSI bundle: pass.
+- NSIS bundle: pass.
+- This is build/readiness evidence, not a GitHub release or migration step.
 
 ### Browser New-Schema Startup Loader Covered Regression Scope
 
@@ -145,7 +188,7 @@ The explicit `createBrowserStorageBackend(storage)` binding is covered by regres
 - Global `localStorage` is not read when explicit storage is supplied.
 - Input storage and loaded state immutability are covered.
 - Source isolation from app state, writer, backup, UI, and migration paths is covered.
-- This does not implement production bootstrap, runtime state replacement, canonical save path, backup integration, UI, or migration.
+- This loader scope alone does not represent production bootstrap, runtime state replacement, canonical save path, backup integration, UI, or migration; production startup coverage is listed separately below.
 
 ### Browser New-Schema Startup Decision Covered Regression Scope
 
@@ -188,7 +231,7 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 - Explicit storage input does not cause global `localStorage` reads.
 - Composition itself does not call load/save or mutate storage.
 - Source isolation from startup, `state.js`, writers, backup, UI, migration, global browser storage acquisition, and legacy fallback removal is covered.
-- This does not implement production bootstrap, state replacement, autosave, writer integration, backup import/export, UI persistence, migration, or legacy fallback removal.
+- This composition helper alone does not represent production bootstrap, state replacement, autosave, writer integration, backup import/export, UI persistence, migration, or legacy fallback removal; production startup coverage is listed separately above.
 
 
 ## 🔴 Level A：核心生命線 (每次 Commit 必測)

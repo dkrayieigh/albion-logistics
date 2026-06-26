@@ -9,6 +9,24 @@
 
 ---
 
+## Current Status Override：production new-schema runtime
+
+本節覆蓋下方第 2 節中較早的 pre-integration wording。若兩者衝突，以本節為準。
+
+- Production startup/read-write cutover 已完成。
+- `albion-logistics-v2-state` 是 new-schema runtime active 時的 production storage key。
+- Ready startup 會讀取 new key、project canonical state 到 runtime state、hydrate runtime defaults，並讓 active-runtime `saveState()` 寫入 new key。
+- Missing storage + user confirmation 會建立 clean canonical state 並寫入 new key。
+- Missing storage + user cancellation 會明確進入 legacy mode。
+- Invalid/error startup 會 blocked，不 silent fallback，也不覆寫空資料。
+- Legacy mode 仍寫 legacy `albion_crafting_*` localStorage keys。
+- Backup import/export 仍是 legacy-only。
+- Custom location mutations 尚未接 Location Registry / stable custom ID writer integration。
+- Factory Reset 仍使用 broad `localStorage.clear()`。
+- 這是 production cutover，不是 legacy data automatic migration、backup schema migration 或 transaction payload migration。
+
+---
+
 ## 1. 資料模型仍為 legacy-compatible implementation
 
 目前 `src` 仍主要使用：
@@ -47,17 +65,17 @@ Location schema contract 已定義為 future target，但尚未實作：
 New-schema storage repository boundary:
 
 - Pure codec and injected repository exist.
-- Global `localStorage` binding, startup loading, state integration, writer integration, backup integration, UI integration, and production persistence are not implemented.
-- Current app still uses legacy storage keys.
-- This does not mean the new storage key is used by the current app.
+- Production startup and active-runtime persistence are implemented; backup integration, custom location writer integration, reset scoping, and migration remain incomplete.
+- New-schema runtime uses the new key when active; explicit legacy mode still uses legacy keys.
+- This means the new storage key is used by the current app only in active new-schema runtime mode.
 
 - `qtyByLocation` 與 Location Registry 仍不是 current implementation。
-- `albion-logistics-v2-state` 已選定為 future clean-cutover storage key，但尚未實作。
-- current app 仍使用 legacy 分散 localStorage keys。
-- Future clean initialization contract 已定義，pure initializer 已實作；writer/storage switch 與 first-launch confirmation 尚未實作。
+- `albion-logistics-v2-state` 已是 active new-schema runtime 的 production storage key。
+- explicit legacy mode 仍使用 legacy 分散 localStorage keys。
+- Clean initialization、runtime projection、active-runtime save path 與 first-launch confirmation 已實作。
 - Pure clean initializer 與 pure new-schema storage codec 已實作並受測。
-- Actual persistence、production storage integration、startup loading、production browser-storage backend binding、writer integration、backup integration 與 UI integration 尚未實作。
-- 這不代表 new storage 已經被 current app 使用。
+- Backup integration、custom location writer integration、reset scoping 與 migration 尚未實作。
+- 這不代表 legacy data automatic migration、backup schema migration 或 transaction payload migration 已完成。
 
 ---
 

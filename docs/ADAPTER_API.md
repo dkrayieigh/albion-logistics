@@ -490,7 +490,7 @@ This codec validates and serializes the documented new schema shape. It is a pur
 
 **future integration boundary**
 
-- Injected storage repository, explicit injected browser Storage backend binding, and explicit browser new-schema repository composition helper exist; production bootstrap invocation remains future work.
+- Injected storage repository, explicit injected browser Storage backend binding, and explicit browser new-schema repository composition helper exist; production startup now invokes them through the runtime controller/state API.
 - Actual application `albion-logistics-v2-state` get/set remains future work.
 - Startup load behavior remains future work.
 - Missing/corrupt storage handling remains future work.
@@ -540,7 +540,7 @@ This repository wraps the pure codec with an injected synchronous key-value back
 
 **future integration boundary**
 
-- Explicit browser Storage backend binding and browser new-schema repository composition helper exist, but production bootstrap has not acquired global `localStorage` or called the helper.
+- Explicit browser Storage backend binding and browser new-schema repository composition helper exist, and production startup now reaches them through `createBrowserNewSchemaRuntimeController(storage)` / state API.
 - Startup load coordinator remains future work.
 - First-launch decision/confirmation remains future work.
 - Current state replacement remains future work.
@@ -741,9 +741,81 @@ It does not acquire global `localStorage`, does not call `load()`, does not call
 
 - 不是正式 writer integration。
 - 不是 canonical save path。
-- 不切換 `saveState()`。
+- 這個 bridge helper 本身不切換 `saveState()`；production state API 會在 runtime controller active 時使用它。
 - 不改 backup import/export。
 - 不開始 migration。
+
+## Browser New-Schema Runtime Controller API
+
+### `createBrowserNewSchemaRuntimeController(storage)`
+
+已存在 production state persistence boundary implementation，位置為 `src/adapters/browserNewSchemaRuntimeController.js`。
+
+**輸入**
+
+- `storage`: production app 明確傳入的 Storage-like object。
+- 透過 `createBrowserNewSchemaRepository(storage)` 建立 repository。
+
+**輸出**
+
+- 成功：`{ ok: true, controller, errors: [] }`。
+- 失敗：`{ ok: false, controller: null, errors }`。
+
+**`controller.start()`**
+
+- `loaded` / `ready`: 讀取 `albion-logistics-v2-state`，將 canonical new-schema state project 成 runtime state。
+- `missing` / `initialize`: 回傳 initialize decision，不自行建立資料。
+- `invalid` / `error`: 回傳 blocked，不 fallback 到 legacy，也不覆寫空資料。
+- Projection failure 回傳 `{ ok: false, mode: 'blocked', sourceStatus: 'projection-error', errors }`。
+
+**`controller.save(runtimeState)`**
+
+- 先用 `projectRuntimeToNewSchema(runtimeState)` 將 runtime state 轉回 canonical state。
+- Projection 成功後呼叫 repository `save(projected.state)` 寫入新 key。
+- Projection 失敗回傳 `status: 'invalid-runtime'`。
+
+**邊界**
+
+- 這是 production state persistence boundary，但不是 backup import/export、migration、transaction payload migration 或 custom location writer migration。
+- 不轉換 legacy backup。
+- 不移除 legacy fallback。
+
+## Production State API Boundary
+
+### `enableNewSchemaRuntime(storage)`
+
+位於 `src/core/state.js`，已由 production app startup 使用。
+
+- 建立 browser new-schema runtime controller。
+- `ready` 時以 runtime bridge 輸出替換 in-memory runtime `state`。
+- 執行 runtime default hydration。
+- 啟用 `activeNewSchemaRuntimeController`，讓後續 `saveState()` 寫入 new-schema key。
+- `blocked` 時不啟用 controller。
+
+### `initializeNewSchemaRuntime(storage, input, options)`
+
+位於 `src/core/state.js`，用於 first-launch confirmed clean initialization。
+
+- 建立 clean canonical state。
+- 經 runtime bridge project 到 runtime state。
+- 透過 controller save 寫入 `albion-logistics-v2-state`。
+- 再次 start 並啟用 runtime controller。
+- 初始化失敗或 save 失敗會 blocked，不建立空資料。
+
+### Production startup behavior
+
+位於 `src/app.js` 的 `startApplicationState(storage, dialogs)`。
+
+- ready: 啟用 new-schema runtime。
+- initialize + confirm: 建立 clean canonical state，保存 new key，啟用 runtime。
+- initialize + cancel: 明確進入 legacy mode。
+- blocked: 顯示錯誤，不 fallback，不覆寫空資料。
+
+### `saveState()` boundary
+
+- runtime controller active 時，`saveState()` 透過 controller save 寫入 new-schema key。
+- legacy mode 或 controller inactive 時，`saveState()` 仍寫 legacy `albion_crafting_*` keys。
+- 這不是 migration，也不代表 backup import/export 已更新。
 
 ## 7. Backup Compatibility Adapter API
 
@@ -875,7 +947,7 @@ Adapter-only tests 必須等 adapter module 建立後才能成為正式 regressi
 - `customLocations` 已全面是 Location Registry object。
 - Ledger 已全面使用 canonical event payload。
 - `SELL_ITEM` 已是 current implementation。
-- Legacy 中文 item key 已可移除。
-- Legacy `qtyByCity` 已可移除。
-- Legacy transaction payload 已可移除。
-- Legacy backup fallback 已可移除。
+- Legacy 中文 item key 不再需要相容保護。
+- Legacy `qtyByCity` 不再需要相容保護。
+- Legacy transaction payload 不再需要相容保護。
+- Legacy backup fallback 不再需要相容保護。

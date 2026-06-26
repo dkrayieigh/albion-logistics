@@ -2,11 +2,12 @@
 
 ## Current Status
 
-- Phase: legacy-compatible stabilization / clean-cutover preparation.
-- Test baseline: 228 tests / 228 pass / 0 fail / 0 TODO.
+- Phase: production new-schema startup/read-write cutover stabilization.
+- Test baseline: 299 tests / 299 pass / 0 fail / 0 TODO.
 - Selected Location strategy: single-user clean cutover.
-- Location schema contract, pure state/codec helpers, injected repository, browser Storage backend binding, browser new-schema repository composition helper, startup loader/decision helpers, and runtime compatibility bridge exist; schema persistence and production integration are not implemented.
-- Writer/storage migration: not started.
+- Location schema contract, pure state/codec helpers, injected repository, browser Storage backend binding, browser new-schema repository composition helper, startup loader/decision helpers, runtime compatibility bridge, runtime controller, and production app startup cutover exist.
+- Migration/backfill: not started.
+- Tauri release build: pass; MSI bundle: pass; NSIS bundle: pass.
 
 ## Current Implemented Safety Layers
 
@@ -22,6 +23,14 @@
 - Isolated browser new-schema startup loader: `loadBrowserNewSchemaState(storage)`.
 - Startup ready/initialize/blocked decision boundary: `resolveBrowserNewSchemaStartup(storage)`.
 - Bidirectional runtime compatibility bridge: `projectNewSchemaToRuntime(newSchemaState)` / `projectRuntimeToNewSchema(runtimeState)`.
+- Production browser new-schema runtime controller: `createBrowserNewSchemaRuntimeController(storage)`.
+- Production state API integration: `enableNewSchemaRuntime(storage)` / `initializeNewSchemaRuntime(storage, input, options)`.
+- Production startup modes: ready / initialize / blocked.
+- Explicit user-confirmed clean initialization.
+- Runtime inventory default hydration.
+- Production new-schema save path when runtime controller is active.
+- Canonical/runtime laborer leather support.
+- UI quality matrix and laborer form polish.
 - Transaction mixed-format reader.
 - Current regression suite.
 
@@ -36,34 +45,34 @@
 - Custom locations are recreated manually.
 - Legacy `globalAvgCost: 0` must not be treated as reliable unknown-cost evidence.
 
+## Current Production Startup Behavior
+
+- Ready: read `albion-logistics-v2-state`, project canonical state to runtime state, hydrate runtime defaults, and route `saveState()` through the new-schema save path.
+- Initialize confirmed: create clean canonical state, save it to the new key, then activate runtime mode.
+- Initialize cancelled: explicitly use legacy mode through the existing legacy load path.
+- Blocked: invalid/error startup does not create empty data and does not silently fall back to legacy mode.
+- Legacy path remains available only for explicit initialize-cancel behavior.
+
 ## Current Blockers
 
-- New Location schema persistence and production integration are not implemented.
-- The fixed storage key `albion-logistics-v2-state` is used by the injected repository; production bootstrap has not acquired global `localStorage`.
-- The explicit browser Storage backend binding and browser new-schema repository composition helper are implemented and tested, but production bootstrap has not acquired global `localStorage` and called the helper.
-- Startup loader/decision helpers are implemented and tested in isolation, but the production app does not call them.
-- Runtime bridge helpers are implemented and tested in isolation, but production state replacement and save projection are not wired.
-- Current `saveState()` still writes legacy `albion_crafting_*` keys.
-- Pure initializer is implemented and tested but not integrated with state, storage, writer, backup, or UI.
-- The pure storage codec is implemented and tested but is not connected to `localStorage`, `state.js`, writers, backup, startup, or UI.
-- The injected repository, browser Storage backend, and browser new-schema repository composition helper are implemented and tested in isolation but are not connected to startup, `state.js`, writers, backup, or UI.
-- New writer tests are not created.
-- New backup export/import is not created.
-- Launch confirmation flow is not created.
-- Smoke/release checklist is not completed.
+- Custom location UI is not yet integrated with Location Registry / stable custom IDs.
+- Backup import/export remains legacy-only.
+- Factory Reset still uses broad `localStorage.clear()`.
+- Release smoke checklist is not complete.
+- Production cutover docs/release process is not finalized.
 
 ## Next Approved Step
 
-- Return to Spec Lead to design atomic production state/storage integration.
-- Do not self-approve production startup, read/write switch, `state.js`, writers, backup, or UI integration.
+- Return to Spec Lead to design custom location writer integration.
+- Do not self-approve backup, reset, migration, or release-process changes.
 
 ## High-Risk Boundaries
 
 - No direct `state.js` rewrite.
 - No automatic legacy `localStorage` deletion.
-- No writer/storage switch without tests.
+- No additional writer/storage switch without tests.
 - No fallback removal by incidental refactor.
 - No transaction history migration.
 - No direct future-app import requirement for legacy backups.
 - No Location Registry current implementation claim.
-- Do not connect clean initialization output to writers, storage, backup import/export, or migration until tests and implementation are explicitly approved.
+- Do not extend clean initialization, backup import/export, reset, custom location writer, or migration behavior until tests and implementation are explicitly approved.
