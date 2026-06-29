@@ -169,7 +169,7 @@ test('ledger table renders display category item raw-type metadata and compact d
   assert.match(purchaseHtml, /data-action="delete-purchase-adjustment"/);
   assert.match(purchaseHtml, /title="刪除"/);
   assert.match(purchaseHtml, /aria-label="刪除"/);
-  assert.match(purchaseHtml, />×<\/button>/);
+  assert.match(purchaseHtml, />❌<\/button>/);
   assert.match(adjustmentHtml, /data-raw-type="INVENTORY_ADJUSTMENT"/);
   assert.match(adjustmentHtml, />Inventory Adjustment<\/span>/);
   assert.match(adjustmentHtml, /Cloth \(6\.1\)/);
