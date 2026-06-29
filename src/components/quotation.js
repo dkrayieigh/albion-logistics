@@ -4,7 +4,7 @@ import {
   calculateQuotation,
   getAlchemyRequirement
 } from '../calculators/quotationCalculator.js';
-import { RECIPES, enqueueCraftingPlan, openItemSelector } from './crafting.js';
+import { RECIPES, enqueueCraftingPlan, getRecipeDisplayName, openItemSelector } from './crafting.js';
 
 const QUOTE_QUALITY_ROWS = [
   ['4.0', '4.1', '4.2', '4.3', '4.4'],
@@ -41,7 +41,7 @@ function numberFrom(id) {
 
 function selectedRecipe() {
   const selectedName = byId('quote-recipe')?.value;
-  return RECIPES.find(recipe => recipe.name === selectedName) || RECIPES[0];
+  return RECIPES.find(recipe => recipe.name === selectedName) || null;
 }
 
 function selectedQuantity() {
@@ -144,7 +144,7 @@ function applyRecipeSelection(recipe) {
   const input = byId('quote-recipe');
   const display = byId('quote-recipe-display');
   if (input) input.value = recipe.name;
-  if (display) display.innerText = recipe.name;
+  if (display) display.innerText = getRecipeDisplayName(recipe);
   const bonusCity = BONUSES[recipe.category];
   if (bonusCity && byId('quote-city')) byId('quote-city').value = bonusCity;
   quoteDraft.discounts = {};
@@ -189,32 +189,41 @@ function buildInputs(recipe) {
 }
 
 function renderMaterialRows(recipe) {
+  if (!recipe) {
+    setHTML('quote-material-inputs', '<div class="quote-hint">Choose Target to enter material estimates.</div>');
+    return;
+  }
+
   const quality = quoteDraft.quality || '4.0';
-  const rows = [
+  const materialRows = [
     { key: `${recipe.main}_${quality}`, label: recipe.main, baseQty: recipe.mainBaseQty },
     { key: `${recipe.sub}_${quality}`, label: recipe.sub, baseQty: recipe.subBaseQty }
   ].filter(row => row.label && row.baseQty > 0);
+  const specialRows = [];
 
-  if (recipe.artifactName) rows.push({ key: 'artifact', label: recipe.artifactName, baseQty: recipe.artifactQty || 1, special: true });
+  if (recipe.artifactName) specialRows.push({ key: 'artifact', label: recipe.artifactName, baseQty: recipe.artifactQty || 1, special: true });
   if (recipe.alchemyName) {
     const req = getAlchemyRequirement((quoteDraft.quality || '4.0').split('.')[0]);
-    rows.push({ key: 'alchemy', label: `${req.tier} ${recipe.alchemyName}`, baseQty: req.qty, special: true });
+    specialRows.push({ key: 'alchemy', label: `${req.tier} ${recipe.alchemyName}`, baseQty: req.qty, special: true });
   }
 
-  const html = rows.map(row => {
+  const renderRows = rows => rows.map(row => {
     const inputId = getPriceKey(row.key);
     return `<div class="quote-material-row">
       <div>
         <strong>${escapeHTML(row.label)}</strong>
-        <div class="quote-muted">${row.special ? `固定需求: ${row.baseQty}` : `Base: ${row.baseQty}`}</div>
+        <div class="quote-muted">${row.special ? `Fixed requirement: ${row.baseQty}` : `Base: ${row.baseQty}`}</div>
       </div>
       <input type="text" class="format-num quote-price-input" id="${escapeHTML(inputId)}" data-quote-action="price" value="${escapeHTML(byId(inputId)?.value || '0')}" autocomplete="off" inputmode="decimal">
       <div class="quote-discounts">${renderDiscountButtons(row.key)}</div>
       <div class="quote-muted" id="quote-line-${escapeHTML(row.key)}">-</div>
     </div>`;
   }).join('');
+  const specialHtml = specialRows.length > 0
+    ? `<div class="quote-special-heading">Special Materials</div>${renderRows(specialRows)}`
+    : '';
 
-  setHTML('quote-material-inputs', html);
+  setHTML('quote-material-inputs', `${renderRows(materialRows)}${specialHtml}`);
 }
 
 function renderResult(quoteResult) {
@@ -295,17 +304,23 @@ function syncQuoteInputs(source) {
 
 export function renderQuotation() {
   const recipe = selectedRecipe();
-  if (!recipe) return;
 
   renderQualityMatrix();
-  setText('quote-main-label', recipe.main || '-');
-  setText('quote-sub-label', recipe.subBaseQty > 0 ? recipe.sub : '無');
+  setText('quote-main-label', recipe?.main || '-');
+  setText('quote-sub-label', recipe?.subBaseQty > 0 ? recipe.sub : '-');
   const hideoutGroup = byId('quote-hideout-group');
   if (hideoutGroup) hideoutGroup.style.display = byId('quote-city')?.value === 'Hideout' ? 'flex' : 'none';
   renderMaterialRows(recipe);
 
+  if (!recipe) {
+    setText('quote-consumption-main', '0');
+    setText('quote-consumption-sub', '0');
+    setHTML('quote-result-box', '<div class="suggestion-box">Choose Target before calculating.</div>');
+    return;
+  }
+
   if (!quoteDraft.quality) {
-    setHTML('quote-result-box', '<div class="suggestion-box">請先選擇品質</div>');
+    setHTML('quote-result-box', '<div class="suggestion-box">Choose Target Tier before calculating.</div>');
     return;
   }
 
@@ -322,7 +337,6 @@ export function initQuotationEvents() {
       .join('');
   }
 
-  applyRecipeSelection(RECIPES[0]);
 
   byId('btn-open-quote-item-selector')?.addEventListener('click', () => {
     openItemSelector('quotation', item => applyRecipeSelection(item));
@@ -337,6 +351,21 @@ export function initQuotationEvents() {
   byId('quote-est-total')?.addEventListener('input', () => { syncEstimateInputs('total'); refreshQuotationCalculation(); });
   byId('quote-custom-unit')?.addEventListener('input', () => { syncQuoteInputs('unit'); refreshQuotationCalculation(); });
   byId('quote-custom-total')?.addEventListener('input', () => { syncQuoteInputs('total'); refreshQuotationCalculation(); });
+  [
+    ['btn-quote-qty-sub-10', -10],
+    ['btn-quote-qty-sub-1', -1],
+    ['btn-quote-qty-add-1', 1],
+    ['btn-quote-qty-add-10', 10]
+  ].forEach(([id, delta]) => {
+    byId(id)?.addEventListener('click', () => {
+      const qty = byId('quote-qty');
+      if (!qty) return;
+      qty.value = String(Math.max(1, (parseInt(qty.value, 10) || 1) + delta));
+      syncEstimateInputs('unit');
+      if (quoteDraft.editingQuote) syncQuoteInputs(quoteDraft.editingQuote);
+      renderQuotation();
+    });
+  });
   document.addEventListener('input', event => {
     if (event.target?.getAttribute?.('data-quote-action') === 'price') refreshQuotationCalculation();
   });
@@ -359,7 +388,9 @@ export function initQuotationEvents() {
 }
 
 export function updateQuickQuoteButtons() {
-  const result = calculateQuotation(buildInputs(selectedRecipe()));
+  const recipe = selectedRecipe();
+  if (!recipe || !quoteDraft.quality) return;
+  const result = calculateQuotation(buildInputs(recipe));
   if (!result.ok) return;
   const refs = result.quote.references;
   [

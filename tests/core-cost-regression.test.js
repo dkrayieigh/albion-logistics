@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolveItemIdentity } from '../src/adapters/itemIdentity.js';
@@ -158,6 +158,10 @@ test('UI version and craft quantity controls use the v0.4.4 / -10 -1 +1 +10 cont
   assert.doesNotMatch(html, /btn-craft-qty-add-5/);
   assert.doesNotMatch(html, /data-val="-5">-5/);
   assert.doesNotMatch(html, /data-val="5">\+5/);
+  assert.match(html, /id="craft-recipe"[^>]*value=""/);
+  assert.match(html, /id="craft-recipe-display">Choose Target<\/span>/);
+  assert.match(html, /Choose Target/);
+  assert.match(html, /Material Tier/);
 });
 
 test('CSS hides native number spinners and defines five-column quality matrix layout', { concurrency: false }, () => {
@@ -231,7 +235,7 @@ test('quality renderer still shows the selection hint without removing the matri
 
   const container = getElement('buy-quality-pill-group');
   const { rows, buttons } = flattenQualityMatrix(container);
-  assert.equal(container.children[0].innerText, '請選擇品質');
+  assert.equal(container.children[0].innerText, 'Choose Material Tier');
   assert.equal(rows.length, 5);
   assert.equal(buttons.length, 25);
 });
@@ -242,7 +246,7 @@ test('crafting and purchase quality controls use the shared matrix renderer', { 
   assert.match(source, /function updateCraftQualityPills\(\) \{ renderQualityPillsGroup\('craft-quality-pill-group'/);
   assert.match(source, /function updateBuyQualityPills\(\) \{ renderQualityPillsGroup\('buy-quality-pill-group'/);
   assert.doesNotMatch(source, /QUAL_GROUPS\.forEach/);
-  assert.doesNotMatch(source, /pill-hint.*工人島/s);
+  assert.doesNotMatch(source, /Material Quality/);
 });
 
 test('laborer harvest tier switch resets unsubmitted output rows to the new tier default', { concurrency: false }, () => {
@@ -2213,7 +2217,12 @@ test('shared item selector uses one modal implementation for crafting and planne
   assert.match(craftingSource, /itemSelectorSelectHandler/);
   assert.match(craftingSource, /selectItemFromPicker/);
   assert.match(craftingSource, /openItemSelector\('crafting'\)/);
+  assert.match(craftingSource, /getRecipeDisplayName/);
+  assert.doesNotMatch(craftingSource, /btn-craft-qty-sub-5|btn-craft-qty-add-5/);
+  assert.match(craftingSource, /btn-craft-qty-sub-1/);
+  assert.match(craftingSource, /btn-craft-qty-add-1/);
   assert.match(quotationSource, /openItemSelector\('quotation', item => applyRecipeSelection\(item\)\)/);
+  assert.match(quotationSource, /getRecipeDisplayName\(recipe\)/);
   assert.equal((html.match(/id="item-selector-modal"/g) || []).length, 1);
   assert.equal((craftingSource.match(/renderItemSelectorGrid/g) || []).length >= 3, true);
 });
@@ -2296,6 +2305,15 @@ test('queue material display uses full expected consumption and safe start stock
   assert.match(materialDisplay, /167/);
   assert.match(materialDisplay, /187/);
   assert.doesNotMatch(materialDisplay, /x 167/);
+});
+
+test('crafting queue labels special materials as unit cost inputs', { concurrency: false }, () => {
+  const source = readFileSync(new URL('../src/components/crafting.js', import.meta.url), 'utf8');
+
+  assert.match(source, /Artifact Unit Cost/);
+  assert.match(source, /Alchemy Unit Cost/);
+  assert.match(source, /Fixed requirement/);
+  assert.doesNotMatch(source, /Artifact[^`]*Actual Consumption|Alchemy[^`]*Actual Consumption/);
 });
 
 test('submitCraftAll uses actual material consumed for material deduction and crafted cost', { concurrency: false }, () => {

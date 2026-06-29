@@ -539,6 +539,42 @@ input[type="number"]::-webkit-inner-spin-button {
   gap: 10px;
 }
 
+.target-picker-button {
+  width: 100%;
+  height: auto;
+  text-align: center;
+  padding: 10px;
+  font-size: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.target-picker-current {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-top: 5px;
+}
+
+.target-picker-current span {
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+
+.quantity-stepper {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(4, auto);
+  gap: 5px;
+  align-items: center;
+}
+
+.quantity-stepper .btn {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
 .quote-material-row {
   display: grid;
   grid-template-columns: minmax(120px, 1.2fr) minmax(90px, 0.8fr);
@@ -548,6 +584,14 @@ input[type="number"]::-webkit-inner-spin-button {
   border: 1px solid var(--border-glass);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.035);
+}
+
+.quote-special-heading {
+  color: var(--accent-yellow);
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-top: 4px;
+  text-transform: uppercase;
 }
 
 .quote-discounts {
@@ -586,6 +630,14 @@ input[type="number"]::-webkit-inner-spin-button {
   .quote-summary-grid,
   .quote-quick-grid {
     grid-template-columns: 1fr;
+  }
+
+  .quantity-stepper {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .quantity-stepper input {
+    grid-column: 1 / -1;
   }
 }
 

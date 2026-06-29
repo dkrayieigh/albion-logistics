@@ -16,6 +16,10 @@ export function getAllRecipes() {
 }
 export const RECIPES = getAllRecipes();
 
+export function getRecipeDisplayName(recipe) {
+  return recipe?.name || 'Choose Target';
+}
+
 export function getEnchantAndTier(q) { 
   const p = q.split('.'); 
   return { tier: parseInt(p[0]) || 4, enchant: parseInt(p[1]) || 0 }; 
@@ -143,62 +147,81 @@ export function adjCraftQty(d) {
 }
 
 export function onRecipeChange() {
-  const rn = document.getElementById('craft-recipe').value; const r = RECIPES.find(x => x.name === rn); if (!r) return;
-  document.getElementById('main-material-label').innerHTML = `主料需求: ${r.main}<br><span style="font-size:0.8em;opacity:0.7;">Main Material: ${EN_MAT[r.main]||''}</span>`;
-  
-  if (r.subBaseQty > 0) { 
-      document.getElementById('sub-material-label').innerHTML = `副料需求: ${r.sub}<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: ${EN_MAT[r.sub]||''}</span>`; 
-      document.getElementById('sub-material-group').style.display = 'block'; 
-  } else { 
-      document.getElementById('sub-material-label').innerHTML = `副料需求: 無<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: None</span>`; 
-      document.getElementById('sub-material-group').style.display = 'block'; 
+  const rn = document.getElementById('craft-recipe').value;
+  const r = RECIPES.find(x => x.name === rn);
+  if (!r) {
+    document.getElementById('craft-recipe-display').innerText = 'Choose Target';
+    document.getElementById('main-material-label').innerHTML = '主料<br><span style="font-size:0.8em;opacity:0.7;">Main Material</span>';
+    document.getElementById('sub-material-label').innerHTML = '副料<br><span style="font-size:0.8em;opacity:0.7;">Sub Material</span>';
+    document.getElementById('out-main-qty').innerText = '0 / 0';
+    document.getElementById('out-sub-qty').innerText = '0';
+    const alcGroup = document.getElementById('alchemy-group');
+    if (alcGroup) alcGroup.style.display = 'none';
+    return;
   }
-  // === 自動連動最高加成城市 ===
+
+  document.getElementById('main-material-label').innerHTML = `主料 ${r.main}<br><span style="font-size:0.8em;opacity:0.7;">Main Material: ${EN_MAT[r.main]||''}</span>`;
+  if (r.subBaseQty > 0) {
+    document.getElementById('sub-material-label').innerHTML = `副料 ${r.sub}<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: ${EN_MAT[r.sub]||''}</span>`;
+    document.getElementById('sub-material-group').style.display = 'block';
+  } else {
+    document.getElementById('sub-material-label').innerHTML = '副料 -<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: None</span>';
+    document.getElementById('sub-material-group').style.display = 'block';
+  }
+
   if (BONUSES[r.category]) {
-      const craftCityEl = document.getElementById('craft-city');
-      if (craftCityEl) {
-          craftCityEl.value = BONUSES[r.category];
-          // 如果切換到了黑區地堡，隱藏的加成選單要跟著顯示
-          const hideoutGroup = document.getElementById('hideout-group');
-          if (hideoutGroup) hideoutGroup.style.display = state.customLocations.includes(craftCityEl.value) ? 'flex' : 'none';
-      }
+    const craftCityEl = document.getElementById('craft-city');
+    if (craftCityEl) {
+      craftCityEl.value = BONUSES[r.category];
+      const hideoutGroup = document.getElementById('hideout-group');
+      if (hideoutGroup) hideoutGroup.style.display = state.customLocations.includes(craftCityEl.value) ? 'flex' : 'none';
+    }
   }
-  // =====================================
 
   runCraftingCalculator();
 }
 
 export function runCraftingCalculator() {
-  const rn = document.getElementById('craft-recipe').value; const r = RECIPES.find(x => x.name === rn); if (!r) return;
-  const q = parseNum(document.getElementById('craft-qty').value); const qual = currentCraftQuality; const city = document.getElementById('craft-city').value;
+  const rn = document.getElementById('craft-recipe').value;
+  const r = RECIPES.find(x => x.name === rn);
+  if (!r) {
+    onRecipeChange();
+    return;
+  }
+  const q = parseNum(document.getElementById('craft-qty').value);
+  const qual = currentCraftQuality;
+  const city = document.getElementById('craft-city').value;
   if (!qual) {
     const rraBadge = document.getElementById('rra-badge');
-    if (rraBadge) rraBadge.innerText = '請選擇品質';
+    if (rraBadge) rraBadge.innerText = 'Choose Material Tier';
     const alcGroup = document.getElementById('alchemy-group');
     if (alcGroup) alcGroup.style.display = 'none';
     return;
   }
   const foc = document.getElementById('craft-focus').checked;
-  const rra = getRRA(r.category, city, foc); document.getElementById('rra-badge').innerText = `返還率: ${(rra*100).toFixed(1)}%`;
-  const mainConsumption = calculateMaterialConsumption(r.mainBaseQty, q, rra); const amc = mainConsumption.expectedNetConsumption;
-  const subConsumption = calculateMaterialConsumption(r.subBaseQty, q, rra); const asc = subConsumption.expectedNetConsumption;
-  document.getElementById('out-main-qty').innerText = `${amc} / ${r.mainBaseQty*q}`; document.getElementById('out-sub-qty').innerText = r.subBaseQty>0 ? `${asc} / ${r.subBaseQty*q}` : '0';
-  
-  const oml = document.getElementById('out-main-label'); if(oml) oml.innerHTML = `預估消耗 ${r.main}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.main]||''} Consumption</span>`;
-  const osl = document.getElementById('out-sub-label'); if(osl) osl.innerHTML = r.subBaseQty > 0 ? `預估消耗 ${r.sub}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.sub]||''} Consumption</span>` : `預估消耗 無<br><span style="font-size:0.8em; opacity:0.7;">Est. None</span>`;
-  
+  const rra = getRRA(r.category, city, foc);
+  document.getElementById('rra-badge').innerText = `Return rate: ${(rra*100).toFixed(1)}%`;
+  const mainConsumption = calculateMaterialConsumption(r.mainBaseQty, q, rra);
+  const subConsumption = calculateMaterialConsumption(r.subBaseQty, q, rra);
+  document.getElementById('out-main-qty').innerText = `${mainConsumption.expectedNetConsumption} / ${r.mainBaseQty*q}`;
+  document.getElementById('out-sub-qty').innerText = r.subBaseQty > 0 ? `${subConsumption.expectedNetConsumption} / ${r.subBaseQty*q}` : '0';
+
+  const oml = document.getElementById('out-main-label');
+  if (oml) oml.innerHTML = `預估主料消耗 ${r.main}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.main]||''} Consumption</span>`;
+  const osl = document.getElementById('out-sub-label');
+  if (osl) osl.innerHTML = r.subBaseQty > 0 ? `預估副料消耗 ${r.sub}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.sub]||''} Consumption</span>` : '預估副料消耗 -<br><span style="font-size:0.8em; opacity:0.7;">Est. None</span>';
+
   const alcGroup = document.getElementById('alchemy-group');
   if (r.alchemyName) {
-      alcGroup.style.display = 'block';
-      let tier = '4';
-      if (qual && qual.includes('.')) { tier = qual.split('.')[0]; }
-      const req = getAlchemyRequirement(tier);
-      document.getElementById('alchemy-label').innerHTML = `鍊金材料<br><span style="font-size:0.8em; opacity:0.7;">${req.tier} ${r.alchemyName} (需求: ${req.qty})</span>`;
+    alcGroup.style.display = 'block';
+    let tier = '4';
+    if (qual && qual.includes('.')) tier = qual.split('.')[0];
+    const req = getAlchemyRequirement(tier);
+    document.getElementById('alchemy-label').innerHTML = `鍊金材料成本<br><span style="font-size:0.8em; opacity:0.7;">${req.tier} ${r.alchemyName} (Fixed requirement: ${req.qty})</span>`;
   } else {
-      alcGroup.style.display = 'none';
+    alcGroup.style.display = 'none';
   }
 }
-
 export function addToCraftingQueue() {
   const rn = document.getElementById('craft-recipe').value;
   const q = parseNum(document.getElementById('craft-qty').value);
@@ -296,8 +319,8 @@ export function renderCraftingQueue() {
       </div>
       <div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.recipe.main} 實際消耗</div><input type="text" class="format-num queue-actual-main-qty" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="實際消耗（必填）" value="${q.actualMainQty ?? ''}" data-id="${q.id}"></div>
       ${q.recipe.subBaseQty > 0 ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.recipe.sub} 實際消耗</div><input type="text" class="format-num queue-actual-sub-qty" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="實際消耗（必填）" value="${q.actualSubQty ?? ''}" data-id="${q.id}"></div>` : ''}
-      ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">${q.artifactName}${q.artifactQty > 1 ? ` (需: ${q.artifactQty})` : ''}</div><input type="text" class="format-num queue-art-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" data-id="${q.id}"></div>` : ''}
-      ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">${q.alchemyTier} ${q.alchemyName} (需: ${q.alchemyBaseQty})</div><input type="text" class="format-num queue-alc-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" data-id="${q.id}"></div>` : ''}
+      ${q.artifactName ? `<div><div style="font-size:0.7rem; color:var(--accent-cyan);">神器單價 / Artifact Unit Cost<br>${q.artifactName}${q.artifactQty > 1 ? ` (Fixed requirement: ${q.artifactQty})` : ''}</div><input type="text" class="format-num queue-art-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件神器成本" value="${q.artifactPrice ? q.artifactPrice : ''}" data-id="${q.id}"></div>` : ''}
+      ${q.alchemyName ? `<div><div style="font-size:0.7rem; color:var(--accent-yellow);">鍊金單價 / Alchemy Unit Cost<br>${q.alchemyTier} ${q.alchemyName} (Fixed requirement: ${q.alchemyBaseQty})</div><input type="text" class="format-num queue-alc-price" style="width:100%; padding:4px 6px; font-size:0.75rem;" placeholder="單件鍊金成本" value="${q.alchemyPrice ? q.alchemyPrice : ''}" data-id="${q.id}"></div>` : ''}
     </td>`;
     tb.appendChild(tr);
   });
@@ -496,7 +519,7 @@ export function searchItems(q) {
 }
 export function selectCraftingRecipe(item) {
   document.getElementById('craft-recipe').value = item.name;
-  document.getElementById('craft-recipe-display').innerText = item.name;
+  document.getElementById('craft-recipe-display').innerText = getRecipeDisplayName(item);
   closeItemSelector(); onRecipeChange();
   if (item.artifactVal > 0) window.showToast(`提示：【${item.name}】需要神器材料，請注意估算成本！`, 'success');
 }
@@ -560,8 +583,8 @@ export function initCraftingEvents() {
   
   document.getElementById('craft-qty')?.addEventListener('input', runCraftingCalculator);
   document.getElementById('btn-craft-qty-sub-10')?.addEventListener('click', () => adjCraftQty(-10));
-  document.getElementById('btn-craft-qty-sub-5')?.addEventListener('click', () => adjCraftQty(-5));
-  document.getElementById('btn-craft-qty-add-5')?.addEventListener('click', () => adjCraftQty(5));
+  document.getElementById('btn-craft-qty-sub-1')?.addEventListener('click', () => adjCraftQty(-1));
+  document.getElementById('btn-craft-qty-add-1')?.addEventListener('click', () => adjCraftQty(1));
   document.getElementById('btn-craft-qty-add-10')?.addEventListener('click', () => adjCraftQty(10));
   
   document.getElementById('hideout-map-bonus')?.addEventListener('input', onMapBonusInput);

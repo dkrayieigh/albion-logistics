@@ -70,15 +70,15 @@
               
               <div class="form-group" style="margin-bottom:20px;">
                 <label class="form-label">目標裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Target Item</span></label>
-                <button id="btn-open-item-selector" class="btn btn-primary" style="width:100%; height:auto; text-align:center; padding:10px; font-size:1.1rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;" >
-                  <div>🔍 點擊選擇目標裝備</div>
-                  <div style="font-size:0.9rem; color:var(--text-primary); margin-top:5px;">目前選擇: <span id="craft-recipe-display" style="color:var(--accent-cyan); font-weight:bold;">單手錘矛</span></div>
+                <button id="btn-open-item-selector" class="btn btn-primary target-picker-button">
+                  <div>🔍 Choose Target</div>
+                  <div class="target-picker-current">Selected: <span id="craft-recipe-display">Choose Target</span></div>
                 </button>
-                <input type="hidden" id="craft-recipe" value="單手錘矛">
+                <input type="hidden" id="craft-recipe" value="">
               </div>
 
               <div class="form-group" style="margin-bottom:20px;">
-                <label class="form-label">材料品質<br><span style="font-size: 0.8em; opacity: 0.7;">Material Quality</span></label>
+                <label class="form-label">材料階級<br><span style="font-size: 0.8em; opacity: 0.7;">Material Tier</span></label>
                 <div id="craft-quality-pill-group"></div>
               </div>
 
@@ -181,20 +181,26 @@
               <div class="card-header"><h2 class="card-title">製作試算 Planner</h2></div>
               <div class="form-group">
                 <label class="form-label">目標裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Target Item</span></label>
-                <button id="btn-open-quote-item-selector" class="btn btn-primary" style="width:100%; height:auto; text-align:center; padding:10px; font-size:1.1rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;">
-                  <div>?? 暺??豢??格?鋆?</div>
-                  <div style="font-size:0.9rem; color:var(--text-primary); margin-top:5px;">?桀??豢?: <span id="quote-recipe-display" style="color:var(--accent-cyan); font-weight:bold;">-</span></div>
+                <button id="btn-open-quote-item-selector" class="btn btn-primary target-picker-button">
+                  <div>🔍 Choose Target</div>
+                  <div class="target-picker-current">Selected: <span id="quote-recipe-display">Choose Target</span></div>
                 </button>
                 <input type="hidden" id="quote-recipe" value="" autocomplete="off">
               </div>
               <div class="form-group">
-                <label class="form-label">品質<br><span style="font-size: 0.8em; opacity: 0.7;">Quality</span></label>
+                <label class="form-label">目標階級<br><span style="font-size: 0.8em; opacity: 0.7;">Target Tier</span></label>
                 <div id="quote-quality-pill-group"></div>
               </div>
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></label>
-                  <input type="number" id="quote-qty" value="1" autocomplete="off" inputmode="numeric">
+                  <div class="quantity-stepper">
+                    <input type="number" id="quote-qty" value="1" autocomplete="off" inputmode="numeric">
+                    <button class="btn btn-secondary" id="btn-quote-qty-sub-10" data-val="-10">-10</button>
+                    <button class="btn btn-secondary" id="btn-quote-qty-sub-1" data-val="-1">-1</button>
+                    <button class="btn btn-secondary" id="btn-quote-qty-add-1" data-val="1">+1</button>
+                    <button class="btn btn-secondary" id="btn-quote-qty-add-10" data-val="10">+10</button>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label">製作地點<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting Location</span></label>
@@ -223,7 +229,7 @@
                 <div><span>副料</span><strong id="quote-sub-label">-</strong><em id="quote-consumption-sub">0</em></div>
               </div>
               <div class="form-group">
-                <label class="form-label">材料估價與折扣<br><span style="font-size: 0.8em; opacity: 0.7;">Material Estimates</span></label>
+                <label class="form-label">一般材料估價<br><span style="font-size: 0.8em; opacity: 0.7;">Material Estimates</span></label>
                 <div id="quote-material-inputs" class="quote-material-list"></div>
               </div>
               <div class="form-group">

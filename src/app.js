@@ -1,4 +1,4 @@
-import { escapeHTML } from './utils/formatters.js';
+﻿import { escapeHTML } from './utils/formatters.js';
 import {
   state,
   enableNewSchemaRuntime,
@@ -57,7 +57,8 @@ export function renderQualityPillsGroup(containerId, activeQuality, callback) {
   const ctn = document.getElementById(containerId); ctn.innerHTML = '';
   if (!activeQuality) {
     const hint = document.createElement('div');
-    hint.innerText = '請選擇品質';
+    hint.className = 'pill-hint';
+    hint.innerText = 'Choose Material Tier';
     hint.style.fontSize = '0.85rem';
     hint.style.color = 'var(--accent-yellow)';
     hint.style.marginBottom = '8px';
@@ -358,7 +359,6 @@ window.onload = () => {
   updateBuyQualityPills();
   const startupResult = startApplicationState(localStorage);
   if (startupResult.mode === 'blocked') return;
-  document.getElementById('craft-recipe').value = Crafting.RECIPES[0].name;
   Crafting.onRecipeChange();
   Ledger.updateDashboardUI();
 };
