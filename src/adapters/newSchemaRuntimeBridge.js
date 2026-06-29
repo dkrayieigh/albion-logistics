@@ -36,6 +36,7 @@ function runtimeKeyForLocation(locationId, registry) {
 
   const entry = registry?.[locationId];
   if (!entry || typeof entry.displayName !== 'string' || entry.displayName.length === 0) return null;
+  if (entry.type === 'custom' && entry.active !== true) return null;
   return entry.displayName;
 }
 
@@ -46,6 +47,7 @@ function buildRuntimeToLocationIdMap(registry) {
 
   for (const [locationId, entry] of Object.entries(registry)) {
     if (!isPlainObject(entry) || entry.locationId !== locationId) return null;
+    if (entry.type === 'custom' && entry.active !== true) continue;
 
     const runtimeKey = runtimeKeyForLocation(locationId, registry);
     if (!runtimeKey || runtimeToLocationId.has(runtimeKey)) return null;

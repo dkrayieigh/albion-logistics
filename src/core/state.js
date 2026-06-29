@@ -155,15 +155,6 @@ export function addCustomLocation(name, options = {}) {
   }
 
   const snapshot = createStateSnapshot();
-  for (const entry of Object.values(state.locationRegistry)) {
-    if (
-      entry?.type === 'custom' &&
-      entry.active === false &&
-      normalizedLocationName(entry.displayName) === normalizedLocationName(displayName)
-    ) {
-      entry.displayName = `${entry.displayName} (inactive ${entry.locationId})`;
-    }
-  }
   state.locationRegistry[locationId] = {
     locationId,
     displayName,

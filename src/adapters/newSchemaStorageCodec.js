@@ -129,7 +129,7 @@ function validateLocationRegistry(locationRegistry, errors) {
 
   const locationIds = new Set();
   const fixedNames = new Set(Object.values(FIXED_LOCATION_REGISTRY).map(entry => entry.displayName.trim().toLocaleLowerCase()));
-  const customNames = new Set();
+  const activeCustomNames = new Set();
   let valid = true;
 
   if (Object.hasOwn(locationRegistry, 'Hideout') || Object.hasOwn(locationRegistry, 'hideout')) valid = false;
@@ -153,8 +153,11 @@ function validateLocationRegistry(locationRegistry, errors) {
     if (entry.type === 'custom') {
       if (!isValidCustomLocationId(key)) valid = false;
       const normalizedName = typeof entry.displayName === 'string' ? entry.displayName.trim().toLocaleLowerCase() : '';
-      if (fixedNames.has(normalizedName) || customNames.has(normalizedName)) valid = false;
-      if (normalizedName) customNames.add(normalizedName);
+      if (fixedNames.has(normalizedName)) valid = false;
+      if (entry.active === true) {
+        if (activeCustomNames.has(normalizedName)) valid = false;
+        if (normalizedName) activeCustomNames.add(normalizedName);
+      }
     } else if (!Object.hasOwn(FIXED_LOCATION_REGISTRY, key)) {
       valid = false;
     }

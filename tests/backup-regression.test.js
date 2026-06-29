@@ -2407,6 +2407,43 @@ test('new-schema runtime bridge should map custom location IDs to display names 
   assert.notEqual(result.state.locationRegistry, state.locationRegistry);
 });
 
+test('new-schema runtime bridge should expose only active custom entries when inactive shares display name', { concurrency: false }, () => {
+  const state = makeRuntimeBridgeNewSchemaState();
+  const oldLocationId = 'custom:test-001';
+  const newLocationId = 'custom:test-002';
+  const displayName = state.locationRegistry[oldLocationId].displayName;
+  const customItemKey = Object.entries(state.inventory).find(([, item]) =>
+    Object.hasOwn(item.qtyByLocation, oldLocationId)
+  )[0];
+
+  state.locationRegistry[oldLocationId].active = false;
+  state.locationRegistry[newLocationId] = {
+    locationId: newLocationId,
+    displayName,
+    type: 'custom',
+    active: true
+  };
+  delete state.inventory[customItemKey].qtyByLocation[oldLocationId];
+  state.inventory[customItemKey].qtyByLocation[newLocationId] = 13;
+
+  const runtime = projectNewSchemaToRuntime(state);
+  const roundTrip = projectRuntimeToNewSchema(runtime.state);
+
+  assert.equal(encodeNewSchemaState(state).ok, true);
+  assert.equal(runtime.ok, true);
+  assert.deepEqual(runtime.state.customLocations, [displayName]);
+  assert.equal(runtime.state.locationRegistry[oldLocationId].displayName, displayName);
+  assert.equal(runtime.state.locationRegistry[oldLocationId].active, false);
+  assert.equal(runtime.state.locationRegistry[newLocationId].displayName, displayName);
+  assert.equal(runtime.state.locationRegistry[newLocationId].active, true);
+  assert.equal(runtime.state.inventory[customItemKey].qtyByCity[displayName], 13);
+  assert.equal(roundTrip.ok, true);
+  assert.equal(roundTrip.state.inventory[customItemKey].qtyByLocation[newLocationId], 13);
+  assert.equal(Object.hasOwn(roundTrip.state.inventory[customItemKey].qtyByLocation, oldLocationId), false);
+  assert.equal(roundTrip.state.locationRegistry[oldLocationId].displayName, displayName);
+  assert.equal(roundTrip.state.locationRegistry[newLocationId].displayName, displayName);
+});
+
 test('new-schema runtime bridge should convert canonical laborer journal key to runtime journal key', { concurrency: false }, () => {
   const state = makeRuntimeBridgeNewSchemaState();
   const result = projectNewSchemaToRuntime(state);
@@ -4777,6 +4814,81 @@ test('custom location writer re-adding a removed display name uses a new id and 
   assert.equal(state.locationRegistry['custom:test-002'].active, true);
   assert.equal(stored.locationRegistry['custom:test-001'].active, false);
   assert.equal(stored.locationRegistry['custom:test-002'].displayName, '公會倉庫');
+});
+
+test('custom location writer re-add keeps inactive display name and exposes only the new active target after restart', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  clearCanonicalCustomLocationQuantities(canonical);
+  const storageDouble = startReadyRuntimeWithCanonical(canonical);
+  const originalDisplayName = state.locationRegistry['custom:test-001'].displayName;
+  const customItemKey = Object.entries(state.inventory).find(([, item]) =>
+    Object.hasOwn(item.qtyByCity, originalDisplayName)
+  )[0];
+  const beforeTransactions = JSON.stringify(state.transactions);
+  const beforeThetfordQuantity = state.inventory[customItemKey].qtyByCity.Thetford;
+
+  assert.equal(removeCustomLocation(originalDisplayName).ok, true);
+  assert.equal(addCustomLocation(originalDisplayName, {
+    generateCustomLocationId: customIdGenerator('custom:test-002')
+  }).ok, true);
+  state.inventory[customItemKey].qtyByCity[originalDisplayName] = 13;
+  assert.equal(saveState().ok, true);
+
+  const storedBeforeRestart = decodeStoredRuntime(storageDouble);
+  const restartStorage = makeBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: storageDouble.entries.get(NEW_SCHEMA_STORAGE_KEY)
+  });
+
+  assert.equal(enableNewSchemaRuntime(restartStorage).mode, 'ready');
+
+  assert.equal(storedBeforeRestart.locationRegistry['custom:test-001'].active, false);
+  assert.equal(storedBeforeRestart.locationRegistry['custom:test-001'].displayName, originalDisplayName);
+  assert.equal(storedBeforeRestart.locationRegistry['custom:test-002'].active, true);
+  assert.equal(storedBeforeRestart.locationRegistry['custom:test-002'].displayName, originalDisplayName);
+  assert.notEqual(storedBeforeRestart.locationRegistry['custom:test-001'].locationId, storedBeforeRestart.locationRegistry['custom:test-002'].locationId);
+  assert.equal(Object.hasOwn(storedBeforeRestart.inventory[customItemKey].qtyByLocation, 'custom:test-001'), false);
+  assert.equal(storedBeforeRestart.inventory[customItemKey].qtyByLocation['custom:test-002'], 13);
+  assert.equal(state.locationRegistry['custom:test-001'].displayName, originalDisplayName);
+  assert.equal(state.locationRegistry['custom:test-001'].active, false);
+  assert.equal(state.locationRegistry['custom:test-002'].displayName, originalDisplayName);
+  assert.equal(state.locationRegistry['custom:test-002'].active, true);
+  assert.deepEqual(state.customLocations, [originalDisplayName]);
+  assert.equal(state.inventory[customItemKey].qtyByCity[originalDisplayName], 13);
+  assert.equal(state.inventory[customItemKey].qtyByCity.Thetford, beforeThetfordQuantity);
+  assert.equal(JSON.stringify(state.transactions), beforeTransactions);
+  assert.deepEqual(restartStorage.calls, [{ method: 'getItem', key: NEW_SCHEMA_STORAGE_KEY }]);
+});
+
+test('custom location writer rollback keeps inactive same-name entry unchanged on save failure', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  clearCanonicalCustomLocationQuantities(canonical);
+  canonical.locationRegistry['custom:test-001'].active = false;
+  for (const item of Object.values(canonical.inventory)) {
+    if (item.qtyByLocation) delete item.qtyByLocation['custom:test-001'];
+  }
+  const originalDisplayName = canonical.locationRegistry['custom:test-001'].displayName;
+  const storageDouble = makeFailingWriteBrowserStorageDouble({
+    [NEW_SCHEMA_STORAGE_KEY]: encodeNewSchemaState(canonical).serialized
+  });
+  assert.equal(enableNewSchemaRuntime(storageDouble).mode, 'ready');
+  const beforeState = JSON.stringify(state);
+  const beforeStorage = JSON.stringify([...storageDouble.entries.entries()]);
+
+  const result = addCustomLocation(originalDisplayName, {
+    generateCustomLocationId: customIdGenerator('custom:test-002')
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'save-failed');
+  assert.equal(result.locationId, 'custom:test-002');
+  assert.deepEqual(result.errors, ['STORAGE_WRITE_FAILED']);
+  assert.equal(JSON.stringify(state), beforeState);
+  assert.equal(JSON.stringify([...storageDouble.entries.entries()]), beforeStorage);
+  assert.equal(state.locationRegistry['custom:test-001'].displayName, originalDisplayName);
+  assert.equal(Object.hasOwn(state.locationRegistry, 'custom:test-002'), false);
+  assert.deepEqual(state.customLocations, []);
 });
 
 test('custom location writer add purchase transport save and restart round trips stable id and quantities', { concurrency: false }, () => {
