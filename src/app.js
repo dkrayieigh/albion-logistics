@@ -16,6 +16,7 @@ import * as Crafting from './components/crafting.js';
 import * as Inventory from './components/inventory.js';
 import * as Laborer from './components/laborer.js';
 import * as Ledger from './components/ledger.js';
+import * as Quotation from './components/quotation.js';
 import * as WindowControls from './components/window-controls.js';
 
 // ==========================================
@@ -338,6 +339,7 @@ window.onload = () => {
   WindowControls.initWindowControls();
   initGlobalEvents();
   Crafting.initCraftingEvents();
+  Quotation.initQuotationEvents();
   Inventory.initInventoryEvents();
   Laborer.initLaborerEvents();
   Ledger.initLedgerEvents();

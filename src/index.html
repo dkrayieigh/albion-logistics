@@ -24,6 +24,7 @@
       <div class="logo-container"><div class="logo-icon">A</div><span class="logo-text">Albion Logistics</span></div>
       <nav class="nav-menu">
         <a class="nav-item active" id="nav-tab-crafting" data-target="tab-crafting">🔨 製作管理<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting</span></a>
+        <a class="nav-item" id="nav-tab-quotation" data-target="tab-quotation">🧾 接單試算<br><span style="font-size: 0.8em; opacity: 0.7;">Quotation Planner</span></a>
         <a class="nav-item" id="nav-tab-inventory" data-target="tab-inventory">📦 物流庫存<br><span style="font-size: 0.8em; opacity: 0.7;">Logistics</span></a>
         <a class="nav-item" id="nav-tab-laborer" data-target="tab-laborer">🏡 工人島嶼<br><span style="font-size: 0.8em; opacity: 0.7;">Laborers</span></a>
         <a class="nav-item" id="nav-tab-ledger" data-target="tab-ledger">📊 財務帳本<br><span style="font-size: 0.8em; opacity: 0.7;">Ledger</span></a>
@@ -167,6 +168,108 @@
                   <button class="btn btn-success" style="height:45px; padding:0 30px;" id="btn-submit-craft-all">製作已勾選項目<br><span style="font-size:0.8em;opacity:0.7;">Craft Selected</span></button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 1B: Quotation Planner -->
+      <section id="tab-quotation" class="tab-content">
+        <div class="panel-grid quotation-grid">
+          <div class="left-col">
+            <div class="card">
+              <div class="card-header"><h2 class="card-title">接單試算 Quotation Planner</h2></div>
+              <div class="form-group">
+                <label class="form-label">目標裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Target Item</span></label>
+                <select id="quote-recipe"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">品質<br><span style="font-size: 0.8em; opacity: 0.7;">Quality</span></label>
+                <div id="quote-quality-pill-group"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></label>
+                  <input type="number" id="quote-qty" value="1">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">製作地點<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting Location</span></label>
+                  <select id="quote-city"></select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="switch-container" for="quote-focus">
+                  <input type="checkbox" id="quote-focus" class="switch-checkbox">
+                  <div class="switch-track"><div class="switch-thumb"></div></div>
+                  <span class="switch-label">專注點<br><span style="font-size: 0.8em; opacity: 0.7;">Use Focus</span></span>
+                </label>
+              </div>
+              <div id="quote-hideout-group" class="form-row" style="display:none;">
+                <div class="form-group">
+                  <label class="form-label">黑區地圖加成<br><span style="font-size: 0.8em; opacity: 0.7;">Map Bonus</span></label>
+                  <input type="text" class="format-num" id="quote-hideout-map-bonus" value="25">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">專注返還<br><span style="font-size: 0.8em; opacity: 0.7;">Focus RRR</span></label>
+                  <input type="text" class="format-num" id="quote-hideout-focus-rrr" value="58.8">
+                </div>
+              </div>
+              <div class="quote-consumption-band">
+                <div><span>主料</span><strong id="quote-main-label">-</strong><em id="quote-consumption-main">0</em></div>
+                <div><span>副料</span><strong id="quote-sub-label">-</strong><em id="quote-consumption-sub">0</em></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">材料估價與折扣<br><span style="font-size: 0.8em; opacity: 0.7;">Material Estimates</span></label>
+                <div id="quote-material-inputs" class="quote-material-list"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">店鋪使用費<br><span style="font-size: 0.8em; opacity: 0.7;">Shop Fee Rate</span></label>
+                <input type="text" class="format-num" id="quote-shop-fee" value="0">
+              </div>
+            </div>
+          </div>
+          <div class="right-col">
+            <div class="card">
+              <div class="card-header"><h2 class="card-title">報價結果 Quote Result</h2></div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">遊戲估價單價<br><span style="font-size: 0.8em; opacity: 0.7;">Est. Unit Value</span></label>
+                  <input type="text" class="format-num" id="quote-est-unit" value="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">遊戲估價總價<br><span style="font-size: 0.8em; opacity: 0.7;">Est. Total Value</span></label>
+                  <input type="text" class="format-num" id="quote-est-total" value="0">
+                </div>
+              </div>
+              <div class="quote-reference-grid">
+                <div><span>估價總價</span><strong id="quote-est-total-display">0</strong></div>
+                <div><span>90% 參考</span><strong id="quote-ref-90">0</strong></div>
+                <div><span>85% 參考</span><strong id="quote-ref-85">0</strong></div>
+                <div><span>店鋪使用費</span><strong id="quote-shop-fee-result">0</strong></div>
+              </div>
+              <div class="quote-quick-grid">
+                <button class="btn btn-secondary" id="quote-quick-90" data-quote-action="quick">估價 90%<br><span id="quote-quick-90-label">Quick</span></button>
+                <button class="btn btn-secondary" id="quote-quick-85" data-quote-action="quick">估價 85%<br><span id="quote-quick-85-label">Quick</span></button>
+                <button class="btn btn-secondary" id="quote-quick-margin-8" data-quote-action="quick">毛利率 8%<br><span id="quote-ref-margin-8">0</span></button>
+                <button class="btn btn-secondary" id="quote-quick-margin-10" data-quote-action="quick">毛利率 10%<br><span id="quote-ref-margin-10">0</span></button>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">自訂單件報價<br><span style="font-size: 0.8em; opacity: 0.7;">Custom Unit Quote</span></label>
+                  <input type="text" class="format-num" id="quote-custom-unit" value="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">自訂整批報價<br><span style="font-size: 0.8em; opacity: 0.7;">Custom Batch Quote</span></label>
+                  <input type="text" class="format-num" id="quote-custom-total" value="0">
+                </div>
+              </div>
+              <div class="quote-reference-grid">
+                <div><span>預估總成本</span><strong id="quote-total-cost">0</strong></div>
+                <div><span>預估單件成本</span><strong id="quote-unit-cost">0</strong></div>
+                <div><span>自訂報價毛利</span><strong id="quote-profit">0</strong></div>
+                <div><span>毛利率</span><strong id="quote-margin">-</strong></div>
+              </div>
+              <div id="quote-result-box" class="quote-result-box"></div>
             </div>
           </div>
         </div>

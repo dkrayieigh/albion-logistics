@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "test": "node --test tests/ledger-data-safety.test.js tests/core-cost-regression.test.js tests/backup-regression.test.js"
+    "test": "node --test tests/ledger-data-safety.test.js tests/core-cost-regression.test.js tests/backup-regression.test.js tests/quotation-regression.test.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

@@ -481,6 +481,114 @@ input[type="number"]::-webkit-inner-spin-button {
   margin-left: 4px;
 }
 
+.quotation-grid {
+  align-items: start;
+}
+
+.quote-hint {
+  color: var(--accent-yellow);
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.quote-consumption-band,
+.quote-reference-grid,
+.quote-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.quote-consumption-band > div,
+.quote-reference-grid > div,
+.quote-summary-grid > div {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.quote-consumption-band span,
+.quote-reference-grid span,
+.quote-summary-grid span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+}
+
+.quote-consumption-band strong,
+.quote-reference-grid strong,
+.quote-summary-grid strong {
+  color: var(--accent-cyan);
+  font-size: 1rem;
+}
+
+.quote-consumption-band em {
+  display: block;
+  color: var(--accent-purple);
+  font-style: normal;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.quote-material-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quote-material-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.2fr) minmax(90px, 0.8fr);
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.quote-discounts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  grid-column: 1 / -1;
+}
+
+.quote-discount {
+  border-radius: 8px;
+  padding: 6px 4px;
+  font-size: 0.78rem;
+}
+
+.quote-muted {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.quote-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.quote-result-box {
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .quote-material-row,
+  .quote-consumption-band,
+  .quote-reference-grid,
+  .quote-summary-grid,
+  .quote-quick-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .quality-matrix,
   .quality-matrix-row {
