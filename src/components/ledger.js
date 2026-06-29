@@ -107,7 +107,7 @@ export function renderLedgerTable() {
     const displayItem = resolveLedgerItemDisplay(t);
     const isCashOut = ['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>entryType.includes(x));
     const actionButton = entryType === '買材料' && !isPurchaseReversed(t)
-      ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" data-action="delete-purchase-adjustment" data-id="${t.originalIndex}" title="刪除" aria-label="刪除">×</button>`
+      ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" data-action="delete-purchase-adjustment" data-id="${t.originalIndex}" title="刪除" aria-label="刪除">❌</button>`
       : '';
     tr.innerHTML=`<td>${entryDate}</td><td><span data-raw-type="${entryType}" style="color:var(--accent-cyan); font-weight:bold;">${displayType}</span></td><td>${displayItem} ${entryQuality !== '-' ? '('+entryQuality+')':''}</td><td>${entryQty}</td><td>${formatSilver(entryUnitPrice)}</td><td style="font-weight:bold; color:${isCashOut?'var(--accent-red)':'var(--accent-green)'};">${isCashOut?'-':'+'}${formatSilver(entryTotal)}</td><td>${actionButton}</td>`;
     tb.appendChild(tr);
