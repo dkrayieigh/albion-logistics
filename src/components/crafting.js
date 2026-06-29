@@ -17,7 +17,7 @@ export function getAllRecipes() {
 export const RECIPES = getAllRecipes();
 
 export function getRecipeDisplayName(recipe) {
-  return recipe?.name || 'Choose Target';
+  return recipe?.name || '🔍 Choose Target';
 }
 
 export function getEnchantAndTier(q) { 
@@ -150,11 +150,9 @@ export function onRecipeChange() {
   const rn = document.getElementById('craft-recipe').value;
   const r = RECIPES.find(x => x.name === rn);
   if (!r) {
-    document.getElementById('craft-recipe-display').innerText = 'Choose Target';
+    document.getElementById('craft-recipe-display').innerText = getRecipeDisplayName(null);
     document.getElementById('main-material-label').innerHTML = '主料<br><span style="font-size:0.8em;opacity:0.7;">Main Material</span>';
     document.getElementById('sub-material-label').innerHTML = '副料<br><span style="font-size:0.8em;opacity:0.7;">Sub Material</span>';
-    document.getElementById('out-main-qty').innerText = '0 / 0';
-    document.getElementById('out-sub-qty').innerText = '0';
     const alcGroup = document.getElementById('alchemy-group');
     if (alcGroup) alcGroup.style.display = 'none';
     return;
@@ -188,7 +186,6 @@ export function runCraftingCalculator() {
     onRecipeChange();
     return;
   }
-  const q = parseNum(document.getElementById('craft-qty').value);
   const qual = currentCraftQuality;
   const city = document.getElementById('craft-city').value;
   if (!qual) {
@@ -201,15 +198,6 @@ export function runCraftingCalculator() {
   const foc = document.getElementById('craft-focus').checked;
   const rra = getRRA(r.category, city, foc);
   document.getElementById('rra-badge').innerText = `Return rate: ${(rra*100).toFixed(1)}%`;
-  const mainConsumption = calculateMaterialConsumption(r.mainBaseQty, q, rra);
-  const subConsumption = calculateMaterialConsumption(r.subBaseQty, q, rra);
-  document.getElementById('out-main-qty').innerText = `${mainConsumption.expectedNetConsumption} / ${r.mainBaseQty*q}`;
-  document.getElementById('out-sub-qty').innerText = r.subBaseQty > 0 ? `${subConsumption.expectedNetConsumption} / ${r.subBaseQty*q}` : '0';
-
-  const oml = document.getElementById('out-main-label');
-  if (oml) oml.innerHTML = `預估主料消耗 ${r.main}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.main]||''} Consumption</span>`;
-  const osl = document.getElementById('out-sub-label');
-  if (osl) osl.innerHTML = r.subBaseQty > 0 ? `預估副料消耗 ${r.sub}<br><span style="font-size:0.8em; opacity:0.7;">Est. ${EN_MAT[r.sub]||''} Consumption</span>` : '預估副料消耗 -<br><span style="font-size:0.8em; opacity:0.7;">Est. None</span>';
 
   const alcGroup = document.getElementById('alchemy-group');
   if (r.alchemyName) {

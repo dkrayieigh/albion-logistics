@@ -159,9 +159,11 @@ test('UI version and craft quantity controls use the v0.4.4 / -10 -1 +1 +10 cont
   assert.doesNotMatch(html, /data-val="-5">-5/);
   assert.doesNotMatch(html, /data-val="5">\+5/);
   assert.match(html, /id="craft-recipe"[^>]*value=""/);
-  assert.match(html, /id="craft-recipe-display">Choose Target<\/span>/);
-  assert.match(html, /Choose Target/);
+  assert.match(html, /id="craft-recipe-display">🔍 Choose Target<\/span>/);
+  assert.match(html, /🔍 Choose Target/);
   assert.match(html, /Material Tier/);
+  assert.doesNotMatch(html, /id="out-main-label"|id="out-main-qty"|id="out-sub-label"|id="out-sub-qty"/);
+  assert.doesNotMatch(html, /<div class="output-grid" style="margin-bottom:20px;">/);
 });
 
 test('CSS hides native number spinners and defines five-column quality matrix layout', { concurrency: false }, () => {
@@ -2314,6 +2316,14 @@ test('crafting queue labels special materials as unit cost inputs', { concurrenc
   assert.match(source, /Alchemy Unit Cost/);
   assert.match(source, /Fixed requirement/);
   assert.doesNotMatch(source, /Artifact[^`]*Actual Consumption|Alchemy[^`]*Actual Consumption/);
+});
+
+test('crafting calculator no longer depends on removed consumption cards', { concurrency: false }, () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/components/crafting.js', import.meta.url), 'utf8');
+
+  assert.doesNotMatch(html, /out-main-|out-sub-/);
+  assert.doesNotMatch(source, /out-main-|out-sub-/);
 });
 
 test('submitCraftAll uses actual material consumed for material deduction and crafted cost', { concurrency: false }, () => {

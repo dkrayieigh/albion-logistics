@@ -190,7 +190,7 @@ function buildInputs(recipe) {
 
 function renderMaterialRows(recipe) {
   if (!recipe) {
-    setHTML('quote-material-inputs', '<div class="quote-hint">Choose Target to enter material estimates.</div>');
+    setHTML('quote-material-inputs', '<div class="quote-hint">🔍 Choose Target to enter material estimates.</div>');
     return;
   }
 
@@ -207,23 +207,34 @@ function renderMaterialRows(recipe) {
     specialRows.push({ key: 'alchemy', label: `${req.tier} ${recipe.alchemyName}`, baseQty: req.qty, special: true });
   }
 
-  const renderRows = rows => rows.map(row => {
+  const renderMaterialEstimateRows = rows => rows.map(row => {
     const inputId = getPriceKey(row.key);
     return `<div class="quote-material-row">
       <div>
         <strong>${escapeHTML(row.label)}</strong>
-        <div class="quote-muted">${row.special ? `Fixed requirement: ${row.baseQty}` : `Base: ${row.baseQty}`}</div>
+        <div class="quote-muted">Base: ${row.baseQty}</div>
       </div>
       <input type="text" class="format-num quote-price-input" id="${escapeHTML(inputId)}" data-quote-action="price" value="${escapeHTML(byId(inputId)?.value || '0')}" autocomplete="off" inputmode="decimal">
       <div class="quote-discounts">${renderDiscountButtons(row.key)}</div>
       <div class="quote-muted" id="quote-line-${escapeHTML(row.key)}">-</div>
     </div>`;
   }).join('');
+  const renderSpecialEstimateRows = rows => rows.map(row => {
+    const inputId = getPriceKey(row.key);
+    return `<div class="quote-material-row quote-special-row" data-special-key="${escapeHTML(row.key)}">
+      <div>
+        <strong>${escapeHTML(row.label)}</strong>
+        <div class="quote-muted">Fixed requirement: ${row.baseQty}</div>
+      </div>
+      <input type="text" class="format-num quote-price-input" id="${escapeHTML(inputId)}" data-quote-action="price" value="${escapeHTML(byId(inputId)?.value || '0')}" autocomplete="off" inputmode="decimal">
+      <div class="quote-muted" id="quote-line-${escapeHTML(row.key)}">預估成本 / Estimated Cost -</div>
+    </div>`;
+  }).join('');
   const specialHtml = specialRows.length > 0
-    ? `<div class="quote-special-heading">Special Materials</div>${renderRows(specialRows)}`
+    ? `<div class="quote-special-heading">Special Materials</div>${renderSpecialEstimateRows(specialRows)}`
     : '';
 
-  setHTML('quote-material-inputs', `${renderRows(materialRows)}${specialHtml}`);
+  setHTML('quote-material-inputs', `${renderMaterialEstimateRows(materialRows)}${specialHtml}`);
 }
 
 function renderResult(quoteResult) {
@@ -233,8 +244,11 @@ function renderResult(quoteResult) {
   }
 
   const quote = quoteResult.quote;
-  [...quote.materials, ...quote.specialMaterials].forEach(line => {
+  quote.materials.forEach(line => {
     setText(`quote-line-${line.key}`, `套用單價 ${formatSilver(line.appliedUnitPrice)} / 預估成本 ${formatSilver(line.estimatedCost)}`);
+  });
+  quote.specialMaterials.forEach(line => {
+    setText(`quote-line-${line.key}`, `預估成本 / Estimated Cost ${formatSilver(line.estimatedCost)}`);
   });
   setText('quote-consumption-main', `${quote.materials[0]?.quantity ?? 0}`);
   setText('quote-consumption-sub', `${quote.materials[1]?.quantity ?? 0}`);
@@ -315,7 +329,7 @@ export function renderQuotation() {
   if (!recipe) {
     setText('quote-consumption-main', '0');
     setText('quote-consumption-sub', '0');
-    setHTML('quote-result-box', '<div class="suggestion-box">Choose Target before calculating.</div>');
+    setHTML('quote-result-box', '<div class="suggestion-box">🔍 Choose Target before calculating.</div>');
     return;
   }
 

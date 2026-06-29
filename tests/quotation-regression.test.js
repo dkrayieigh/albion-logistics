@@ -285,7 +285,7 @@ test('quotation visible planner name and enqueue button use the bounded UI contr
   assert.doesNotMatch(html, /<select id="quote-recipe"/);
   assert.match(html, /id="btn-open-quote-item-selector"/);
   assert.match(html, /id="quote-recipe"[^>]*type="hidden"|type="hidden"[^>]*id="quote-recipe"/);
-  assert.match(html, /Choose Target/);
+  assert.match(html, /🔍 Choose Target/);
   assert.match(source, /加入製作清單/);
   assert.match(source, /from ['"]\.\/crafting\.js['"]/);
   assert.doesNotMatch(source, /from ['"]\.\/crafting\.js['"];\s*import/);
@@ -305,9 +305,9 @@ test('quotation target picker starts blank and uses guarded placeholder flow', (
   const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
 
   assert.match(html, /id="quote-recipe"[^>]*value=""/);
-  assert.match(html, /id="quote-recipe-display">Choose Target<\/span>/);
+  assert.match(html, /id="quote-recipe-display">🔍 Choose Target<\/span>/);
   assert.match(source, /return RECIPES\.find\(recipe => recipe\.name === selectedName\) \|\| null/);
-  assert.match(source, /Choose Target before calculating/);
+  assert.match(source, /🔍 Choose Target before calculating/);
   assert.doesNotMatch(source, /applyRecipeSelection\(RECIPES\[0\]\)/);
   assert.doesNotMatch(app, /document\.getElementById\('craft-recipe'\)\.value = Crafting\.RECIPES\[0\]\.name/);
 });
@@ -329,7 +329,7 @@ test('quotation UI uses crafting-compatible quantity controls and tier labels', 
   assert.doesNotMatch(html, /Material Quality/);
 });
 
-test('quotation material estimate rows keep discounts for normal and special materials', () => {
+test('quotation material estimate rows keep discounts only for normal materials', () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
   const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
 
@@ -338,9 +338,52 @@ test('quotation material estimate rows keep discounts for normal and special mat
   assert.match(source, /const specialRows/);
   assert.match(source, /Special Materials/);
   assert.match(source, /Fixed requirement/);
-  assert.match(source, /renderDiscountButtons\(row\.key\)/);
+  assert.match(source, /renderMaterialEstimateRows[\s\S]*renderDiscountButtons\(row\.key\)/);
+  assert.doesNotMatch(source, /renderSpecialEstimateRows[\s\S]*renderDiscountButtons\(row\.key\)/);
+  assert.match(source, /data-special-key="\$\{escapeHTML\(row\.key\)\}"/);
+  assert.match(source, /預估成本 \/ Estimated Cost/);
   assert.match(source, /prices\.artifact = materialPrice\('artifact'\)/);
   assert.match(source, /prices\.alchemy = materialPrice\('alchemy'\)/);
+});
+
+test('quotation special material costs still contribute to the total without discounts', () => {
+  const recipe = {
+    name: 'Special Test',
+    category: 'plate',
+    main: '鋼條',
+    mainBaseQty: 16,
+    sub: '',
+    subBaseQty: 0,
+    artifactName: 'Test Artifact',
+    artifactQty: 2,
+    artifactVal: 999999,
+    alchemyName: 'Test Alchemy'
+  };
+
+  const result = calculateQuotation({
+    recipe,
+    quality: '6.0',
+    quantity: 3,
+    city: 'Bridgewatch',
+    focus: false,
+    prices: {
+      '鋼條_6.0': 100,
+      artifact: 1000,
+      alchemy: 50
+    },
+    discounts: {
+      '鋼條_6.0': 5
+    },
+    shopFeeRate: 0,
+    estimatedSaleTotal: 0,
+    customQuoteTotal: 0
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.quote.specialMaterials.find(line => line.key === 'artifact').estimatedCost, 6000);
+  assert.equal(result.quote.specialMaterials.find(line => line.key === 'alchemy').estimatedCost, 300);
+  assert.equal(result.quote.totalCost, result.quote.materialCost + result.quote.specialCost + result.quote.shopFee);
+  assert.equal(result.quote.specialCost, 6300);
 });
 
 test('quotation price edits refresh calculation without rebuilding material input rows', () => {
