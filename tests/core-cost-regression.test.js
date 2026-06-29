@@ -144,10 +144,10 @@ function findLaborPill(containerId, label) {
   return group.children.find(button => button.innerHTML === label);
 }
 
-test('UI version and craft quantity controls use the v0.4.3 / -10 -1 +1 +10 contract', { concurrency: false }, () => {
+test('UI version and craft quantity controls use the v0.4.4 / -10 -1 +1 +10 contract', { concurrency: false }, () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
 
-  assert.match(html, /Albion Logistics v0\.4\.3/);
+  assert.match(html, /Albion Logistics v0\.4\.4/);
   assert.doesNotMatch(html, /Albion Logistics V4\.0\.0-beta/);
   assert.match(html, /<input type="number" id="craft-qty"/);
   assert.match(html, /id="btn-craft-qty-sub-10" data-val="-10">-10/);

@@ -247,7 +247,7 @@ mainMaterialCost
 
 ### Crafting Planner / Quotation
 
-- Visible name 使用「製作報價 / Planner」定位。
+- Visible name 使用「製作試算 / Planner」定位。
 - Planner 是 read-only quotation calculator；計算與預覽不會寫入 inventory、cash、transactions 或 storage。
 - Planner 只有在使用者明確執行 queue handoff 時，才會把方案加入 transient `craftingQueue`。
 - Queue handoff 仍只建立待製作佇列資料，不等於完成製作、不扣材料、不扣 cash、不寫 transaction。
