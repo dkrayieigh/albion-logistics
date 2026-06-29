@@ -1,5 +1,6 @@
 import { parseNum, formatMillions, formatSilver } from '../utils/formatters.js';
 import { state, saveState } from '../core/state.js';
+import { resolveLedgerCategoryDisplay, resolveLedgerItemDisplay } from '../presenters/ledgerDisplay.js';
 
 export let currentLedgerPage = 1; 
 export const LEDGER_ITEMS_PER_PAGE = 10; 
@@ -64,7 +65,11 @@ export function filterLedger(resetPage = true) {
   const qry = document.getElementById('ledger-search')?.value.toLowerCase() || '';
   filteredLedger = state.transactions.map((t, index) => ({...t, originalIndex: index})).filter(t => {
     if (!qry) return true;
-    return getLedgerDate(t).includes(qry) || getLedgerType(t).toLowerCase().includes(qry) || getLedgerItem(t).toLowerCase().includes(qry);
+    return getLedgerDate(t).includes(qry)
+      || getLedgerType(t).toLowerCase().includes(qry)
+      || resolveLedgerCategoryDisplay(t).toLowerCase().includes(qry)
+      || getLedgerItem(t).toLowerCase().includes(qry)
+      || resolveLedgerItemDisplay(t).toLowerCase().includes(qry);
   });
   if (resetPage) currentLedgerPage = 1;
   renderLedgerTable();
@@ -98,12 +103,13 @@ export function renderLedgerTable() {
     const entryQty = getLedgerQty(t);
     const entryTotal = getLedgerTotal(t);
     const entryUnitPrice = getLedgerUnitPrice(t);
-    const displayType = entryType === 'INVENTORY_ADJUSTMENT' ? '調整紀錄' : entryType;
+    const displayType = resolveLedgerCategoryDisplay(t);
+    const displayItem = resolveLedgerItemDisplay(t);
     const isCashOut = ['買','扣','製作入庫','提領','成本校正','庫存刪除'].some(x=>entryType.includes(x));
     const actionButton = entryType === '買材料' && !isPurchaseReversed(t)
-      ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" data-action="delete-purchase-adjustment" data-id="${t.originalIndex}">刪除</button>`
+      ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" data-action="delete-purchase-adjustment" data-id="${t.originalIndex}" title="刪除" aria-label="刪除">×</button>`
       : '';
-    tr.innerHTML=`<td>${entryDate}</td><td><span data-raw-type="${entryType}" style="color:var(--accent-cyan); font-weight:bold;">${displayType}</span></td><td>${entryItem} ${entryQuality !== '-' ? '('+entryQuality+')':''}</td><td>${entryQty}</td><td>${formatSilver(entryUnitPrice)}</td><td style="font-weight:bold; color:${isCashOut?'var(--accent-red)':'var(--accent-green)'};">${isCashOut?'-':'+'}${formatSilver(entryTotal)}</td><td>${actionButton}</td>`;
+    tr.innerHTML=`<td>${entryDate}</td><td><span data-raw-type="${entryType}" style="color:var(--accent-cyan); font-weight:bold;">${displayType}</span></td><td>${displayItem} ${entryQuality !== '-' ? '('+entryQuality+')':''}</td><td>${entryQty}</td><td>${formatSilver(entryUnitPrice)}</td><td style="font-weight:bold; color:${isCashOut?'var(--accent-red)':'var(--accent-green)'};">${isCashOut?'-':'+'}${formatSilver(entryTotal)}</td><td>${actionButton}</td>`;
     tb.appendChild(tr);
   });
 }

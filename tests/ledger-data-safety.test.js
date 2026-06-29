@@ -167,7 +167,7 @@ test('TEST-B07: the same purchase cannot be reversed twice', { concurrency: fals
 
   getElement('ledger-tbody').rows = [];
   Ledger.filterLedger();
-  const purchaseRow = getElement('ledger-tbody').rows.find(row => row.innerHTML.includes('買材料') && row.innerHTML.includes(ITEM));
+  const purchaseRow = getElement('ledger-tbody').rows.find(row => row.innerHTML.includes('Material Purchase') && row.innerHTML.includes('Cloth'));
   assert.ok(purchaseRow);
   assert.equal(purchaseRow.innerHTML.includes('delete-purchase-adjustment'), false);
 
@@ -553,10 +553,12 @@ test('adapter/integration red test: ledger render display path accepts normalize
   assert.equal(JSON.stringify(transactions), before);
   assert.equal(getElement('ledger-tbody').rows.length, 4);
   const renderedText = getElement('ledger-tbody').rows.map(row => row.innerHTML).join('\n');
-  assert.match(renderedText, /買材料/);
-  assert.match(renderedText, /製作入庫/);
-  assert.match(renderedText, /賣成品/);
-  assert.match(renderedText, /INVENTORY_ADJUSTMENT/);
+  assert.match(renderedText, /data-raw-type="買材料"/);
+  assert.match(renderedText, /Material Purchase/);
+  assert.match(renderedText, /Crafting Output/);
+  assert.match(renderedText, /Product Sale/);
+  assert.match(renderedText, /data-raw-type="INVENTORY_ADJUSTMENT"/);
+  assert.match(renderedText, /Inventory Adjustment/);
 });
 
 test('transaction reader boundary: ledger display renders normalized current legacy type 賣成品 crafted sale without mutating payload', { concurrency: false }, () => {
@@ -591,7 +593,7 @@ test('transaction reader boundary: ledger display renders normalized current leg
   assert.equal(getElement('ledger-tbody').rows.length, 1);
   const renderedText = getElement('ledger-tbody').rows.map(row => row.innerHTML).join('\n');
   assert.match(renderedText, /data-raw-type="賣成品"/);
-  assert.match(renderedText, /賣成品/);
+  assert.match(renderedText, /Product Sale/);
   assert.match(renderedText, /TestProduct/);
   assert.match(renderedText, /6\.1/);
   assert.match(renderedText, /3/);
@@ -631,8 +633,8 @@ test('transaction reader boundary: ledger display renders normalized current leg
   assert.equal(getElement('ledger-tbody').rows.length, 1);
   const renderedText = getElement('ledger-tbody').rows.map(row => row.innerHTML).join('\n');
   assert.match(renderedText, /data-raw-type="工人島出售"/);
-  assert.match(renderedText, /工人島出售/);
-  assert.match(renderedText, /布料/);
+  assert.match(renderedText, /Laborer Output Sale/);
+  assert.match(renderedText, /Cloth/);
   assert.match(renderedText, /6\.1/);
   assert.match(renderedText, /5/);
   assert.match(renderedText, /10,000/);
