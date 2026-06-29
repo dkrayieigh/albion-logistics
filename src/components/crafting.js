@@ -430,13 +430,16 @@ export function submitCraftAll() {
 
 // === Item Selector Logic ===
 let currentSelectorTab = '戰士 Warrior';
-export function openItemSelector() {
+let itemSelectorTarget = 'crafting';
+let itemSelectorSelectHandler = null;
+export function openItemSelector(target = 'crafting', onSelect = null) {
+  itemSelectorTarget = target || 'crafting';
+  itemSelectorSelectHandler = typeof onSelect === 'function' ? onSelect : null;
   document.getElementById('item-search').value = '';
   document.getElementById('item-selector-modal').style.display = 'block';
   renderItemSelectorTabs();
   renderItemSelectorGrid(currentSelectorTab);
-}
-export function closeItemSelector() { document.getElementById('item-selector-modal').style.display = 'none'; }
+}export function closeItemSelector() { document.getElementById('item-selector-modal').style.display = 'none'; }
 export function renderItemSelectorTabs() {
   const tabs = document.getElementById('item-selector-tabs'); tabs.innerHTML = '';
   const tabOrder = ['戰士 Warrior', '獵人 Hunter', '法師 Mage', '身體護甲 Body Armor', '頭部護甲 Head Armor', '足部護甲 Foot Armor', '副手武器 Off-Hand'];
@@ -498,6 +501,14 @@ export function selectCraftingRecipe(item) {
   if (item.artifactVal > 0) window.showToast(`提示：【${item.name}】需要神器材料，請注意估算成本！`, 'success');
 }
 
+function selectItemFromPicker(item) {
+  if (itemSelectorSelectHandler) {
+    itemSelectorSelectHandler(item);
+    closeItemSelector();
+    return;
+  }
+  if (itemSelectorTarget === 'crafting') selectCraftingRecipe(item);
+}
 // Queue Modals
 let queueEditTargetId = null;
 export function openEditQueueQtyModal(id) {
@@ -544,7 +555,7 @@ export function adjustEditModalQty(amt) { const inp = document.getElementById('e
 
 
 export function initCraftingEvents() {
-  document.getElementById('btn-open-item-selector')?.addEventListener('click', openItemSelector);
+  document.getElementById('btn-open-item-selector')?.addEventListener('click', () => openItemSelector('crafting'));
   document.getElementById('btn-close-item-selector')?.addEventListener('click', closeItemSelector);
   
   document.getElementById('craft-qty')?.addEventListener('input', runCraftingCalculator);
@@ -634,7 +645,7 @@ export function initCraftingEvents() {
         const itemName = btn.getAttribute('data-item');
         const allRecipes = getAllRecipes();
         const item = allRecipes.find(x => x.name === itemName);
-        if (item) selectCraftingRecipe(item);
+        if (item) selectItemFromPicker(item);
       }
     });
   }

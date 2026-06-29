@@ -88,7 +88,7 @@
                 <div class="form-group">
                   <label class="form-label">製作數量<br><span style="font-size: 0.8em; opacity: 0.7;">Craft Amount</span></label>
                   <div style="display:flex; gap:5px; align-items:center;">
-                    <input type="number" id="craft-qty" value="20"  style="flex:1; font-weight:bold; color:var(--accent-cyan);">
+                    <input type="number" id="craft-qty" value="20" autocomplete="off" inputmode="numeric"  style="flex:1; font-weight:bold; color:var(--accent-cyan);">
                     <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-sub-10" data-val="-10">-10</button>
                     <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-sub-1" data-val="-1">-1</button>
                     <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-add-1" data-val="1">+1</button>
@@ -96,7 +96,7 @@
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">製作城市<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting City</span></label>
+                  <label class="form-label">製作城市<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting Location</span></label>
                   <select id="craft-city" ></select>
                 </div>
               </div>
@@ -105,11 +105,11 @@
               <div id="hideout-group" class="form-row" style="display:none; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:15px; border-left: 3px solid var(--accent-purple);">
                 <div class="form-group">
                   <label class="form-label" style="color:var(--accent-purple);">地圖加成<br><span style="font-size: 0.8em; opacity: 0.7;">Location Bonus</span></label>
-                  <input type="text" class="format-num" id="hideout-map-bonus" value="25" >
+                  <input type="text" class="format-num" id="hideout-map-bonus" value="25" autocomplete="off" inputmode="decimal" >
                 </div>
                 <div class="form-group">
                   <label class="form-label" style="color:var(--accent-purple);">專注返還<br><span style="font-size: 0.8em; opacity: 0.7;">Focus RRR</span></label>
-                  <input type="text" class="format-num" id="hideout-focus-rrr" value="58.8" >
+                  <input type="text" class="format-num" id="hideout-focus-rrr" value="58.8" autocomplete="off" inputmode="decimal" >
                 </div>
               </div>
 
@@ -130,7 +130,7 @@
               <div class="form-row" id="alchemy-group" style="display:none; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:15px; border-left: 3px solid var(--accent-yellow);">
                 <div class="form-group" style="flex:1;">
                   <span class="form-label" id="alchemy-label" style="color:var(--accent-yellow);">鍊金材料 Alchemy</span>
-                  <div class="input-with-suffix"><input type="text" class="format-num" id="craft-alchemy-cost" value="0" ><span class="input-suffix">銀幣</span></div>
+                  <div class="input-with-suffix"><input type="text" class="format-num" id="craft-alchemy-cost" value="0" autocomplete="off" inputmode="decimal" ><span class="input-suffix">銀幣</span></div>
                 </div>
               </div>
 
@@ -148,7 +148,7 @@
               <div class="card-header"><h2 class="card-title">製作清單 Crafting Queue</h2></div>
               <div class="table-wrapper" style="flex:1; margin-bottom:15px; overflow-y:auto; max-height:450px;">
                 <table>
-                  <thead><tr><th><input type="checkbox" id="queue-check-all" checked ></th><th style="white-space: nowrap;">裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Item</span></th><th style="white-space: nowrap;">品質<br><span style="font-size: 0.8em; opacity: 0.7;">Quality</span></th><th style="white-space: nowrap;">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></th><th style="white-space: nowrap;">城市<br><span style="font-size: 0.8em; opacity: 0.7;">City</span></th><th style="white-space: nowrap;">消耗明細<br><span style="font-size: 0.8em; opacity: 0.7;">Material Cost</span></th><th style="white-space: nowrap;">操作<br><span style="font-size: 0.8em; opacity: 0.7;">Actions</span></th></tr></thead>
+                  <thead><tr><th><input type="checkbox" id="queue-check-all" checked ></th><th style="white-space: nowrap;">裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Item</span></th><th style="white-space: nowrap;">品質<br><span style="font-size: 0.8em; opacity: 0.7;">Quality</span></th><th style="white-space: nowrap;">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></th><th style="white-space: nowrap;">城市<br><span style="font-size: 0.8em; opacity: 0.7;">Location</span></th><th style="white-space: nowrap;">消耗明細<br><span style="font-size: 0.8em; opacity: 0.7;">Material Cost</span></th><th style="white-space: nowrap;">操作<br><span style="font-size: 0.8em; opacity: 0.7;">Actions</span></th></tr></thead>
                   <tbody id="crafting-queue-tbody"></tbody>
                 </table>
               </div>
@@ -161,7 +161,7 @@
                   <div style="display:flex; flex-direction:column; gap:8px;">
                     <div style="display:flex; align-items:center; gap:10px;">
                       <span class="form-label" style="margin:0;">店鋪使用費<br><span style="font-size:0.8em;opacity:0.7;">Usage Fee (per 100)</span></span>
-                      <input type="text" class="format-num" id="global-shopfee" value="500" style="width:100px; padding:4px 8px;" >
+                      <input type="text" class="format-num" id="global-shopfee" value="500" autocomplete="off" inputmode="decimal" style="width:100px; padding:4px 8px;" >
                     </div>
                     <div><span class="output-label">預估總支出<br><span style="font-size:0.8em;opacity:0.7;">Total Est. Cost</span>: </span><span id="queue-total-cost" class="output-value highlight-red" style="font-size:1.3rem;">0</span></div>
                   </div>
@@ -181,7 +181,11 @@
               <div class="card-header"><h2 class="card-title">製作試算 Planner</h2></div>
               <div class="form-group">
                 <label class="form-label">目標裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Target Item</span></label>
-                <select id="quote-recipe"></select>
+                <button id="btn-open-quote-item-selector" class="btn btn-primary" style="width:100%; height:auto; text-align:center; padding:10px; font-size:1.1rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;">
+                  <div>?? 暺??豢??格?鋆?</div>
+                  <div style="font-size:0.9rem; color:var(--text-primary); margin-top:5px;">?桀??豢?: <span id="quote-recipe-display" style="color:var(--accent-cyan); font-weight:bold;">-</span></div>
+                </button>
+                <input type="hidden" id="quote-recipe" value="" autocomplete="off">
               </div>
               <div class="form-group">
                 <label class="form-label">品質<br><span style="font-size: 0.8em; opacity: 0.7;">Quality</span></label>
@@ -190,7 +194,7 @@
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></label>
-                  <input type="number" id="quote-qty" value="1">
+                  <input type="number" id="quote-qty" value="1" autocomplete="off" inputmode="numeric">
                 </div>
                 <div class="form-group">
                   <label class="form-label">製作地點<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting Location</span></label>
@@ -207,11 +211,11 @@
               <div id="quote-hideout-group" class="form-row" style="display:none;">
                 <div class="form-group">
                   <label class="form-label">黑區地圖加成<br><span style="font-size: 0.8em; opacity: 0.7;">Map Bonus</span></label>
-                  <input type="text" class="format-num" id="quote-hideout-map-bonus" value="25">
+                  <input type="text" class="format-num" id="quote-hideout-map-bonus" value="25" autocomplete="off" inputmode="decimal">
                 </div>
                 <div class="form-group">
                   <label class="form-label">專注返還<br><span style="font-size: 0.8em; opacity: 0.7;">Focus RRR</span></label>
-                  <input type="text" class="format-num" id="quote-hideout-focus-rrr" value="58.8">
+                  <input type="text" class="format-num" id="quote-hideout-focus-rrr" value="58.8" autocomplete="off" inputmode="decimal">
                 </div>
               </div>
               <div class="quote-consumption-band">
@@ -224,7 +228,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">店鋪使用費<br><span style="font-size: 0.8em; opacity: 0.7;">Shop Fee Rate</span></label>
-                <input type="text" class="format-num" id="quote-shop-fee" value="0">
+                <input type="text" class="format-num" id="quote-shop-fee" value="0" autocomplete="off" inputmode="decimal">
               </div>
             </div>
           </div>
@@ -234,11 +238,11 @@
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">遊戲估價單價<br><span style="font-size: 0.8em; opacity: 0.7;">Est. Unit Value</span></label>
-                  <input type="text" class="format-num" id="quote-est-unit" value="0">
+                  <input type="text" class="format-num" id="quote-est-unit" value="0" autocomplete="off" inputmode="decimal">
                 </div>
                 <div class="form-group">
                   <label class="form-label">遊戲估價總價<br><span style="font-size: 0.8em; opacity: 0.7;">Est. Total Value</span></label>
-                  <input type="text" class="format-num" id="quote-est-total" value="0">
+                  <input type="text" class="format-num" id="quote-est-total" value="0" autocomplete="off" inputmode="decimal">
                 </div>
               </div>
               <div class="quote-reference-grid">
@@ -256,11 +260,11 @@
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">自訂單件報價<br><span style="font-size: 0.8em; opacity: 0.7;">Custom Unit Quote</span></label>
-                  <input type="text" class="format-num" id="quote-custom-unit" value="0">
+                  <input type="text" class="format-num" id="quote-custom-unit" value="0" autocomplete="off" inputmode="decimal">
                 </div>
                 <div class="form-group">
                   <label class="form-label">自訂整批報價<br><span style="font-size: 0.8em; opacity: 0.7;">Custom Batch Quote</span></label>
-                  <input type="text" class="format-num" id="quote-custom-total" value="0">
+                  <input type="text" class="format-num" id="quote-custom-total" value="0" autocomplete="off" inputmode="decimal">
                 </div>
               </div>
               <div class="quote-reference-grid">
@@ -566,7 +570,7 @@
   <div id="item-selector-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:500;">
     <div class="card" style="width:80%; height:80vh; margin:10vh auto; display:flex; flex-direction:column; padding:0; overflow:hidden;">
       <div style="display:flex; padding:15px; border-bottom:1px solid var(--border-glass); gap:15px; align-items:center;">
-        <input type="text" id="item-search" placeholder="🔍 搜尋裝備名稱或俗稱 (全域搜尋)..."  style="flex:1; padding:10px; font-size:1.1rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:var(--text-primary); border-radius:8px;">
+        <input type="text" id="item-search" autocomplete="off" inputmode="search" placeholder="🔍 搜尋裝備名稱或俗稱 (全域搜尋)..."  style="flex:1; padding:10px; font-size:1.1rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:var(--text-primary); border-radius:8px;">
         <button class="btn btn-secondary" style="padding:10px 20px;" id="btn-close-item-selector">關閉</button>
       </div>
       <div style="display:flex; flex:1; overflow:hidden;">

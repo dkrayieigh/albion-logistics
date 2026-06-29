@@ -1,11 +1,10 @@
-import { ALBION_DB } from '../data/albion_db.js';
 import { BONUSES, SYSTEM_CITIES } from '../data/constants.js';
 import { escapeHTML, formatSilver, parseNum } from '../utils/formatters.js';
 import {
   calculateQuotation,
   getAlchemyRequirement
 } from '../calculators/quotationCalculator.js';
-import { enqueueCraftingPlan } from './crafting.js';
+import { RECIPES, enqueueCraftingPlan, openItemSelector } from './crafting.js';
 
 const QUOTE_QUALITY_ROWS = [
   ['4.0', '4.1', '4.2', '4.3', '4.4'],
@@ -21,18 +20,6 @@ const quoteDraft = {
   quoteTotal: null,
   editingQuote: null
 };
-
-function allRecipes() {
-  let recipes = [];
-  for (const category of Object.values(ALBION_DB)) {
-    for (const branch of Object.values(category)) {
-      if (branch?.items) recipes = recipes.concat(branch.items);
-    }
-  }
-  return recipes;
-}
-
-const RECIPES = allRecipes();
 
 function byId(id) {
   return document.getElementById(id);
@@ -82,7 +69,12 @@ function selectedPlanInput() {
 
 function setDiscount(key, discount) {
   quoteDraft.discounts[key] = discount;
-  renderQuotation();
+  document.querySelectorAll?.('[data-quote-action="discount"]').forEach(button => {
+    if (button.getAttribute('data-key') === key) {
+      button.classList.toggle('active', Number(button.getAttribute('data-discount')) === discount);
+    }
+  });
+  refreshQuotationCalculation();
 }
 
 function setQuoteTotal(total) {
@@ -137,6 +129,7 @@ function renderQualityMatrix() {
       button.textContent = quality;
       button.addEventListener('click', () => {
         quoteDraft.quality = quality;
+        quoteDraft.discounts = {};
         renderQuotation();
       });
       rowEl.appendChild(button);
@@ -144,6 +137,18 @@ function renderQualityMatrix() {
     matrix.appendChild(rowEl);
   });
   container.appendChild(matrix);
+}
+
+function applyRecipeSelection(recipe) {
+  if (!recipe) return;
+  const input = byId('quote-recipe');
+  const display = byId('quote-recipe-display');
+  if (input) input.value = recipe.name;
+  if (display) display.innerText = recipe.name;
+  const bonusCity = BONUSES[recipe.category];
+  if (bonusCity && byId('quote-city')) byId('quote-city').value = bonusCity;
+  quoteDraft.discounts = {};
+  renderQuotation();
 }
 
 function buildInputs(recipe) {
@@ -203,7 +208,7 @@ function renderMaterialRows(recipe) {
         <strong>${escapeHTML(row.label)}</strong>
         <div class="quote-muted">${row.special ? `固定需求: ${row.baseQty}` : `Base: ${row.baseQty}`}</div>
       </div>
-      <input type="text" class="format-num quote-price-input" id="${escapeHTML(inputId)}" data-quote-action="price" value="${escapeHTML(byId(inputId)?.value || '0')}">
+      <input type="text" class="format-num quote-price-input" id="${escapeHTML(inputId)}" data-quote-action="price" value="${escapeHTML(byId(inputId)?.value || '0')}" autocomplete="off" inputmode="decimal">
       <div class="quote-discounts">${renderDiscountButtons(row.key)}</div>
       <div class="quote-muted" id="quote-line-${escapeHTML(row.key)}">-</div>
     </div>`;
@@ -254,6 +259,13 @@ function enqueueCurrentPlan() {
   window.showToast?.('已加入製作清單', 'success');
   document.getElementById('nav-tab-crafting')?.click?.();
 }
+
+function refreshQuotationCalculation() {
+  const recipe = selectedRecipe();
+  if (!recipe || !quoteDraft.quality) return;
+  renderResult(calculateQuotation(buildInputs(recipe)));
+  updateQuickQuoteButtons();
+}
 function syncEstimateInputs(source) {
   const quantity = selectedQuantity();
   const unit = byId('quote-est-unit');
@@ -302,12 +314,6 @@ export function renderQuotation() {
 }
 
 export function initQuotationEvents() {
-  const recipeSelect = byId('quote-recipe');
-  if (recipeSelect) {
-    recipeSelect.innerHTML = RECIPES.map(recipe => `<option value="${escapeHTML(recipe.name)}">${escapeHTML(recipe.name)}</option>`).join('');
-    recipeSelect.value = RECIPES[0]?.name || '';
-  }
-
   const citySelect = byId('quote-city');
   if (citySelect) {
     citySelect.innerHTML = Object.entries(SYSTEM_CITIES)
@@ -316,22 +322,23 @@ export function initQuotationEvents() {
       .join('');
   }
 
-  byId('quote-recipe')?.addEventListener('change', () => {
-    const recipe = selectedRecipe();
-    const bonusCity = BONUSES[recipe?.category];
-    if (bonusCity && byId('quote-city')) byId('quote-city').value = bonusCity;
-    renderQuotation();
+  applyRecipeSelection(RECIPES[0]);
+
+  byId('btn-open-quote-item-selector')?.addEventListener('click', () => {
+    openItemSelector('quotation', item => applyRecipeSelection(item));
   });
-  ['quote-qty', 'quote-city', 'quote-focus', 'quote-hideout-map-bonus', 'quote-hideout-focus-rrr', 'quote-shop-fee'].forEach(id => {
+  ['quote-qty', 'quote-city', 'quote-focus', 'quote-hideout-map-bonus', 'quote-hideout-focus-rrr'].forEach(id => {
     byId(id)?.addEventListener('input', renderQuotation);
     byId(id)?.addEventListener('change', renderQuotation);
   });
-  byId('quote-est-unit')?.addEventListener('input', () => { syncEstimateInputs('unit'); renderQuotation(); });
-  byId('quote-est-total')?.addEventListener('input', () => { syncEstimateInputs('total'); renderQuotation(); });
-  byId('quote-custom-unit')?.addEventListener('input', () => { syncQuoteInputs('unit'); renderQuotation(); });
-  byId('quote-custom-total')?.addEventListener('input', () => { syncQuoteInputs('total'); renderQuotation(); });
+  byId('quote-shop-fee')?.addEventListener('input', refreshQuotationCalculation);
+  byId('quote-shop-fee')?.addEventListener('change', refreshQuotationCalculation);
+  byId('quote-est-unit')?.addEventListener('input', () => { syncEstimateInputs('unit'); refreshQuotationCalculation(); });
+  byId('quote-est-total')?.addEventListener('input', () => { syncEstimateInputs('total'); refreshQuotationCalculation(); });
+  byId('quote-custom-unit')?.addEventListener('input', () => { syncQuoteInputs('unit'); refreshQuotationCalculation(); });
+  byId('quote-custom-total')?.addEventListener('input', () => { syncQuoteInputs('total'); refreshQuotationCalculation(); });
   document.addEventListener('input', event => {
-    if (event.target?.getAttribute?.('data-quote-action') === 'price') renderQuotation();
+    if (event.target?.getAttribute?.('data-quote-action') === 'price') refreshQuotationCalculation();
   });
   document.addEventListener('click', event => {
     const target = event.target?.closest?.('[data-quote-action]') || event.target;

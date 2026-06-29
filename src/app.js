@@ -295,6 +295,15 @@ export function initGlobalEvents() {
   });
 }
 
+export function applyInputAutocompletePolicy() {
+  document.querySelectorAll('input').forEach(input => {
+    input.setAttribute('autocomplete', 'off');
+    if (input.classList.contains('format-num')) input.setAttribute('inputmode', 'decimal');
+    if (input.type === 'number') input.setAttribute('inputmode', 'numeric');
+  });
+  document.getElementById('item-search')?.setAttribute('inputmode', 'search');
+}
+
 const NEW_SCHEMA_INITIALIZATION_CONFIRM_MESSAGE = `找不到新版資料。
 
 是否建立全新的新版資料庫？
@@ -343,6 +352,7 @@ window.onload = () => {
   Inventory.initInventoryEvents();
   Laborer.initLaborerEvents();
   Ledger.initLedgerEvents();
+  applyInputAutocompletePolicy();
   
   updateCraftQualityPills();
   updateBuyQualityPills();

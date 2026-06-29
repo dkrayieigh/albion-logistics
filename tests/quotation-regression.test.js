@@ -269,6 +269,7 @@ test('quotation component source preserves estimates, quick quote, matrix, and r
   assert.match(source, /setQuoteTotal/);
   assert.match(source, /quoteDraft/);
   assert.match(source, /enqueueCraftingPlan/);
+  assert.match(source, /openItemSelector/);
   assert.match(source, /data-quote-action="enqueue"/);
   assert.doesNotMatch(source, /from ['"].*core\/state\.js/);
   assert.doesNotMatch(source, /\bstate\b|saveState|localStorage|transactions|craftingQueue|dispatchEvent|submitPurchase|submitCraftAll|assets\.cash/);
@@ -281,9 +282,52 @@ test('quotation visible planner name and enqueue button use the bounded UI contr
   assert.match(html, /製作試算<br><span[^>]*>Planner<\/span>/);
   assert.match(html, /製作試算 Planner/);
   assert.doesNotMatch(html, /接單試算|Quotation Planner/);
+  assert.doesNotMatch(html, /<select id="quote-recipe"/);
+  assert.match(html, /id="btn-open-quote-item-selector"/);
+  assert.match(html, /id="quote-recipe"[^>]*type="hidden"|type="hidden"[^>]*id="quote-recipe"/);
   assert.match(source, /加入製作清單/);
   assert.match(source, /from ['"]\.\/crafting\.js['"]/);
   assert.doesNotMatch(source, /from ['"]\.\/crafting\.js['"];\s*import/);
+});
+
+test('quotation uses shared recipe source and no native select renderer', () => {
+  const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
+
+  assert.match(source, /import \{ RECIPES, enqueueCraftingPlan, openItemSelector \} from ['"]\.\/crafting\.js['"]/);
+  assert.doesNotMatch(source, /ALBION_DB|function allRecipes|Object\.values\(ALBION_DB\)|innerHTML = RECIPES\.map/);
+  assert.doesNotMatch(source, /quote-recipe'\)\?\.addEventListener\('change'/);
+});
+
+test('quotation price edits refresh calculation without rebuilding material input rows', () => {
+  const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
+
+  assert.match(source, /function refreshQuotationCalculation\(\)/);
+  assert.match(source, /data-quote-action'\) === 'price'\) refreshQuotationCalculation\(\)/);
+  assert.doesNotMatch(source, /data-quote-action'\) === 'price'\) renderQuotation\(\)/);
+  assert.match(source, /setDiscount\(key, discount\)[\s\S]*refreshQuotationCalculation\(\)/);
+  assert.match(source, /quote-price-\$\{lineKey\}/);
+});
+
+test('quotation autocomplete policy is present without app owned input history', () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+  ['quote-qty', 'quote-shop-fee', 'quote-est-unit', 'quote-est-total', 'quote-custom-unit', 'quote-custom-total'].forEach(id => {
+    assert.match(html, new RegExp(`id="${id}"[^>]*autocomplete="off"`));
+  });
+  assert.match(source, /quote-price-input[\s\S]*autocomplete="off" inputmode="decimal"/);
+  assert.match(app, /applyInputAutocompletePolicy/);
+  assert.doesNotMatch(`${html}\n${source}\n${app}`, /autocomplete="new-password"|inputHistory|recentInputs|localStorage\.setItem\(['"][^'"]*history/i);
+});
+
+test('visible wording uses material estimates and location labels', () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /Material Estimates/);
+  assert.match(html, /Crafting Location/);
+  assert.match(html, />Location<\/span><\/th>/);
+  assert.doesNotMatch(html, /Crafting City|>City<\/span><\/th>/);
 });
 
 test('quotation production source does not touch storage schema backup reset or migration', () => {

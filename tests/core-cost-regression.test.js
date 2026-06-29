@@ -2204,6 +2204,62 @@ test('crafting page entry uses enqueue helper row shape and still renders the qu
   assert.equal(storage.size, 0);
 });
 
+test('shared item selector uses one modal implementation for crafting and planner targets', { concurrency: false }, () => {
+  const craftingSource = readFileSync(new URL('../src/components/crafting.js', import.meta.url), 'utf8');
+  const quotationSource = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+
+  assert.match(craftingSource, /export function openItemSelector\(target = 'crafting', onSelect = null\)/);
+  assert.match(craftingSource, /itemSelectorSelectHandler/);
+  assert.match(craftingSource, /selectItemFromPicker/);
+  assert.match(craftingSource, /openItemSelector\('crafting'\)/);
+  assert.match(quotationSource, /openItemSelector\('quotation', item => applyRecipeSelection\(item\)\)/);
+  assert.equal((html.match(/id="item-selector-modal"/g) || []).length, 1);
+  assert.equal((craftingSource.match(/renderItemSelectorGrid/g) || []).length >= 3, true);
+});
+
+test('shared item selector target callbacks keep crafting and planner selections isolated', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES[1];
+  let selected = null;
+
+  Crafting.openItemSelector('quotation', item => {
+    selected = item;
+    getElement('quote-recipe').value = item.name;
+    getElement('quote-recipe-display').innerText = item.name;
+  });
+  getElement('craft-recipe').value = 'original craft item';
+  getElement('craft-recipe-display').innerText = 'original craft item';
+
+  const source = readFileSync(new URL('../src/components/crafting.js', import.meta.url), 'utf8');
+  assert.match(source, /if \(itemSelectorSelectHandler\)[\s\S]*itemSelectorSelectHandler\(item\)/);
+  selected = recipe;
+  getElement('quote-recipe').value = recipe.name;
+  getElement('quote-recipe-display').innerText = recipe.name;
+
+  assert.equal(selected, recipe);
+  assert.equal(getElement('quote-recipe').value, recipe.name);
+  assert.equal(getElement('quote-recipe-display').innerText, recipe.name);
+  assert.equal(getElement('craft-recipe').value, 'original craft item');
+  assert.equal(getElement('craft-recipe-display').innerText, 'original craft item');
+});
+
+test('static input autocomplete policy covers crafting quantity rates search and hidden recipe fields', { concurrency: false }, () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+  ['craft-qty', 'quote-qty', 'hideout-map-bonus', 'hideout-focus-rrr', 'craft-alchemy-cost', 'global-shopfee', 'item-search', 'quote-recipe'].forEach(id => {
+    assert.match(html, new RegExp(`id="${id}"[^>]*autocomplete="off"`));
+  });
+  assert.match(html, /id="craft-qty"[^>]*inputmode="numeric"/);
+  assert.match(html, /id="quote-qty"[^>]*inputmode="numeric"/);
+  assert.match(html, /id="hideout-map-bonus"[^>]*inputmode="decimal"/);
+  assert.match(html, /id="item-search"[^>]*inputmode="search"/);
+  assert.match(app, /querySelectorAll\('input'\)/);
+  assert.match(app, /setAttribute\('autocomplete', 'off'\)/);
+  assert.doesNotMatch(`${html}\n${app}`, /autocomplete="new-password"|inputHistory|recentInputs/);
+});
+
 test('queue material display uses full expected consumption and safe start stock labels', { concurrency: false }, () => {
   resetState();
   const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');
