@@ -205,3 +205,38 @@ mainMaterialCost
 - 匯入支援目前 object / array 格式，以及 legacy JSON-string backup。
 - 匯入資料缺少必要欄位、欄位型別不符或 JSON 損壞時，必須中斷且不得覆寫既有 `localStorage`。
 - 備份相容行為已受 regression test 保護；正式版本化 backup schema 仍屬 docs debt。
+
+## Inventory Classification（Future Target / Migration Boundary）
+
+本節定義下一階段庫存分類規格，屬於 future target / migration boundary。除非另有明確標示，不代表目前 `src`、storage schema、runtime bridge、backup 或 transaction payload 已完成。
+
+### Regional Inventory
+
+- 只適用於一般材料：鋼條、布料、板材、皮革。
+- 支援 T4.0～T8.4，包含 tier 與 enchant level。
+- 數量依地點保存；future schema 使用 `qtyByLocation`，current legacy 路徑仍可能使用 `qtyByCity`。
+- 製作城市會影響一般材料扣除、返還率與製作費。
+
+### Account-total Product Inventory
+
+- 適用於製作完成的成品。
+- 支援 T4.0～T8.4，包含 tier 與 enchant level。
+- Future storage 只保存 `totalQty`，不保存城市庫存，不依地點建立成品 bucket。
+- 製作城市仍可作為 event metadata，用於追蹤製作發生地與費用來源。
+- 販售城市仍可作為 event metadata，用於記錄交易背景。
+- 系統不得為成品建立 ERP 內部物流轉移流程。
+- `Account total` 是帳號總量分類，不是 location；不得建立 `AccountTotal` fake location 來模擬成品總量。
+
+### Special Material Inventory
+
+- 神器與煉金材料共用特殊材料模組，但各自有獨立庫存清單：artifact inventory 與 alchemy inventory。
+- 特殊材料只有 Tier，沒有 enchant level。
+- 特殊材料只保存帳號總量 `totalQty`，不保存城市，不參與物流轉移。
+- 特殊材料維護 `globalAvgCost`。
+- 特殊材料不考慮返還率，製作消耗時以固定需求量扣除。
+- 特殊材料採購入庫必須允許輸入單價或整批總額，系統再計算等價的單位成本。
+
+### Laborer Inventory
+
+- 工人島暫存庫存保留目前簡化規則。
+- 工人島物資出售與「日誌」顯示 / legacy key `滿日記本` 邊界仍依 current implementation 規則處理。

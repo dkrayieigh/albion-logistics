@@ -387,3 +387,44 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 - 發現新的 docs/src 衝突時，應記錄現況、相容性影響與風險，不直接假設 docs 或 src 任一方必然正確。
 - 修正差異前，應先確認該項目屬於現行必要行為、歷史相容需求，或尚未實作的未來目標。
 - 完成遷移後，應將已解決項目移入變更紀錄或正式規格，避免本文件成為新的規格來源。
+
+## Account-total Products / Special Materials / Ledger English Gaps
+
+本節記錄新增 business rules 後的 high-risk gap。這些項目目前只是規格差異與後續計畫，不代表 `src`、storage schema、runtime bridge、codec、backup 或 transaction payload 已修改。
+
+### Product Inventory Transition（High risk）
+
+- Current implementation：products still use `qtyByCity`。
+- Current implementation：crafted output writes product inventory by city。
+- Current implementation：sale consumes product inventory by selected city。
+- Current implementation：product transport remains enabled through location-based inventory behavior。
+- Current implementation：dashboard valuation assumes `qtyByCity` quantity aggregation。
+- Current implementation：runtime bridge / codec do not yet model account-total products。
+- Future target：crafted products become account-total inventory with `totalQty` only; crafting city and sale city remain event metadata, not inventory location.
+
+### Special Material Schema（High risk）
+
+- Special material storage is not implemented as separate artifact / alchemy account-total lists.
+- Artifact and alchemy material identity is not yet modeled as Tier-only inventory.
+- Special material purchase unit-price / total-price entry is not yet a separate schema path.
+- Special materials currently remain part of crafting workflow behavior, not a dedicated persisted inventory module.
+
+### Ledger English Presentation Mapping（Low–Medium implementation risk）
+
+- Ledger English mapping is not implemented.
+- Current ledger may still display stored Chinese `type` / `item` values.
+- Future English display must be presentation-only and must not rewrite historical transaction payload.
+- Multiple stored aliases such as `庫存校正` and `INVENTORY_ADJUSTMENT` must map to one display category without changing stored values.
+
+### Cost Adjustment Canonical Event（High risk）
+
+- Current cost adjustment may display full new valuation as cash out even when cash is not changed.
+- Future cost adjustment model must use `cashImpact: 0` and record `valuationImpact`, `oldUnitCost`, `newUnitCost`, and `quantityBasis`.
+- This requires event semantics, Ledger display, regression tests, and backup compatibility before any writer change.
+
+### Risk Split
+
+- English display mapping：Low–Medium implementation risk because it should be presentation-only, but it still affects Ledger filtering/grouping and user interpretation.
+- Product inventory transition：High risk because it changes inventory shape, crafting output, sale consumption, transport eligibility, dashboard valuation, runtime bridge, codec, and backup expectations.
+- Special material schema：High risk because it introduces new persisted inventory classes and purchase/costing rules.
+- Cost adjustment canonical event：High risk because it affects cost basis, valuation, Ledger display, transaction semantics, and historical interpretation.

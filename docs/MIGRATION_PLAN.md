@@ -349,3 +349,51 @@ Legacy fallback 只能在以下條件全部滿足後移除：
 - Release notes 明確公告 breaking changes。
 
 未滿足以上條件前，所有 legacy storage key 與 transaction payload 都必須視為 supported current implementation。
+
+## Future Transition Outline：Account-total Products / Special Materials / Ledger English
+
+本段是 future transition outline，不是 migration 執行指令。它不得覆蓋 single-user clean-cutover boundary，也不得宣稱會自動轉換既有 production data。舊資料是否重建仍以人工 clean initialization 與 Spec Lead 決策為準。
+
+### Phase 1：English Ledger Presentation Mapping
+
+- 只新增 Ledger presentation mapping。
+- Category 與 Item 顯示可轉英文。
+- 不重寫 stored legacy transaction payload。
+- 不改 transaction writer、backup、storage schema 或 historical transactions。
+
+### Phase 2：Inventory Classification Tests And Read-only Projection
+
+- 補 inventory classification tests：regional materials、account-total products、special materials、laborer inventory。
+- 建立 read-only projection helpers 前，先定義 failure mode 與 fallback。
+- 不切換 writer，不改 storage。
+
+### Phase 3：Product Account-total Adapter
+
+- 建立 product account-total read-only adapter / projection。
+- 驗證 product `totalQty` 與 legacy city buckets 的差異處理。
+- 不切換 crafting writer、sale writer、transport writer 或 dashboard valuation writer。
+
+### Phase 4：Product Writer Cutover
+
+- 切換 crafting output to product `totalQty`。
+- 切換 sale consumption from product `totalQty`。
+- Dashboard valuation 改用 product account-total。
+- Product transport 必須停用或排除。
+- Crafting city / sale city 只保留為 event metadata。
+- 此 phase 必須有 writer tests、restart round-trip tests、backup tests 與 rollback/release checklist。
+
+### Phase 5：Special Material Inventory
+
+- 建立 artifact inventory 與 alchemy inventory 兩個獨立清單。
+- 特殊材料只使用 Tier，不使用 enchant level。
+- 支援 unit price / total price purchase entry。
+- 維護 global WAC。
+- 製作時固定消耗，不套用返還率，不建立 regional inventory 或 transport。
+
+### Phase 6：Cost Adjustment Event Correction
+
+- 定義 `INVENTORY_COST_ADJUSTMENT` 或等價 future event。
+- 成本校正 `cashImpact` 必須為 `0`。
+- 記錄 `valuationImpact`、`oldUnitCost`、`newUnitCost`、`quantityBasis`。
+- 修正 Ledger 顯示，避免把估值調整誤讀為現金支出。
+- 不回溯重寫歷史 transactions，除非 Spec Lead 另行批准資料修復策略。

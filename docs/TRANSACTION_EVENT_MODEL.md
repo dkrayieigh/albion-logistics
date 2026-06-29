@@ -132,3 +132,68 @@ Migration 前 ledger reader 必須支援 legacy transactions。
 - Ledger reader 已只需要支援 future payload。
 - 所有 transaction type 已改為英文 canonical action。
 - 所有 backup 已完成 event payload migration。
+
+## Ledger English Presentation Boundary（Future Presentation Layer）
+
+本節只定義 Ledger 顯示層的英文 presentation mapping。Stored legacy/current transaction payload 可保持原值；不得為了顯示英文而重寫歷史 transaction、backup 或 localStorage。
+
+### Stored Payload Boundary
+
+- Stored `type` / `item` / `quality` / `qty` / `total` / `unitPrice` / `location` 可維持 current legacy-compatible payload。
+- Ledger Category display 使用 English mapping。
+- Ledger Item display 使用 item resolver。
+- English display 是 presentation mapping，不是 transaction payload migration。
+- Historical transactions 不得因顯示需求被批次覆寫。
+
+### Initial Ledger Category English Mapping
+
+| Stored type / alias | Ledger Category display |
+| --- | --- |
+| `買材料` | `Material Purchase` |
+| `製作入庫` | `Crafting Output` |
+| `賣成品` | `Product Sale` |
+| `成本校正` | `Cost Adjustment` |
+| `庫存刪除` | `Inventory Removal` |
+| `現金流校正` | `Cash Balance Adjustment` |
+| `注資本金` | `Capital Injection` |
+| `提領利潤` | `Profit Withdrawal` |
+| `工人島出售` | `Laborer Output Sale` |
+| `庫存校正` | `Inventory Adjustment` |
+| `INVENTORY_ADJUSTMENT` | `Inventory Adjustment` |
+
+`Inventory Adjustment` 的 source aliases 包含 `庫存校正` 與 `INVENTORY_ADJUSTMENT`。Ledger filter / grouping future behavior 應以 display category 去重，但不得改寫 stored `type`。
+
+### Ledger Item Display Resolver Fallback
+
+Ledger Item display resolver 應依序嘗試：
+
+1. Stable item ID mapping。
+2. `ALBION_DB` 的 `enName`。
+3. 固定材料英文 mapping。
+4. 已經是英文的 source value。
+5. 原始值 fallback。
+
+未知品項必須安全 fallback，不得造成 Ledger render crash，也不得 mutate transaction payload。
+
+## Future Cost Adjustment Event Model
+
+Current implementation 仍可能使用 legacy `成本校正` transaction 並直接覆寫 `globalAvgCost`。以下是 future target，不是 current implementation：
+
+```js
+{
+  type: 'INVENTORY_COST_ADJUSTMENT',
+  cashImpact: 0,
+  valuationImpact,
+  oldUnitCost,
+  newUnitCost,
+  quantityBasis
+}
+```
+
+Future model 必須明確區分 cash impact 與 valuation impact：
+
+- `cashImpact` 應為 `0`，因成本基準校正不應表示現金支出。
+- `valuationImpact` 記錄資產估值變動。
+- `oldUnitCost` / `newUnitCost` / `quantityBasis` 必須保留成本校正證據。
+- 這不代表 `INVENTORY_ADJUSTMENT` 已可任意修改 `globalAvgCost`。
+- 本階段不修改 stored transaction payload，不回溯重算歷史 `globalAvgCost`，也不移除 legacy `成本校正` fallback。

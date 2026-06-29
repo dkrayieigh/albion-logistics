@@ -725,3 +725,49 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 * ✅ Tauri 桌面版執行對應視窗操作。
 * ✅ 瀏覽器預覽環境不呼叫不存在的 Tauri API。
 * ✅ 瀏覽器預覽的關閉按鈕只顯示模擬提示。
+
+## Future Test Plan：Account-total Inventory And Ledger English Presentation
+
+本節只列 future test plan，不代表目前已測試，也不代表 `src`、storage schema、transaction payload、runtime bridge、codec、backup 或 migration 已修改。
+
+### Ledger English Presentation（Future）
+
+- Category mapping：legacy stored `type` 可映射到英文 display category。
+- Multiple stored aliases map to one Ledger display category，例如 `庫存校正` 與 `INVENTORY_ADJUSTMENT` 顯示為 `Inventory Adjustment`。
+- Category filter / grouping deduplicates aliases by display category。
+- English recipe item resolution：成品可解析為英文顯示名稱。
+- Material English mapping：鋼條、布料、板材、皮革可顯示英文名稱。
+- Artifact English item resolution。
+- Alchemy English item resolution。
+- Unknown special-material item falls back safely。
+- Unknown item fallback：未知品項顯示原始值且不 crash。
+- Stored transaction unchanged：英文顯示不得改寫 stored transaction payload。
+
+### Product Account-total Inventory（Future）
+
+- Crafting output increases product `totalQty`。
+- Sale decreases product `totalQty`。
+- Crafting city does not create product city bucket。
+- Sale city remains metadata and does not select product inventory bucket。
+- Product excluded from transport。
+- Dashboard valuation uses product `totalQty`。
+- Restart round-trip preserves account-total product quantity and cost basis。
+
+### Special Inventory（Future）
+
+- Artifact and alchemy use separate lists under one special material module。
+- Artifact / alchemy identity is Tier only；no enchant dimension。
+- Purchase supports unit-price entry。
+- Purchase supports total-price entry。
+- Global WAC is maintained for special materials。
+- Manufacturing consumption is fixed and does not apply return rate。
+- Special materials do not create regional inventory and cannot be transported。
+
+### Cost Adjustment（Future）
+
+- Cost adjustment causes no cash change。
+- Cost adjustment records valuation delta。
+- Cost adjustment preserves old/new cost evidence。
+- Cost adjustment records quantity basis。
+- Ledger must not show cost adjustment as false cash-out display。
+- Stored legacy cost-adjustment fallback remains readable until an approved event migration exists。

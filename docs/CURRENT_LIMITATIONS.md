@@ -201,3 +201,17 @@ Known limitation：
 - migration
 - 自訂倉庫
 - 出售與 cash 流向
+
+## Account-total / Ledger English / Cost Adjustment Limitations
+
+本節只描述目前限制，不代表已開始實作或 migration。
+
+- Products are currently still location-based；成品仍可能依 `qtyByCity` / selected city 寫入、出售與估值。
+- Product account-total inventory 尚未實作；成品尚未改為只保存 `totalQty`。
+- Special materials are not implemented as dedicated artifact / alchemy account-total inventories。
+- Artifact / alchemy Tier-only inventory schema 尚未建立。
+- Ledger currently displays stored Chinese type/item values in some paths；Ledger English presentation mapping 尚未完成。
+- Ledger English mapping 若實作，應為 presentation-only，不得改寫 stored transaction payload。
+- Cost adjustment row may appear as cash expenditure although cash is not changed。
+- Future cost adjustment 應改為 `cashImpact: 0` + `valuationImpact`，但本限制文件不代表該事件已完成。
+- Delete button compact-icon rule accepted but not implemented。

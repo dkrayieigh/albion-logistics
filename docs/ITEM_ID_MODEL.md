@@ -98,3 +98,32 @@ Current implementation note：
 - legacy 中文 item key 已可移除。
 - `quality` / legacy transaction 欄位已全面遷移為 `itemLevel`。
 - 所有 backup 已完成 Stable ID migration。
+
+## Future Inventory-Class Item Identity（Planning Boundary）
+
+本節定義 future item identity 的分類方向，不代表目前 `src`、storage key、backup 或 transaction payload 已完成。具體 Stable ID 字串格式尚未確認；本節只定義 identity 維度與 current compatibility key 的差異。
+
+### Future Identity Dimensions
+
+- Material item：一般材料使用 material item identity + `itemLevel`；`itemLevel` 包含 tier/enchant，例如 T4.0～T8.4。
+- Product item：成品使用 stable product ID + `itemLevel`；future product storage 不使用 `locationId`，只保存 account-total quantity。
+- Artifact item：神器使用 stable artifact ID + tier；artifact 不存在 enchant dimension。
+- Alchemy item：煉金材料使用 stable alchemy ID + tier；alchemy 不存在 enchant dimension。
+
+### Current Compatibility Key Difference
+
+- Current compatibility key 仍可能是中文品名、legacy `itemKey` 或顯示名稱組合。
+- Future target 會把物品 identity 與顯示名稱分離，並讓 resolver 負責中文 legacy key、英文顯示名稱與 Stable ID 之間的對照。
+- Product future storage 不應依 city / `locationId` 建立庫存 bucket；製作與販售城市只應保留為事件 metadata。
+- Artifact / alchemy 只需 tier，不得為特殊材料新增不存在的 enchant 維度。
+
+### Not Current Implementation
+
+以下內容不得寫成 current implementation：
+
+- Stable product ID catalog 已完成。
+- Artifact / alchemy Stable ID catalog 已完成。
+- Product storage 已改為 account-total。
+- Artifact / alchemy storage 已完成。
+- Legacy 中文 item key 已被取代。
+- Concrete Stable ID 字串格式已定案。
