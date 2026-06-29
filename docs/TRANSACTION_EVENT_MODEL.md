@@ -197,3 +197,15 @@ Future model 必須明確區分 cash impact 與 valuation impact：
 - `oldUnitCost` / `newUnitCost` / `quantityBasis` 必須保留成本校正證據。
 - 這不代表 `INVENTORY_ADJUSTMENT` 已可任意修改 `globalAvgCost`。
 - 本階段不修改 stored transaction payload，不回溯重算歷史 `globalAvgCost`，也不移除 legacy `成本校正` fallback。
+
+## v0.4.4 Ledger Presentation Current Status
+
+本節覆蓋上方較早的 future-only wording：Ledger English presentation mapping 已作為 current presentation layer 實作並受測試保護。這不代表 transaction payload migration 已開始。
+
+- Category display 可將 legacy/raw `type` 顯示為 English category。
+- Item display 可透過 resolver 顯示 English item name。
+- Raw transaction payload 不變，stored `type` / `item` 不因顯示英文而改寫。
+- Ledger search 可同時支援 raw stored values 與 display values。
+- Multiple raw aliases may deduplicate to one display category for UI grouping/filtering。
+- Ledger presentation mapping 不是 canonical event writer，不是 payload canonicalization，也不是 legacy fallback removal。
+- Cost Adjustment cash-impact semantic correction 仍是 future work；不得把 presentation mapping 解讀為成本校正事件模型已完成。

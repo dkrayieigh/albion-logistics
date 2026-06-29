@@ -115,3 +115,30 @@
 ### Tauri dev startup note
 
 若 Tauri dev 因舊 workspace 絕對路徑 artifact 發生 blocking error，可清除 `src-tauri/target` 後重新啟動。此問題屬 build artifact，不代表 source code 行為改變。
+
+## v0.4.4 Release Checkpoint Architecture Notes
+
+本節只記錄目前 production implementation 的文件定位，不代表版本號、Tauri config、schema、transaction payload 或 migration 已變更。
+
+### Crafting Planner / Quotation Module
+
+- `src/components/quotation.js` 提供 read-only Planner / quotation calculator。
+- Planner 使用 `RECIPES` 與 Crafting 共用 Item Picker。
+- Planner 可將明確確認的方案 handoff 到 transient `craftingQueue`。
+- Planner 本身不寫入 inventory、cash、transactions 或 storage。
+- Planner 不是 order management、customer management、market API 或 persisted quotation system。
+
+### Ledger Presentation Layer
+
+- `src/presenters/ledgerDisplay.js` 是 Ledger category / item display presentation layer。
+- `src/components/ledger.js` 透過 presenter 顯示英文 category / item。
+- Raw transaction payload 保留原值，display mapping 不等於 transaction migration。
+- Alias display deduplication 屬於 presentation/filter/grouping 行為，不改 stored `type`。
+
+### Custom Location State Boundary
+
+- `src/core/state.js` 已提供 stable custom location ID 生命週期：add / rename / remove。
+- Active custom locations 會出現在 runtime `customLocations`。
+- Removed custom locations 會保留 inactive registry entry 與原 displayName，不直接硬刪 registry evidence。
+- Restart round-trip 與 save failure rollback 屬於目前 test-covered safety boundary。
+- Backup/reset/migration 與 per-location hideout crafting profile 不在本 checkpoint 範圍。

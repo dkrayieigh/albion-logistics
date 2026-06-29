@@ -46,7 +46,7 @@ npm test
 - **Current implementation:** production startup/read-write cutover exists for the new-schema runtime path. The app can start from `albion-logistics-v2-state`, project canonical data to runtime `qtyByCity`, hydrate runtime defaults, and route `saveState()` through the new-schema save path when the runtime controller is active.
 - **Target behavior:** single-user clean cutover with new Location schema, `albion-logistics-v2-state`, manually initialized inventory/cash/cost basis, empty initial transactions, and external legacy backup archive.
 - **Schema contract status:** Location Registry shape, new root state, `qtyByLocation` inventory shape, clean initialization input/output, storage codec validation/serialization, injected repository load/save semantics, explicit browser Storage backend binding semantics, browser new-schema repository composition semantics, startup loader/decision semantics, runtime bridge semantics, runtime controller semantics, state API integration, first-launch confirmation, error codes, and backup boundary are defined. Production startup/read-write cutover is implemented and covered by regression tests.
-- **Remaining gaps:** custom location UI does not yet emit Location Registry / stable custom IDs, backup import/export remains legacy-only, Factory Reset still uses broad `localStorage.clear()`, release smoke checklist is not complete, and production cutover docs/release process is not finalized.
+- **Remaining gaps:** backup import/export remains legacy-only, Factory Reset still uses broad `localStorage.clear()`, custom location crafting profile is not defined, release smoke checklist is not complete, and production cutover docs/release process is not finalized.
 Current status override for clean initializer implementation:
 
 - **Current implemented:** schema contract exists, pure `createCleanInitialState()` exists, pure `encodeNewSchemaState()` / `decodeNewSchemaState()` exists, pure `createNewSchemaStorageRepository(backend)` exists, pure `createBrowserStorageBackend(storage)` exists, pure `createBrowserNewSchemaRepository(storage)` exists, pure `loadBrowserNewSchemaState(storage)` exists, pure `resolveBrowserNewSchemaStartup(storage)` exists, pure `projectNewSchemaToRuntime(newSchemaState)` exists, pure `projectRuntimeToNewSchema(runtimeState)` exists, `createBrowserNewSchemaRuntimeController(storage)` exists, `enableNewSchemaRuntime(storage)` exists, `initializeNewSchemaRuntime(storage, input, options)` exists, and these groups have regression coverage.
@@ -55,10 +55,10 @@ Current status override for clean initializer implementation:
 - **Startup loader/decision covered behavior:** `loadBrowserNewSchemaState(storage)` reads only fixed key `albion-logistics-v2-state` through explicit storage and returns `loaded` / `missing` / `invalid` / `error`. `resolveBrowserNewSchemaStartup(storage)` maps `loaded` to `ready`, `missing` to `initialize`, and `invalid` / `error` to `blocked`; invalid/error paths never create empty data.
 - **Runtime bridge covered behavior:** `projectNewSchemaToRuntime(newSchemaState)` converts canonical `qtyByLocation` to runtime `qtyByCity`; `projectRuntimeToNewSchema(runtimeState)` converts runtime `qtyByCity` back to canonical `qtyByLocation`. The bridge maps `laborer_island` ↔ `LaborerIsland` and `滿日誌` ↔ `滿日記本`, preserves `locationRegistry` and custom location IDs, fails the whole projection on unknown or ambiguous mapping, remains pure, does not mutate input, and does not access storage.
 - **Runtime controller / production startup covered behavior:** ready reads the new key, projects through the runtime bridge, hydrates runtime defaults, and routes `saveState()` to the new key. Confirmed initialize creates clean canonical state, saves the new key, and activates runtime. Cancelled initialize explicitly uses legacy mode. Blocked invalid/error startup does not silently fall back and does not overwrite with empty data.
-- **Known custom location limitation:** runtime custom location changes cannot yet be safely reverse-saved unless `customLocations` still matches the retained `locationRegistry`; adding, renaming, deleting, or transferring custom locations is not yet Location Registry / stable-ID writer integration.
+- **Custom location current status:** add / rename / remove now uses stable custom location IDs with active/inactive registry behavior. Runtime display includes active custom entries, inactive entries retain their displayName as evidence, re-adding an inactive name creates a new ID, and save failure rollback is covered.
 - **Covered behavior:** initializer output uses the new root shape, fixed registry, `qtyByLocation`, future canonical `滿日誌` laborer defaults, ordered/unique errors, atomic failure, and input/localStorage immutability. The codec validates schemaVersion 1, assets, fixed/custom Location Registry, `qtyByLocation`, JSON-safe transactions/logs, canonical laborer inventory, legacy-field rejection, malformed JSON, and purity/atomicity. The repository uses injected synchronous backend access with fixed key `albion-logistics-v2-state`, load statuses `loaded` / `missing` / `invalid` / `error`, save statuses `saved` / `invalid` / `error`, codec error passthrough, invalid-state no-write, backend getter/method/thenable safety, and legacy key isolation.
-- **Production boundary:** production startup/read-write integration exists, but it is not migration. It does not convert legacy backups, does not migrate historical transactions, does not update backup import/export, does not make custom location writers registry-aware, and does not remove legacy fallback behavior.
-- **Remaining gaps:** custom location writer integration, backup import/export, Factory Reset scope, release smoke checklist, production cutover docs/release process.
+- **Production boundary:** production startup/read-write integration exists, but it is not migration. It does not convert legacy backups, does not migrate historical transactions, does not update backup import/export, does not define custom location crafting profiles, and does not remove legacy fallback behavior.
+- **Remaining gaps:** backup import/export, Factory Reset scope, custom location crafting profile, release smoke checklist, production cutover docs/release process.
 
 - **Risk：** High。涉及 storage schema、inventory、cash、backup 與 rollback 行為。
 - **Dependencies：** new schema docs/tests, writer tests, backup export/import tests, manual initialization contract, old backup archive, and explicit confirmation before ignoring legacy local data.
@@ -266,7 +266,7 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 | injected new-schema storage repository contract | isolated injected repository implementation | Tested | `tests/backup-regression.test.js` | `src/adapters/newSchemaStorageRepository.js` implements `createNewSchemaStorageRepository(backend)` over the fixed `albion-logistics-v2-state` key with injected synchronous backend `getItem` / `setItem`, load/save statuses, codec error passthrough, invalid-state no-write, backend failure safety, this-bound method calls, thenable rejection, source isolation, and legacy key isolation. This is not a global `localStorage` adapter, startup loader, autosave, production state writer, backup repository, or migration runner. |
 | browser new-schema repository composition contract | isolated injected composition helper | Tested | `tests/backup-regression.test.js` | `src/adapters/browserNewSchemaRepository.js` implements `createBrowserNewSchemaRepository(storage)` as explicit Storage-like input -> `createBrowserStorageBackend(storage)` -> `createNewSchemaStorageRepository(binding.backend)`. It returns `{ ok: true, repository, errors: [] }` or `{ ok: false, repository: null, errors: ['INVALID_BROWSER_STORAGE'] }`; composition itself performs zero storage operations and does not call load/save, acquire global `localStorage`, inspect keys, mutate storage, start up state, connect writers, backup, UI, migration, or legacy fallback. |
 | browser new-schema startup loader and decision boundary | production startup helper implementation | Tested | `tests/backup-regression.test.js` | `src/adapters/browserNewSchemaStartup.js` implements `loadBrowserNewSchemaState(storage)` and `resolveBrowserNewSchemaStartup(storage)`. Loader reads only fixed key `albion-logistics-v2-state` from explicit storage and returns `loaded` / `missing` / `invalid` / `error`; decision maps `loaded` -> `ready`, `missing` -> `initialize`, and `invalid` / `error` -> `blocked` without creating empty data. Production app startup now calls the new-schema runtime path. |
-| new-schema runtime bridge contract | isolated bidirectional bridge implementation | Tested | `tests/backup-regression.test.js` | `src/adapters/newSchemaRuntimeBridge.js` implements `projectNewSchemaToRuntime(newSchemaState)` and `projectRuntimeToNewSchema(runtimeState)` for `qtyByLocation` <-> `qtyByCity`, `laborer_island` <-> `LaborerIsland`, and `滿日誌` <-> `滿日記本`. It preserves `locationRegistry` and custom location IDs, fails atomically on unknown/ambiguous mapping, does not mutate input, and does not access storage. Runtime custom location changes still cannot be safely reverse-saved unless they match the retained registry. |
+| new-schema runtime bridge contract | isolated bidirectional bridge implementation | Tested | `tests/backup-regression.test.js` | `src/adapters/newSchemaRuntimeBridge.js` implements `projectNewSchemaToRuntime(newSchemaState)` and `projectRuntimeToNewSchema(runtimeState)` for `qtyByLocation` <-> `qtyByCity`, `laborer_island` <-> `LaborerIsland`, and `滿日誌` <-> `滿日記本`. It preserves `locationRegistry` and custom location IDs, fails atomically on unknown/ambiguous mapping, does not mutate input, and does not access storage. Pure bridge projection still requires runtime custom location changes to match the retained registry; production custom location state APIs are covered separately in the v0.4.4 checkpoint. |
 | browser new-schema runtime controller | production state persistence boundary | Tested | `tests/backup-regression.test.js` | `src/adapters/browserNewSchemaRuntimeController.js` implements `createBrowserNewSchemaRuntimeController(storage)` with `controller.start()` and `controller.save(runtimeState)`. Ready startup projects canonical state to runtime; save projects runtime state back to canonical and writes the new key. Projection failure blocks rather than falling back. |
 | production app startup cutover | production startup integration | Tested | `tests/backup-regression.test.js` | `src/app.js` uses `startApplicationState(localStorage)` and `src/core/state.js` exposes `enableNewSchemaRuntime(storage)` / `initializeNewSchemaRuntime(storage, input, options)`. Ready, confirmed initialize, cancelled initialize legacy mode, and blocked invalid/error startup are covered. This is not migration and does not update backup import/export. |
 | runtime default hydration and laborer leather support | production runtime compatibility | Tested | `tests/backup-regression.test.js` / UI regression coverage | Runtime activation hydrates inventory defaults while preserving new-schema state identity. Canonical/runtime laborer inventory includes leather support and preserves `滿日誌` / `滿日記本` bridge behavior. |
@@ -409,12 +409,13 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 - Special material purchase unit-price / total-price entry is not yet a separate schema path.
 - Special materials currently remain part of crafting workflow behavior, not a dedicated persisted inventory module.
 
-### Ledger English Presentation Mapping（Low–Medium implementation risk）
+### Ledger English Presentation Mapping（Current / Low–Medium implementation risk）
 
-- Ledger English mapping is not implemented.
-- Current ledger may still display stored Chinese `type` / `item` values.
-- Future English display must be presentation-only and must not rewrite historical transaction payload.
-- Multiple stored aliases such as `庫存校正` and `INVENTORY_ADJUSTMENT` must map to one display category without changing stored values.
+- Ledger English category / item presentation mapping is implemented and test-covered.
+- Raw transaction payload remains unchanged; presentation mapping does not rewrite stored `type` or `item`.
+- Raw stored Chinese values can map to English display for render/search.
+- Multiple stored aliases such as `庫存校正` and `INVENTORY_ADJUSTMENT` can map to one display category without changing stored values.
+- This remains presentation only and is not canonical transaction migration.
 
 ### Cost Adjustment Canonical Event（High risk）
 
@@ -424,7 +425,58 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 
 ### Risk Split
 
-- English display mapping：Low–Medium implementation risk because it should be presentation-only, but it still affects Ledger filtering/grouping and user interpretation.
+- English display mapping：Low–Medium implementation risk because it is presentation-only and currently test-covered, but it still affects Ledger filtering/grouping and user interpretation.
 - Product inventory transition：High risk because it changes inventory shape, crafting output, sale consumption, transport eligibility, dashboard valuation, runtime bridge, codec, and backup expectations.
 - Special material schema：High risk because it introduces new persisted inventory classes and purchase/costing rules.
 - Cost adjustment canonical event：High risk because it affects cost basis, valuation, Ledger display, transaction semantics, and historical interpretation.
+
+## v0.4.4 Release Checkpoint Scope
+
+本節是 docs-only release checkpoint，不代表正式 release 已建立，也不代表 version metadata、package、Tauri config、storage schema 或 transaction payload 已修改。
+
+### Current / Test-covered Scope
+
+- Crafting Planner / quotation calculator exists as read-only planning UI.
+- Planner supports manual material estimates, shop fee, game estimate unit/batch, 90% / 85% references, custom quote, and 8% / 10% target gross-margin references.
+- Planner can hand off explicit user selections into transient `craftingQueue`.
+- Planner does not mutate inventory, cash, transactions, or storage unless the user later executes normal crafting flow.
+- Crafting and Planner share the Item Picker sourced from `RECIPES`.
+- Long numeric input stability, autocomplete policy, and Crafting Location wording are included in this checkpoint.
+- Ledger English category / item presentation, raw-value search, alias display deduplication, and raw-payload preservation are covered as presentation behavior.
+- Custom location stable ID add / rename / remove, active/inactive registry behavior, restart round-trip, and save failure rollback are covered.
+
+### Remaining Implementation Gaps
+
+- New-schema backup/export lifecycle.
+- Factory Reset / reset lifecycle.
+- Account-total product inventory.
+- Formal special-material inventory.
+- Cost adjustment semantic correction.
+- Custom location crafting profile, including per-location hideout map bonus / focus RRR metadata.
+- Canonical transaction payload.
+- Migration and legacy fallback removal.
+
+### v0.4.4 Release Notes Draft Scope
+
+Suggested title: `Crafting Planner & Ledger Presentation Update`.
+
+Added:
+- Planner.
+- Queue handoff.
+- Ledger English presentation/search.
+- Custom location consistency improvements.
+
+Improved:
+- Shared Item Picker.
+- Long numeric input stability.
+- Autocomplete policy.
+- Crafting Location wording.
+- Inactive custom location handling.
+
+Known limitations:
+- No new-schema backup/reset lifecycle.
+- No persisted quotation history.
+- No per-location hideout profile.
+- No account-total product inventory.
+- No formal special-material inventory.
+- Cost-adjustment semantics pending.

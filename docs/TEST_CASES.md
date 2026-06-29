@@ -163,7 +163,7 @@ Runtime compatibility additions are covered by regression tests. Current totals 
 - Canonical/runtime laborer inventory includes leather support.
 - `滿日誌` / `滿日記本` bridge behavior remains covered.
 - Laborer form polish includes quality matrix behavior and harvest draft reset.
-- This does not complete custom location writer integration or backup migration.
+- This does not complete backup migration, reset lifecycle, or custom location crafting profile.
 
 ### UI Quality And Tauri Build Covered Scope
 
@@ -217,7 +217,7 @@ UI quality and build readiness are tracked as current release-prep coverage.
 - `滿日記本` maps back to `滿日誌`.
 - `locationRegistry` and custom location IDs are preserved.
 - Unknown or ambiguous location mappings fail atomically.
-- Runtime custom location changes fail when they no longer match the retained registry; this means such changes cannot yet be safely reverse-saved.
+- Pure bridge projection still fails when runtime custom location changes no longer match the retained registry; production custom location state APIs are covered separately in the v0.4.4 checkpoint.
 - Input immutability, round-trip preservation, and no storage/global access are covered.
 - This does not implement formal writer integration, canonical save path, `saveState()` switch, backup import/export, UI, or migration.
 
@@ -771,3 +771,38 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 - Cost adjustment records quantity basis。
 - Ledger must not show cost adjustment as false cash-out display。
 - Stored legacy cost-adjustment fallback remains readable until an approved event migration exists。
+
+## v0.4.4 Release Checkpoint Coverage
+
+本節記錄 v0.4.4 checkpoint 的 docs-only 測試狀態同步。使用者提供的 checkpoint baseline：`354 pass / 0 fail`。本次文件同步不執行 `npm test`，也不修改 tests。
+
+### Planner / Quotation Covered Scope
+
+- Planner is a read-only quotation calculator.
+- Planner does not mutate inventory, cash, transactions, or storage.
+- Explicit queue handoff can add a transient crafting plan into `craftingQueue`.
+- Queue handoff is not crafting completion and does not perform accounting mutation.
+- Planner supports manual material estimates, shop fee, game estimate unit/batch, 90% / 85% references, custom quote, and 8% / 10% target gross-margin references.
+- Planner discount controls include 0% / 5% / 6% / 7%.
+- Crafting and Planner share the Item Picker sourced from `RECIPES`.
+- Planner does not directly use `ALBION_DB` as product selector source.
+
+### Ledger Presentation Covered Scope
+
+- Ledger category display maps stored raw values to English display categories.
+- Ledger item display maps recipe/material/special/laborer values to English display names where possible.
+- Raw transaction payload remains unchanged.
+- Search can match raw stored value and display value.
+- Alias display deduplication maps multiple raw aliases to one display category.
+- This coverage does not implement canonical transaction migration.
+- Cost Adjustment cash-impact semantics remain pending.
+
+### Custom Location Covered Scope
+
+- Custom location add / rename / remove uses stable custom location IDs.
+- Active entries appear in runtime custom location display.
+- Inactive entries keep their original `displayName`.
+- Re-adding an inactive display name creates a new ID.
+- Runtime display excludes inactive custom entries.
+- Restart round-trip and save failure rollback are covered.
+- This does not define per-location hideout crafting profile, map bonus / focus RRR metadata, backup/reset lifecycle, or migration.

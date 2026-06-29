@@ -240,3 +240,43 @@ mainMaterialCost
 
 - 工人島暫存庫存保留目前簡化規則。
 - 工人島物資出售與「日誌」顯示 / legacy key `滿日記本` 邊界仍依 current implementation 規則處理。
+
+## v0.4.4 Current Implementation Rules（Release Checkpoint）
+
+本節只描述 v0.4.4 checkpoint 已存在且受測試保護的 current implementation。它不代表 version number、storage schema、transaction payload、backup/reset 或 migration 已改變。
+
+### Crafting Planner / Quotation
+
+- Visible name 使用「製作報價 / Planner」定位。
+- Planner 是 read-only quotation calculator；計算與預覽不會寫入 inventory、cash、transactions 或 storage。
+- Planner 只有在使用者明確執行 queue handoff 時，才會把方案加入 transient `craftingQueue`。
+- Queue handoff 仍只建立待製作佇列資料，不等於完成製作、不扣材料、不扣 cash、不寫 transaction。
+- Planner 支援 manual material estimates、shop fee、game estimate unit / batch、90% / 85% P2P references、custom quote，以及 8% / 10% target gross-margin references。
+- Planner discount buttons 支援 0% / 5% / 6% / 7%。
+- Planner 不是 order management、customer management、market API 或 persisted quotation system。
+
+### Shared Item Picker
+
+- Crafting 與 Planner 共用 Item Picker。
+- Shared picker 以 `RECIPES` 為資料來源。
+- Planner 不直接使用 `ALBION_DB` 作為產品選擇來源。
+- 這是 current implementation；不代表 Stable Item ID migration 已完成。
+
+### Ledger Presentation
+
+- Ledger category 與 item 可透過 presentation mapping 顯示英文。
+- Raw transaction payload 不因 display mapping 被改寫。
+- Raw stored Chinese values can map to English display for rendering and search.
+- Multiple raw aliases may resolve to one display category for filtering/grouping.
+- Ledger presentation mapping 不等於 canonical transaction migration。
+- Cost Adjustment cash-impact semantics 尚未修正；成本校正仍需 future event model 處理。
+
+### Custom Location Stable ID Lifecycle
+
+- Custom location 使用 stable custom location ID 支援 add / rename / remove。
+- Active entries 會出現在 runtime display。
+- Inactive entries 保留原 `displayName`，不直接刪除 registry evidence。
+- Re-adding an inactive display name creates a new ID。
+- Runtime 只顯示 active custom entries。
+- Restart round-trip 與 save failure rollback 已納入 current safety boundary。
+- Hideout crafting profile、map bonus / focus RRR、biome / map quality / location metadata 仍不是正式 location profile schema。

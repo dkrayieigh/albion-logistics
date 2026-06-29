@@ -127,3 +127,14 @@ Current implementation note：
 - Artifact / alchemy storage 已完成。
 - Legacy 中文 item key 已被取代。
 - Concrete Stable ID 字串格式已定案。
+
+## v0.4.4 Shared Item Picker Boundary
+
+本節只描述 current UI selection behavior，不代表 Stable ID migration 已完成。
+
+- Crafting 與 Planner 共用 Item Picker。
+- Shared picker uses `RECIPES` as the recipe/product selection source。
+- Planner 不直接以 `ALBION_DB` 作為產品選擇來源。
+- Shared picker 可以改善選擇一致性，但不改 storage key、transaction payload 或 item identity model。
+- Current compatibility key 仍可能是 legacy 中文 item key 或 recipe display name。
+- Stable Item ID catalog、Stable product ID、artifact/alchemy Stable ID 仍是 future target。
