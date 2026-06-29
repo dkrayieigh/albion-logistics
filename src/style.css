@@ -1067,6 +1067,20 @@ tr:hover td {
   flex: 1;
 }
 
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field-inline-hint {
+  color: var(--text-secondary);
+  font-size: 0.8em;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* Modal styling if any (optional but good to have) */
 .toast-notification {
   position: fixed;

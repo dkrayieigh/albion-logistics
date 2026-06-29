@@ -72,13 +72,13 @@
                 <label class="form-label">目標裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Target Item</span></label>
                 <button id="btn-open-item-selector" class="btn btn-primary target-picker-button">
                   <div>🔍 Choose Target</div>
-                  <div class="target-picker-current">Selected: <span id="craft-recipe-display">🔍 Choose Target</span></div>
+                  <div class="target-picker-current">Selected: <span id="craft-recipe-display">Choose Target</span></div>
                 </button>
                 <input type="hidden" id="craft-recipe" value="">
               </div>
 
               <div class="form-group" style="margin-bottom:20px;">
-                <label class="form-label">材料階級<br><span style="font-size: 0.8em; opacity: 0.7;">Material Tier</span></label>
+                <label class="form-label field-label-row"><span>目標階級</span><span class="field-inline-hint">Target Tier</span></label>
                 <div id="craft-quality-pill-group"></div>
               </div>
 
@@ -86,7 +86,7 @@
               
               <div class="form-row">
                 <div class="form-group">
-                  <label class="form-label">製作數量<br><span style="font-size: 0.8em; opacity: 0.7;">Craft Amount</span></label>
+                  <label class="form-label field-label-row"><span>製作數量</span><span class="field-inline-hint">Quantity</span></label>
                   <div style="display:flex; gap:5px; align-items:center;">
                     <input type="number" id="craft-qty" value="20" autocomplete="off" inputmode="numeric"  style="flex:1; font-weight:bold; color:var(--accent-cyan);">
                     <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-sub-10" data-val="-10">-10</button>
@@ -96,7 +96,7 @@
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">製作地點<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting Location</span></label>
+                  <label class="form-label field-label-row"><span>製作地點</span><span class="field-inline-hint">Location</span></label>
                   <select id="craft-city" ></select>
                 </div>
               </div>
@@ -118,14 +118,10 @@
                   <input type="checkbox" id="craft-focus" class="switch-checkbox" checked >
                   <div class="switch-track"><div class="switch-thumb"></div></div>
                   <span class="switch-label">專注點<br><span style="font-size: 0.8em; opacity: 0.7;">Use Focus</span></span>
-                  <span class="quality-badge quality-5" id="rra-badge">當前返還率: 47.9%</span>
+                  <span class="quality-badge quality-5" id="rra-badge">RRR: --</span>
                 </label>
               </div>
 
-              <div class="form-row">
-                <div id="main-material-group" class="form-group"><span class="form-label" id="main-material-label" style="color:var(--accent-cyan);">主料需求 Main Material</span></div>
-                <div id="sub-material-group" class="form-group"><span class="form-label" id="sub-material-label" style="color:var(--accent-purple);">副料需求 Sub Material</span></div>
-              </div>
               <!-- NEW Alchemy Block -->
               <div class="form-row" id="alchemy-group" style="display:none; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:15px; border-left: 3px solid var(--accent-yellow);">
                 <div class="form-group" style="flex:1;">
@@ -178,17 +174,17 @@
                 <label class="form-label">目標裝備<br><span style="font-size: 0.8em; opacity: 0.7;">Target Item</span></label>
                 <button id="btn-open-quote-item-selector" class="btn btn-primary target-picker-button">
                   <div>🔍 Choose Target</div>
-                  <div class="target-picker-current">Selected: <span id="quote-recipe-display">🔍 Choose Target</span></div>
+                  <div class="target-picker-current">Selected: <span id="quote-recipe-display">Choose Target</span></div>
                 </button>
                 <input type="hidden" id="quote-recipe" value="" autocomplete="off">
               </div>
               <div class="form-group">
-                <label class="form-label">目標階級<br><span style="font-size: 0.8em; opacity: 0.7;">Target Tier</span></label>
+                <label class="form-label field-label-row"><span>目標階級</span><span class="field-inline-hint">Target Tier</span></label>
                 <div id="quote-quality-pill-group"></div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label class="form-label">數量<br><span style="font-size: 0.8em; opacity: 0.7;">Quantity</span></label>
+                  <label class="form-label field-label-row"><span>製作數量</span><span class="field-inline-hint">Quantity</span></label>
                   <div class="quantity-stepper">
                     <input type="number" id="quote-qty" value="1" autocomplete="off" inputmode="numeric">
                     <button class="btn btn-secondary" id="btn-quote-qty-sub-10" data-val="-10">-10</button>
@@ -198,7 +194,7 @@
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">製作地點<br><span style="font-size: 0.8em; opacity: 0.7;">Crafting Location</span></label>
+                  <label class="form-label field-label-row"><span>製作地點</span><span class="field-inline-hint">Location</span></label>
                   <select id="quote-city"></select>
                 </div>
               </div>
@@ -207,6 +203,7 @@
                   <input type="checkbox" id="quote-focus" class="switch-checkbox">
                   <div class="switch-track"><div class="switch-thumb"></div></div>
                   <span class="switch-label">專注點<br><span style="font-size: 0.8em; opacity: 0.7;">Use Focus</span></span>
+                  <span class="quality-badge quality-5" id="quote-rra-badge">RRR: --</span>
                 </label>
               </div>
               <div id="quote-hideout-group" class="form-row" style="display:none;">
@@ -235,7 +232,7 @@
           </div>
           <div class="right-col">
             <div class="card">
-              <div class="card-header"><h2 class="card-title">報價結果 Quote Result</h2></div>
+              <div class="card-header"><h2 class="card-title">試算結果 Planner Results</h2></div>
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">遊戲估價單價<br><span style="font-size: 0.8em; opacity: 0.7;">Est. Unit Value</span></label>
@@ -296,7 +293,7 @@
                 </select>
               </div>
               <div class="form-group" style="margin-bottom:15px;">
-                <label class="form-label">品質</label>
+                <label class="form-label field-label-row"><span>材料階級</span><span class="field-inline-hint">Material Tier</span></label>
                 <div id="buy-quality-pill-group"></div>
               </div>
               <div class="form-row">

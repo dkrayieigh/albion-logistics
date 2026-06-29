@@ -159,11 +159,16 @@ test('UI version and craft quantity controls use the v0.4.4 / -10 -1 +1 +10 cont
   assert.doesNotMatch(html, /data-val="-5">-5/);
   assert.doesNotMatch(html, /data-val="5">\+5/);
   assert.match(html, /id="craft-recipe"[^>]*value=""/);
-  assert.match(html, /id="craft-recipe-display">🔍 Choose Target<\/span>/);
+  assert.match(html, /<button id="btn-open-item-selector"[\s\S]*🔍 Choose Target[\s\S]*id="craft-recipe-display">Choose Target<\/span>/);
   assert.match(html, /🔍 Choose Target/);
-  assert.match(html, /Material Tier/);
+  assert.match(html, /<span>目標階級<\/span><span class="field-inline-hint">Target Tier<\/span>/);
+  assert.match(html, /<span>製作數量<\/span><span class="field-inline-hint">Quantity<\/span>/);
+  assert.match(html, /<span>製作地點<\/span><span class="field-inline-hint">Location<\/span>/);
+  assert.match(html, /id="rra-badge">RRR: --<\/span>/);
+  assert.doesNotMatch(html, /Craft Amount|Crafting Location|Material Quality|Return rate|Current Return Rate/);
   assert.doesNotMatch(html, /id="out-main-label"|id="out-main-qty"|id="out-sub-label"|id="out-sub-qty"/);
   assert.doesNotMatch(html, /<div class="output-grid" style="margin-bottom:20px;">/);
+  assert.doesNotMatch(html, /main-material-label|sub-material-label|sub-material-group/);
 });
 
 test('CSS hides native number spinners and defines five-column quality matrix layout', { concurrency: false }, () => {
@@ -238,6 +243,7 @@ test('quality renderer still shows the selection hint without removing the matri
   const container = getElement('buy-quality-pill-group');
   const { rows, buttons } = flattenQualityMatrix(container);
   assert.equal(container.children[0].innerText, 'Choose Material Tier');
+  assert.match(container.children[0].className, /field-inline-hint/);
   assert.equal(rows.length, 5);
   assert.equal(buttons.length, 25);
 });
@@ -246,7 +252,9 @@ test('crafting and purchase quality controls use the shared matrix renderer', { 
   const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
 
   assert.match(source, /function updateCraftQualityPills\(\) \{ renderQualityPillsGroup\('craft-quality-pill-group'/);
+  assert.match(source, /Choose Target Tier/);
   assert.match(source, /function updateBuyQualityPills\(\) \{ renderQualityPillsGroup\('buy-quality-pill-group'/);
+  assert.match(source, /Choose Material Tier/);
   assert.doesNotMatch(source, /QUAL_GROUPS\.forEach/);
   assert.doesNotMatch(source, /Material Quality/);
 });
@@ -2229,6 +2237,17 @@ test('shared item selector uses one modal implementation for crafting and planne
   assert.equal((craftingSource.match(/renderItemSelectorGrid/g) || []).length >= 3, true);
 });
 
+test('crafting planner and inventory selectors use shared release-safe location options', { concurrency: false }, () => {
+  const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+  assert.match(source, /const allCities = \[\.\.\.SYSTEM_CITIES_ARR, \.\.\.state\.customLocations\.map/);
+  assert.match(source, /document\.getElementById\('craft-city'\)\.innerHTML = generateOptions\(false, false\)/);
+  assert.match(source, /document\.getElementById\('quote-city'\)\.innerHTML = generateOptions\(false, false\)/);
+  assert.match(source, /document\.getElementById\('buy-city'\)\.innerHTML = generateOptions\(false, false\)/);
+  assert.doesNotMatch(source, /\[\+\] 新增自訂倉庫/);
+  assert.doesNotMatch(source, /html \+= `<option value="__ADD_CUSTOM__"/);
+});
+
 test('shared item selector target callbacks keep crafting and planner selections isolated', { concurrency: false }, () => {
   resetState();
   const recipe = Crafting.RECIPES[1];
@@ -2324,6 +2343,11 @@ test('crafting calculator no longer depends on removed consumption cards', { con
 
   assert.doesNotMatch(html, /out-main-|out-sub-/);
   assert.doesNotMatch(source, /out-main-|out-sub-/);
+  assert.doesNotMatch(html, /main-material-label|sub-material-label|sub-material-group/);
+  assert.doesNotMatch(source, /main-material-label|sub-material-label|sub-material-group/);
+  assert.match(source, /RRR: --/);
+  assert.match(source, /RRR: \$\{\(rra\*100\)\.toFixed\(1\)\}%/);
+  assert.doesNotMatch(source, /Return rate|Current Return Rate/);
 });
 
 test('submitCraftAll uses actual material consumed for material deduction and crafted cost', { concurrency: false }, () => {

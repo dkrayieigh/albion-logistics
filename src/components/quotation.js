@@ -1,4 +1,4 @@
-import { BONUSES, SYSTEM_CITIES } from '../data/constants.js';
+import { BONUSES } from '../data/constants.js';
 import { escapeHTML, formatSilver, parseNum } from '../utils/formatters.js';
 import {
   calculateQuotation,
@@ -114,8 +114,8 @@ function renderQualityMatrix() {
   container.innerHTML = '';
   if (!quoteDraft.quality) {
     const hint = document.createElement('div');
-    hint.innerText = '請先選擇品質';
-    hint.className = 'quote-hint';
+    hint.innerText = 'Choose Target Tier';
+    hint.className = 'quote-hint field-inline-hint';
     container.appendChild(hint);
   }
   const matrix = document.createElement('div');
@@ -244,6 +244,7 @@ function renderResult(quoteResult) {
   }
 
   const quote = quoteResult.quote;
+  setText('quote-rra-badge', `RRR: ${(quote.returnRate * 100).toFixed(1)}%`);
   quote.materials.forEach(line => {
     setText(`quote-line-${line.key}`, `套用單價 ${formatSilver(line.appliedUnitPrice)} / 預估成本 ${formatSilver(line.estimatedCost)}`);
   });
@@ -269,7 +270,7 @@ function renderResult(quoteResult) {
     <div><span>自訂報價毛利</span><strong>${formatSilver(quote.customQuote.profit)}</strong></div>
     <div><span>毛利率</span><strong>${formatPercent(quote.customQuote.marginRate)}</strong></div>
   </div>
-  <button class="btn btn-primary" id="quote-add-to-queue" data-quote-action="enqueue">加入製作清單</button>`);
+  <button class="btn btn-primary" id="quote-add-to-queue" data-quote-action="enqueue">加入製作清單<br><span style="font-size:0.8em;opacity:0.7;">Add to Queue</span></button>`);
 }
 
 function enqueueCurrentPlan() {
@@ -329,11 +330,13 @@ export function renderQuotation() {
   if (!recipe) {
     setText('quote-consumption-main', '0');
     setText('quote-consumption-sub', '0');
+    setText('quote-rra-badge', 'RRR: --');
     setHTML('quote-result-box', '<div class="suggestion-box">🔍 Choose Target before calculating.</div>');
     return;
   }
 
   if (!quoteDraft.quality) {
+    setText('quote-rra-badge', 'RRR: --');
     setHTML('quote-result-box', '<div class="suggestion-box">Choose Target Tier before calculating.</div>');
     return;
   }
@@ -343,15 +346,6 @@ export function renderQuotation() {
 }
 
 export function initQuotationEvents() {
-  const citySelect = byId('quote-city');
-  if (citySelect) {
-    citySelect.innerHTML = Object.entries(SYSTEM_CITIES)
-      .filter(([id]) => id !== 'LaborerIsland')
-      .map(([id, city]) => `<option value="${escapeHTML(id)}">${escapeHTML(city.name || id)}</option>`)
-      .join('');
-  }
-
-
   byId('btn-open-quote-item-selector')?.addEventListener('click', () => {
     openItemSelector('quotation', item => applyRecipeSelection(item));
   });

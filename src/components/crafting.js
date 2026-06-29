@@ -17,7 +17,7 @@ export function getAllRecipes() {
 export const RECIPES = getAllRecipes();
 
 export function getRecipeDisplayName(recipe) {
-  return recipe?.name || '🔍 Choose Target';
+  return recipe?.name || 'Choose Target';
 }
 
 export function getEnchantAndTier(q) { 
@@ -151,20 +151,11 @@ export function onRecipeChange() {
   const r = RECIPES.find(x => x.name === rn);
   if (!r) {
     document.getElementById('craft-recipe-display').innerText = getRecipeDisplayName(null);
-    document.getElementById('main-material-label').innerHTML = '主料<br><span style="font-size:0.8em;opacity:0.7;">Main Material</span>';
-    document.getElementById('sub-material-label').innerHTML = '副料<br><span style="font-size:0.8em;opacity:0.7;">Sub Material</span>';
+    const rraBadge = document.getElementById('rra-badge');
+    if (rraBadge) rraBadge.innerText = 'RRR: --';
     const alcGroup = document.getElementById('alchemy-group');
     if (alcGroup) alcGroup.style.display = 'none';
     return;
-  }
-
-  document.getElementById('main-material-label').innerHTML = `主料 ${r.main}<br><span style="font-size:0.8em;opacity:0.7;">Main Material: ${EN_MAT[r.main]||''}</span>`;
-  if (r.subBaseQty > 0) {
-    document.getElementById('sub-material-label').innerHTML = `副料 ${r.sub}<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: ${EN_MAT[r.sub]||''}</span>`;
-    document.getElementById('sub-material-group').style.display = 'block';
-  } else {
-    document.getElementById('sub-material-label').innerHTML = '副料 -<br><span style="font-size:0.8em;opacity:0.7;">Sub Material: None</span>';
-    document.getElementById('sub-material-group').style.display = 'block';
   }
 
   if (BONUSES[r.category]) {
@@ -190,14 +181,14 @@ export function runCraftingCalculator() {
   const city = document.getElementById('craft-city').value;
   if (!qual) {
     const rraBadge = document.getElementById('rra-badge');
-    if (rraBadge) rraBadge.innerText = 'Choose Material Tier';
+    if (rraBadge) rraBadge.innerText = 'RRR: --';
     const alcGroup = document.getElementById('alchemy-group');
     if (alcGroup) alcGroup.style.display = 'none';
     return;
   }
   const foc = document.getElementById('craft-focus').checked;
   const rra = getRRA(r.category, city, foc);
-  document.getElementById('rra-badge').innerText = `Return rate: ${(rra*100).toFixed(1)}%`;
+  document.getElementById('rra-badge').innerText = `RRR: ${(rra*100).toFixed(1)}%`;
 
   const alcGroup = document.getElementById('alchemy-group');
   if (r.alchemyName) {

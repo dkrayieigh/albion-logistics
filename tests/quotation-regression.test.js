@@ -286,7 +286,9 @@ test('quotation visible planner name and enqueue button use the bounded UI contr
   assert.match(html, /id="btn-open-quote-item-selector"/);
   assert.match(html, /id="quote-recipe"[^>]*type="hidden"|type="hidden"[^>]*id="quote-recipe"/);
   assert.match(html, /🔍 Choose Target/);
-  assert.match(source, /加入製作清單/);
+  assert.match(html, /id="quote-recipe-display">Choose Target<\/span>/);
+  assert.match(html, /Planner Results/);
+  assert.match(source, /加入製作清單<br><span[^>]*>Add to Queue<\/span>/);
   assert.match(source, /from ['"]\.\/crafting\.js['"]/);
   assert.doesNotMatch(source, /from ['"]\.\/crafting\.js['"];\s*import/);
 });
@@ -305,7 +307,7 @@ test('quotation target picker starts blank and uses guarded placeholder flow', (
   const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
 
   assert.match(html, /id="quote-recipe"[^>]*value=""/);
-  assert.match(html, /id="quote-recipe-display">🔍 Choose Target<\/span>/);
+  assert.match(html, /<button id="btn-open-quote-item-selector"[\s\S]*🔍 Choose Target[\s\S]*id="quote-recipe-display">Choose Target<\/span>/);
   assert.match(source, /return RECIPES\.find\(recipe => recipe\.name === selectedName\) \|\| null/);
   assert.match(source, /🔍 Choose Target before calculating/);
   assert.doesNotMatch(source, /applyRecipeSelection\(RECIPES\[0\]\)/);
@@ -324,9 +326,16 @@ test('quotation UI uses crafting-compatible quantity controls and tier labels', 
   assert.match(html, /id="btn-quote-qty-add-1" data-val="1">\+1/);
   assert.match(html, /id="btn-quote-qty-add-10" data-val="10">\+10/);
   assert.match(source, /btn-quote-qty-sub-10/);
+  assert.match(html, /<span>目標階級<\/span><span class="field-inline-hint">Target Tier<\/span>/);
+  assert.match(html, /<span>製作數量<\/span><span class="field-inline-hint">Quantity<\/span>/);
+  assert.match(html, /<span>製作地點<\/span><span class="field-inline-hint">Location<\/span>/);
+  assert.match(html, /id="quote-rra-badge">RRR: --<\/span>/);
   assert.match(html, /Target Tier/);
   assert.match(html, /Material Tier/);
-  assert.doesNotMatch(html, /Material Quality/);
+  assert.doesNotMatch(html, /Material Quality|Craft Amount|Crafting Location|Quote Result|Return rate|Current Return Rate/);
+  assert.match(source, /Choose Target Tier/);
+  assert.match(source, /RRR: --/);
+  assert.match(source, /quote\.returnRate/);
 });
 
 test('quotation material estimate rows keep discounts only for normal materials', () => {
@@ -411,11 +420,14 @@ test('quotation autocomplete policy is present without app owned input history',
 
 test('visible wording uses material estimates and location labels', () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
 
   assert.match(html, /Material Estimates/);
-  assert.match(html, /Crafting Location/);
   assert.match(html, />Location<\/span><\/th>/);
-  assert.doesNotMatch(html, /Crafting City|>City<\/span><\/th>/);
+  assert.match(html, /Planner Results/);
+  assert.match(source, /data-quote-action="enqueue"/);
+  assert.doesNotMatch(html, /Crafting City|>City<\/span><\/th>|Crafting Location|Quote Result/);
+  assert.doesNotMatch(source, /Object\.entries\(SYSTEM_CITIES\)/);
 });
 
 test('quotation production source does not touch storage schema backup reset or migration', () => {

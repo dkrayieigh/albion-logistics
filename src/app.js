@@ -53,12 +53,12 @@ function resetSystemData() {
 }
 
 // 供 Crafting 與 App 共用的品質藥丸渲染
-export function renderQualityPillsGroup(containerId, activeQuality, callback) {
+export function renderQualityPillsGroup(containerId, activeQuality, callback, hintText = 'Choose Material Tier') {
   const ctn = document.getElementById(containerId); ctn.innerHTML = '';
   if (!activeQuality) {
     const hint = document.createElement('div');
-    hint.className = 'pill-hint';
-    hint.innerText = 'Choose Material Tier';
+    hint.className = 'pill-hint field-inline-hint';
+    hint.innerText = hintText;
     hint.style.fontSize = '0.85rem';
     hint.style.color = 'var(--accent-yellow)';
     hint.style.marginBottom = '8px';
@@ -82,8 +82,8 @@ export function renderQualityPillsGroup(containerId, activeQuality, callback) {
 }
 
 // 修正：使用 Setter 函式更新狀態，而不是直接綁在 window 上
-function updateCraftQualityPills() { renderQualityPillsGroup('craft-quality-pill-group', currentCraftQuality, q => { setCurrentCraftQuality(q); updateCraftQualityPills(); Crafting.runCraftingCalculator(); }); }
-function updateBuyQualityPills() { renderQualityPillsGroup('buy-quality-pill-group', currentBuyQuality, q => { setCurrentBuyQuality(q); updateBuyQualityPills(); }); }
+function updateCraftQualityPills() { renderQualityPillsGroup('craft-quality-pill-group', currentCraftQuality, q => { setCurrentCraftQuality(q); updateCraftQualityPills(); Crafting.runCraftingCalculator(); }, 'Choose Target Tier'); }
+function updateBuyQualityPills() { renderQualityPillsGroup('buy-quality-pill-group', currentBuyQuality, q => { setCurrentBuyQuality(q); updateBuyQualityPills(); }, 'Choose Material Tier'); }
 // 共用城市下拉選單邏輯
 const SYSTEM_CITIES_ARR = [
   {id: 'Thetford', name: 'Thetford 紫城'}, {id: 'Martlock', name: 'Martlock 藍城'}, {id: 'Bridgewatch', name: 'Bridgewatch 黃城'}, {id: 'Lymhurst', name: 'Lymhurst 綠城'}, {id: 'Fort Sterling', name: 'Fort Sterling 白城'}
@@ -91,21 +91,20 @@ const SYSTEM_CITIES_ARR = [
 
 function renderCityDropdowns() {
   const allCities = [...SYSTEM_CITIES_ARR, ...state.customLocations.map(c => ({id: c, name: c + ' (黑區自訂)'}))];
-  const generateOptions = (withEmpty, withLaborer, withAdd) => {
+  const generateOptions = (withEmpty, withLaborer) => {
     let html = '';
     if (withEmpty) html += `<option value="">請選擇...</option>`;
     if (withLaborer) html += `<option value="LaborerIsland">工人島倉庫</option>`;
     html += allCities.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name)}</option>`).join('');
-    if (withAdd) html += `<option value="__ADD_CUSTOM__" style="color:var(--accent-purple); font-weight:bold;">[+] 新增自訂倉庫...</option>`;
     return html;
   };
   
-  const cCraft = document.getElementById('craft-city').value; const cBuy = document.getElementById('buy-city').value;
+  const cCraft = document.getElementById('craft-city').value; const cQuote = document.getElementById('quote-city')?.value; const cBuy = document.getElementById('buy-city').value;
   const cFrom = document.getElementById('trans-from').value; const cTo = document.getElementById('trans-to').value; const cImport = document.getElementById('import-city').value;
 
-  document.getElementById('craft-city').innerHTML = generateOptions(false, false, true); document.getElementById('buy-city').innerHTML = generateOptions(false, false, true); document.getElementById('trans-from').innerHTML = generateOptions(true, true, false); document.getElementById('trans-to').innerHTML = generateOptions(false, true, true); document.getElementById('import-city').innerHTML = generateOptions(false, false, true);
+  document.getElementById('craft-city').innerHTML = generateOptions(false, false); if (document.getElementById('quote-city')) document.getElementById('quote-city').innerHTML = generateOptions(false, false); document.getElementById('buy-city').innerHTML = generateOptions(false, false); document.getElementById('trans-from').innerHTML = generateOptions(true, true); document.getElementById('trans-to').innerHTML = generateOptions(false, true); document.getElementById('import-city').innerHTML = generateOptions(false, false);
   
-  if(cCraft) document.getElementById('craft-city').value = cCraft; if(cBuy) document.getElementById('buy-city').value = cBuy; if(cFrom) document.getElementById('trans-from').value = cFrom; if(cTo) document.getElementById('trans-to').value = cTo; if(cImport) document.getElementById('import-city').value = cImport;
+  if(cCraft) document.getElementById('craft-city').value = cCraft; if(cQuote) document.getElementById('quote-city').value = cQuote; if(cBuy) document.getElementById('buy-city').value = cBuy; if(cFrom) document.getElementById('trans-from').value = cFrom; if(cTo) document.getElementById('trans-to').value = cTo; if(cImport) document.getElementById('import-city').value = cImport;
 }
 
 function onCityChange() {
@@ -272,6 +271,7 @@ export function initGlobalEvents() {
   document.getElementById('btn-reset-system')?.addEventListener('click', resetSystemData);
 
   document.getElementById('craft-city')?.addEventListener('change', handleCityDropdownChange);
+  document.getElementById('quote-city')?.addEventListener('change', handleCityDropdownChange);
   document.getElementById('buy-city')?.addEventListener('change', handleCityDropdownChange);
   document.getElementById('trans-from')?.addEventListener('change', handleCityDropdownChange);
   document.getElementById('trans-to')?.addEventListener('change', handleCityDropdownChange);
