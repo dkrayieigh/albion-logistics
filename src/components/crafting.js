@@ -200,27 +200,81 @@ export function runCraftingCalculator() {
 }
 
 export function addToCraftingQueue() {
-  const rn = document.getElementById('craft-recipe').value; const r = RECIPES.find(x => x.name === rn); if (!r) return window.showToast('裝備錯誤', 'error');
-  const q = parseNum(document.getElementById('craft-qty').value); if(q<=0) return window.showToast('數量必須大於0', 'error');
-  const qual = currentCraftQuality; const city = document.getElementById('craft-city').value;
-  if (!qual) return window.showToast('請先選擇品質', 'error');
+  const rn = document.getElementById('craft-recipe').value;
+  const q = parseNum(document.getElementById('craft-qty').value);
+  const qual = currentCraftQuality;
+  const city = document.getElementById('craft-city').value;
   const foc = document.getElementById('craft-focus').checked;
-  
-  const mk = `${r.main}_${qual}`; const sk = `${r.sub}_${qual}`; const rra = getRRA(r.category, city, foc);
-  const mainConsumption = calculateMaterialConsumption(r.mainBaseQty, q, rra); const amc = mainConsumption.expectedNetConsumption;
-  const subConsumption = calculateMaterialConsumption(r.subBaseQty, q, rra); const asc = subConsumption.expectedNetConsumption;
-  
-  let alcTier = null; let alcQty = 0; let alcPrice = 0;
-  if (r.alchemyName) {
-      let tier = '4'; if (qual && qual.includes('.')) tier = qual.split('.')[0];
-      const req = getAlchemyRequirement(tier); alcTier = req.tier; alcQty = req.qty;
-      const alcEl = document.getElementById('craft-alchemy-cost'); if (alcEl) alcPrice = parseNum(alcEl.value);
-  }
-  
-  craftingQueue.push({ id: Math.floor(Date.now() + Math.random() * 1000), checked: true, recipe: r, qty: q, quality: qual, city: city, focus: foc, mainKey: mk, mainQty: amc, actualMainQty: '', subKey: sk, subQty: asc, actualSubQty: r.subBaseQty > 0 ? '' : 0, tax: 0, artifactPrice: 0, artifactName: r.artifactVal > 0 || r.artifactName ? r.artifactName : null, artifactQty: r.artifactQty || 1, alchemyName: r.alchemyName, alchemyTier: alcTier, alchemyBaseQty: alcQty, alchemyPrice: alcPrice });
+  let alcPrice = 0;
+  const alcEl = document.getElementById('craft-alchemy-cost');
+  if (alcEl) alcPrice = parseNum(alcEl.value);
+
+  const result = enqueueCraftingPlan({ recipeName: rn, quality: qual, quantity: q, city, focus: foc, alchemyPrice: alcPrice });
+  if (!result.ok) return window.showToast(result.errors.join(', '), 'error');
   renderCraftingQueue(); updateShoppingListTotal(); window.showToast('已加入佇列', 'success');
 }
 
+export function enqueueCraftingPlan(input) {
+  const errors = [];
+  const recipeName = input?.recipeName;
+  const r = RECIPES.find(x => x.name === recipeName);
+  const qual = input?.quality;
+  const q = Number(input?.quantity);
+  const city = typeof input?.city === 'string' ? input.city.trim() : '';
+  const foc = Boolean(input?.focus);
+
+  if (!r) errors.push('INVALID_RECIPE');
+  if (typeof qual !== 'string' || !/^[4-8]\.[0-4]$/.test(qual)) errors.push('INVALID_QUALITY');
+  if (!Number.isInteger(q) || q <= 0) errors.push('INVALID_QUANTITY');
+  if (!city) errors.push('INVALID_CITY');
+  if (input?.focus !== undefined && typeof input.focus !== 'boolean') errors.push('INVALID_FOCUS');
+
+  if (errors.length > 0) {
+    return { ok: false, status: 'invalid-plan', row: null, errors };
+  }
+
+  const mk = `${r.main}_${qual}`;
+  const sk = `${r.sub}_${qual}`;
+  const rra = input?.customLocationSettings?.active
+    ? (foc ? input.customLocationSettings.focusReturnRate : (18 + input.customLocationSettings.mapBonus) / (100 + 18 + input.customLocationSettings.mapBonus))
+    : getRRA(r.category, city, foc);
+  const mainConsumption = calculateMaterialConsumption(r.mainBaseQty, q, rra);
+  const subConsumption = calculateMaterialConsumption(r.subBaseQty, q, rra);
+  let alcTier = null;
+  let alcQty = 0;
+  if (r.alchemyName) {
+    const req = getAlchemyRequirement(qual.split('.')[0]);
+    alcTier = req.tier;
+    alcQty = req.qty;
+  }
+
+  const row = {
+    id: Math.floor(Date.now() + Math.random() * 1000),
+    checked: true,
+    recipe: r,
+    qty: q,
+    quality: qual,
+    city,
+    focus: foc,
+    mainKey: mk,
+    mainQty: mainConsumption.expectedNetConsumption,
+    actualMainQty: '',
+    subKey: sk,
+    subQty: subConsumption.expectedNetConsumption,
+    actualSubQty: r.subBaseQty > 0 ? '' : 0,
+    tax: 0,
+    artifactPrice: 0,
+    artifactName: r.artifactVal > 0 || r.artifactName ? r.artifactName : null,
+    artifactQty: r.artifactQty || 1,
+    alchemyName: r.alchemyName,
+    alchemyTier: alcTier,
+    alchemyBaseQty: alcQty,
+    alchemyPrice: Number.isFinite(input?.alchemyPrice) && input.alchemyPrice >= 0 ? input.alchemyPrice : 0
+  };
+
+  craftingQueue.push(row);
+  return { ok: true, status: 'queued', row, errors: [] };
+}
 export function renderCraftingQueue() {
   const tb = document.getElementById('crafting-queue-tbody'); tb.innerHTML='';
   craftingQueue.forEach(q => {

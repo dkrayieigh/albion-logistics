@@ -5,6 +5,7 @@ import {
   calculateQuotation,
   getAlchemyRequirement
 } from '../calculators/quotationCalculator.js';
+import { enqueueCraftingPlan } from './crafting.js';
 
 const QUOTE_QUALITY_ROWS = [
   ['4.0', '4.1', '4.2', '4.3', '4.4'],
@@ -61,6 +62,24 @@ function selectedQuantity() {
   return quantity > 0 ? quantity : 1;
 }
 
+function selectedPlanInput() {
+  const city = byId('quote-city')?.value || 'Thetford';
+  return {
+    recipeName: selectedRecipe()?.name,
+    quality: quoteDraft.quality,
+    quantity: selectedQuantity(),
+    city,
+    focus: Boolean(byId('quote-focus')?.checked),
+    customLocationSettings: city === 'Hideout'
+      ? {
+          active: true,
+          mapBonus: numberFrom('quote-hideout-map-bonus'),
+          focusReturnRate: numberFrom('quote-hideout-focus-rrr') / 100
+        }
+      : null
+  };
+}
+
 function setDiscount(key, discount) {
   quoteDraft.discounts[key] = discount;
   renderQuotation();
@@ -103,7 +122,7 @@ function renderQualityMatrix() {
   container.innerHTML = '';
   if (!quoteDraft.quality) {
     const hint = document.createElement('div');
-    hint.innerText = '請選擇品質';
+    hint.innerText = '請先選擇品質';
     hint.className = 'quote-hint';
     container.appendChild(hint);
   }
@@ -221,9 +240,20 @@ function renderResult(quoteResult) {
     <div><span>預估單件成本</span><strong>${formatSilver(quote.unitCost)}</strong></div>
     <div><span>自訂報價毛利</span><strong>${formatSilver(quote.customQuote.profit)}</strong></div>
     <div><span>毛利率</span><strong>${formatPercent(quote.customQuote.marginRate)}</strong></div>
-  </div>`);
+  </div>
+  <button class="btn btn-primary" id="quote-add-to-queue" data-quote-action="enqueue">加入製作清單</button>`);
 }
 
+function enqueueCurrentPlan() {
+  const result = enqueueCraftingPlan(selectedPlanInput());
+  if (!result.ok) {
+    window.showToast?.(result.errors.join(', '), 'error');
+    return;
+  }
+
+  window.showToast?.('已加入製作清單', 'success');
+  document.getElementById('nav-tab-crafting')?.click?.();
+}
 function syncEstimateInputs(source) {
   const quantity = selectedQuantity();
   const unit = byId('quote-est-unit');
@@ -263,7 +293,7 @@ export function renderQuotation() {
   renderMaterialRows(recipe);
 
   if (!quoteDraft.quality) {
-    setHTML('quote-result-box', '<div class="suggestion-box">請先選擇品質。</div>');
+    setHTML('quote-result-box', '<div class="suggestion-box">請先選擇品質</div>');
     return;
   }
 
@@ -312,6 +342,9 @@ export function initQuotationEvents() {
     if (action === 'quick') {
       const value = Number(target.getAttribute('data-value'));
       if (Number.isFinite(value)) setQuoteTotal(value);
+    }
+    if (action === 'enqueue') {
+      enqueueCurrentPlan();
     }
   });
 

@@ -2064,6 +2064,146 @@ test('crafting after explicit quality selection uses selected quality and blank 
   assert.doesNotMatch(rowHtml, /queue-actual-main-qty[^>]*value="167"/);
 });
 
+test('planner enqueue helper accepts a valid plan and creates the compatible queue row only', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.artifactVal === 448 && item.mainBaseQty === 16);
+  state.assets.cash = 123456;
+  state.inventory = { keep: { qtyByCity: qtyByCity(9), globalAvgCost: 100 } };
+  state.transactions = [{ type: 'existing' }];
+
+  const result = Crafting.enqueueCraftingPlan({
+    recipeName: recipe.name,
+    quality: '5.3',
+    quantity: 20,
+    city: 'Bridgewatch',
+    focus: true,
+    prices: { shouldNotPersist: 1 },
+    discounts: { shouldNotPersist: 5 },
+    customQuoteTotal: 999999,
+    totalCost: 1,
+    unitCost: 1,
+    profit: 1,
+    marginRate: 0.1
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'queued');
+  assert.equal(craftingQueue.length, 1);
+  assert.equal(result.row, craftingQueue[0]);
+  assert.equal(result.row.recipe, recipe);
+  assert.equal(result.row.quality, '5.3');
+  assert.equal(result.row.qty, 20);
+  assert.equal(result.row.city, 'Bridgewatch');
+  assert.equal(result.row.focus, true);
+  assert.match(result.row.mainKey, /_5\.3$/);
+  assert.equal(result.row.mainQty, 167);
+  assert.equal(result.row.actualMainQty, '');
+  assert.equal(result.row.actualSubQty, 0);
+  assert.deepEqual(Object.keys(result.row).sort(), [
+    'actualMainQty',
+    'actualSubQty',
+    'alchemyBaseQty',
+    'alchemyName',
+    'alchemyPrice',
+    'alchemyTier',
+    'artifactName',
+    'artifactPrice',
+    'artifactQty',
+    'checked',
+    'city',
+    'focus',
+    'id',
+    'mainKey',
+    'mainQty',
+    'quality',
+    'qty',
+    'recipe',
+    'subKey',
+    'subQty',
+    'tax'
+  ].sort());
+  assert.equal(Object.hasOwn(result.row, 'prices'), false);
+  assert.equal(Object.hasOwn(result.row, 'discounts'), false);
+  assert.equal(Object.hasOwn(result.row, 'customQuoteTotal'), false);
+  assert.equal(Object.hasOwn(result.row, 'totalCost'), false);
+  assert.equal(Object.hasOwn(result.row, 'unitCost'), false);
+  assert.equal(Object.hasOwn(result.row, 'profit'), false);
+  assert.equal(Object.hasOwn(result.row, 'marginRate'), false);
+  assert.equal(state.assets.cash, 123456);
+  assert.deepEqual(state.inventory, { keep: { qtyByCity: qtyByCity(9), globalAvgCost: 100 } });
+  assert.deepEqual(state.transactions, [{ type: 'existing' }]);
+  assert.equal(storage.size, 0);
+});
+
+test('planner enqueue helper rejects invalid bounded plans without half rows', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.artifactVal === 448 && item.mainBaseQty === 16);
+
+  const invalidQuality = Crafting.enqueueCraftingPlan({
+    recipeName: recipe.name,
+    quality: '9.0',
+    quantity: 1,
+    city: 'Bridgewatch',
+    focus: false
+  });
+  const invalidQuantity = Crafting.enqueueCraftingPlan({
+    recipeName: recipe.name,
+    quality: '5.0',
+    quantity: 1.5,
+    city: 'Bridgewatch',
+    focus: false
+  });
+  const missingRecipe = Crafting.enqueueCraftingPlan({
+    recipeName: 'missing recipe',
+    quality: '5.0',
+    quantity: 1,
+    city: 'Bridgewatch',
+    focus: false
+  });
+
+  assert.deepEqual(invalidQuality, { ok: false, status: 'invalid-plan', row: null, errors: ['INVALID_QUALITY'] });
+  assert.deepEqual(invalidQuantity, { ok: false, status: 'invalid-plan', row: null, errors: ['INVALID_QUANTITY'] });
+  assert.deepEqual(missingRecipe, { ok: false, status: 'invalid-plan', row: null, errors: ['INVALID_RECIPE'] });
+  assert.equal(craftingQueue.length, 0);
+  assert.equal(state.transactions.length, 0);
+  assert.equal(storage.size, 0);
+});
+
+test('crafting page entry uses enqueue helper row shape and still renders the queue', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.artifactVal === 448 && item.mainBaseQty === 16);
+  const helper = Crafting.enqueueCraftingPlan({
+    recipeName: recipe.name,
+    quality: '5.3',
+    quantity: 20,
+    city: 'Bridgewatch',
+    focus: true
+  }).row;
+  const helperKeys = Object.keys(helper).sort();
+
+  craftingQueue.splice(0);
+  setCurrentCraftQuality('5.3');
+  getElement('craft-recipe').value = recipe.name;
+  getElement('craft-qty').value = '20';
+  getElement('craft-city').value = 'Bridgewatch';
+  getElement('craft-focus').checked = true;
+
+  Crafting.addToCraftingQueue();
+
+  assert.equal(craftingQueue.length, 1);
+  assert.deepEqual(Object.keys(craftingQueue[0]).sort(), helperKeys);
+  assert.equal(craftingQueue[0].recipe, recipe);
+  assert.equal(craftingQueue[0].quality, helper.quality);
+  assert.equal(craftingQueue[0].qty, helper.qty);
+  assert.equal(craftingQueue[0].city, helper.city);
+  assert.equal(craftingQueue[0].focus, helper.focus);
+  assert.equal(craftingQueue[0].mainKey, helper.mainKey);
+  assert.equal(craftingQueue[0].mainQty, helper.mainQty);
+  assert.equal(getElement('crafting-queue-tbody').rows.length, 1);
+  assert.equal(toasts.at(-1)?.type, 'success');
+  assert.equal(storage.size, 0);
+});
+
 test('queue material display uses full expected consumption and safe start stock labels', { concurrency: false }, () => {
   resetState();
   const recipe = Crafting.RECIPES.find(item => item.name === '審判者護甲');

@@ -268,8 +268,22 @@ test('quotation component source preserves estimates, quick quote, matrix, and r
   assert.match(source, /QUOTE_QUALITY_ROWS/);
   assert.match(source, /setQuoteTotal/);
   assert.match(source, /quoteDraft/);
+  assert.match(source, /enqueueCraftingPlan/);
+  assert.match(source, /data-quote-action="enqueue"/);
   assert.doesNotMatch(source, /from ['"].*core\/state\.js/);
   assert.doesNotMatch(source, /\bstate\b|saveState|localStorage|transactions|craftingQueue|dispatchEvent|submitPurchase|submitCraftAll|assets\.cash/);
+});
+
+test('quotation visible planner name and enqueue button use the bounded UI contract', () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
+
+  assert.match(html, /製作試算<br><span[^>]*>Planner<\/span>/);
+  assert.match(html, /製作試算 Planner/);
+  assert.doesNotMatch(html, /接單試算|Quotation Planner/);
+  assert.match(source, /加入製作清單/);
+  assert.match(source, /from ['"]\.\/crafting\.js['"]/);
+  assert.doesNotMatch(source, /from ['"]\.\/crafting\.js['"];\s*import/);
 });
 
 test('quotation production source does not touch storage schema backup reset or migration', () => {
