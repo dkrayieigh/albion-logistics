@@ -330,6 +330,17 @@ function isFormatNumInput(target) {
   return target?.classList?.contains('format-num');
 }
 
+function isNumericEntryInput(target) {
+  if (!target || target.tagName !== 'INPUT') return false;
+  if (target.disabled || target.readOnly) return false;
+  const type = (target.type || 'text').toLowerCase();
+  if (['hidden', 'file', 'checkbox', 'radio', 'button', 'submit', 'reset'].includes(type)) return false;
+  return isFormatNumInput(target) ||
+    type === 'number' ||
+    target.inputMode === 'numeric' ||
+    target.inputMode === 'decimal';
+}
+
 function cleanNumericInputValue(value) {
   const cleaned = String(value || '').replace(/[^\d,.-]/g, '');
   const negative = cleaned.trim().startsWith('-');
@@ -362,6 +373,10 @@ document.addEventListener('change', function(e) {
 document.addEventListener('blur', function(e) {
   if (isFormatNumInput(e.target)) formatNumericInput(e.target);
 }, true);
+
+document.addEventListener('focusin', function(e) {
+  if (isNumericEntryInput(e.target) && typeof e.target.select === 'function') e.target.select();
+});
 export function initGlobalEvents() {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', (e) => {

@@ -2344,10 +2344,82 @@ test('queue material display uses full expected consumption and safe start stock
 test('crafting queue labels special materials as unit cost inputs', { concurrency: false }, () => {
   const source = readFileSync(new URL('../src/components/crafting.js', import.meta.url), 'utf8');
 
-  assert.match(source, /Artifact Unit Cost/);
   assert.match(source, /Alchemy Unit Cost/);
   assert.match(source, /Fixed requirement/);
   assert.doesNotMatch(source, /Artifact[^`]*Actual Consumption|Alchemy[^`]*Actual Consumption/);
+});
+
+test('artifact queue input shows only artifact name while preserving input contract', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.artifactName && item.artifactQty > 1);
+  assert.ok(recipe);
+  craftingQueue.push({
+    id: 9202,
+    checked: true,
+    recipe,
+    qty: 2,
+    quality: '5.3',
+    city: 'Bridgewatch',
+    focus: false,
+    mainKey: `${recipe.main}_5.3`,
+    mainQty: 1,
+    actualMainQty: '',
+    subKey: `${recipe.sub}_5.3`,
+    subQty: 1,
+    actualSubQty: '',
+    tax: 0,
+    artifactPrice: 123456,
+    artifactName: recipe.artifactName,
+    artifactQty: recipe.artifactQty,
+    alchemyName: null
+  });
+
+  Crafting.renderCraftingQueue();
+
+  const row = getElement('crafting-queue-tbody').children[0];
+  assert.match(row.innerHTML, new RegExp(`<div style="font-size:0\\.7rem; color:var\\(--accent-cyan\\);">${recipe.artifactName}</div>`));
+  assert.doesNotMatch(row.innerHTML, /Artifact Unit Cost/);
+  assert.doesNotMatch(row.innerHTML, /Fixed requirement/);
+  assert.match(row.innerHTML, /class="format-num queue-art-price"/);
+  assert.match(row.innerHTML, /placeholder="[^"]+"/);
+  assert.match(row.innerHTML, /value="123456"/);
+  assert.match(row.innerHTML, /data-id="9202"/);
+});
+
+test('alchemy queue input keeps unit-cost and fixed-requirement label', { concurrency: false }, () => {
+  resetState();
+  const recipe = Crafting.RECIPES.find(item => item.alchemyName);
+  assert.ok(recipe);
+  craftingQueue.push({
+    id: 9203,
+    checked: true,
+    recipe,
+    qty: 2,
+    quality: '6.3',
+    city: 'Bridgewatch',
+    focus: false,
+    mainKey: `${recipe.main}_6.3`,
+    mainQty: 1,
+    actualMainQty: '',
+    subKey: `${recipe.sub}_6.3`,
+    subQty: 1,
+    actualSubQty: '',
+    tax: 0,
+    artifactPrice: 0,
+    artifactName: recipe.artifactName,
+    artifactQty: recipe.artifactQty,
+    alchemyName: recipe.alchemyName,
+    alchemyTier: 'T5',
+    alchemyBaseQty: 2,
+    alchemyPrice: 98765
+  });
+
+  Crafting.renderCraftingQueue();
+
+  const row = getElement('crafting-queue-tbody').children[0];
+  assert.match(row.innerHTML, /Alchemy Unit Cost/);
+  assert.match(row.innerHTML, /Fixed requirement: 2/);
+  assert.match(row.innerHTML, /class="format-num queue-alc-price"/);
 });
 
 test('crafting calculator no longer depends on removed consumption cards', { concurrency: false }, () => {

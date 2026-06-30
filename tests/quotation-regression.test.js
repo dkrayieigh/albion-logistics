@@ -596,6 +596,132 @@ class FakeElement {
   }
 }
 
+let appFocusImportId = 0;
+
+async function setupAppFocusHarness() {
+  const handlers = {};
+  globalThis.document = {
+    addEventListener(type, handler) {
+      if (!handlers[type]) handlers[type] = [];
+      handlers[type].push(handler);
+    },
+    querySelectorAll() {
+      return [];
+    },
+    getElementById() {
+      return null;
+    },
+    createElement() {
+      return new FakeElement();
+    }
+  };
+  globalThis.window = {};
+  globalThis.localStorage = {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {}
+  };
+  globalThis.alert = () => {};
+  globalThis.confirm = () => true;
+  await import(`../src/app.js?focus-regression=${appFocusImportId++}`);
+  return {
+    handlers,
+    focus(target) {
+      handlers.focusin?.forEach(handler => handler({ target }));
+    },
+    trigger(type, target) {
+      handlers[type]?.forEach(handler => handler({ target }));
+    }
+  };
+}
+
+function makeFocusTarget(overrides = {}) {
+  const classes = new Set((overrides.className || '').split(/\s+/).filter(Boolean));
+  const target = {
+    tagName: overrides.tagName ?? 'INPUT',
+    type: overrides.type ?? 'text',
+    inputMode: overrides.inputMode ?? '',
+    disabled: Boolean(overrides.disabled),
+    readOnly: Boolean(overrides.readOnly),
+    value: overrides.value ?? '12345678',
+    selectCalls: 0,
+    classList: {
+      contains(className) {
+        return classes.has(className);
+      }
+    },
+    select() {
+      this.selectCalls++;
+    }
+  };
+  if (overrides.select === null) delete target.select;
+  return target;
+}
+
+test('numeric entry focus selects format-num inputs once without changing value or dispatching input/change', async () => {
+  const harness = await setupAppFocusHarness();
+  const target = makeFocusTarget({ className: 'format-num', value: '12,345,678' });
+  let inputEvents = 0;
+  let changeEvents = 0;
+  harness.handlers.input?.push(() => { inputEvents++; });
+  harness.handlers.change?.push(() => { changeEvents++; });
+
+  harness.focus(target);
+  harness.trigger('click', target);
+
+  assert.equal(target.selectCalls, 1);
+  assert.equal(target.value, '12,345,678');
+  assert.equal(inputEvents, 0);
+  assert.equal(changeEvents, 0);
+});
+
+test('numeric entry focus selects inputmode numeric decimal and queue format-num inputs', async () => {
+  const harness = await setupAppFocusHarness();
+  const numeric = makeFocusTarget({ inputMode: 'numeric' });
+  const decimal = makeFocusTarget({ inputMode: 'decimal' });
+  const queue = makeFocusTarget({ className: 'format-num queue-art-price' });
+
+  harness.focus(numeric);
+  harness.focus(decimal);
+  harness.focus(queue);
+
+  assert.equal(numeric.selectCalls, 1);
+  assert.equal(decimal.selectCalls, 1);
+  assert.equal(queue.selectCalls, 1);
+});
+
+test('numeric entry focus excludes readonly disabled plain text and non-input targets', async () => {
+  const harness = await setupAppFocusHarness();
+  const readOnly = makeFocusTarget({ className: 'format-num', readOnly: true });
+  const disabled = makeFocusTarget({ className: 'format-num', disabled: true });
+  const plainText = makeFocusTarget({});
+  const nonInput = makeFocusTarget({ tagName: 'TEXTAREA', className: 'format-num' });
+
+  harness.focus(readOnly);
+  harness.focus(disabled);
+  harness.focus(plainText);
+  harness.focus(nonInput);
+
+  assert.equal(readOnly.selectCalls, 0);
+  assert.equal(disabled.selectCalls, 0);
+  assert.equal(plainText.selectCalls, 0);
+  assert.equal(nonInput.selectCalls, 0);
+});
+
+test('numeric entry focus excludes hidden button checkbox radio file submit reset and missing select', async () => {
+  const harness = await setupAppFocusHarness();
+  const excluded = ['hidden', 'button', 'checkbox', 'radio', 'file', 'submit', 'reset']
+    .map(type => makeFocusTarget({ type, className: 'format-num' }));
+  const missingSelect = makeFocusTarget({ className: 'format-num', select: null });
+
+  excluded.forEach(target => harness.focus(target));
+  harness.focus(missingSelect);
+
+  excluded.forEach(target => assert.equal(target.selectCalls, 0));
+  assert.equal(missingSelect.selectCalls, 0);
+  assert.equal(typeof missingSelect.select, 'undefined');
+});
+
 function makeFakeQuotationDocument() {
   const elements = new Map();
   const documentHandlers = {};
