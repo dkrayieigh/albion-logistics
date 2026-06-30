@@ -177,8 +177,9 @@ UI may accept unit cost or total cost. The command boundary receives normalized 
 Validation:
 
 - `identity` must be valid.
-- `quantity` must be a positive finite number.
-- `totalCost` must be finite and `>= 0`.
+- `quantity` must be a positive integer.
+- `totalCost` must be finite and `> 0`.
+- Zero-cost quantity increases are not purchases and require a separately approved adjustment or import rule.
 - `locationId` must resolve to an allowed active location.
 - cash handling follows the normal purchase rule.
 - no partial mutation is allowed.
