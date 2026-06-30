@@ -67,7 +67,7 @@ GitHub Actions 目前會自動探索並執行所有 `tests/**/*.test.js`。
 
 - New-schema backup import/export 尚未完成。
 - Factory Reset scope 尚未收斂，仍需避免 broad `localStorage.clear()`。
-- Formal special-material inventory 尚未實作。
+- Formal special-material inventory 尚未實作，且 implementation status 已凍結為 Paused。
 - Account-total product inventory 尚未實作。
 - Custom-location crafting profile 尚未定義。
 - Canonical transaction migration 尚未開始。
@@ -84,15 +84,64 @@ GitHub Actions 目前會自動探索並執行所有 `tests/**/*.test.js`。
 
 ## Active Workstreams
 
-1. Docs consolidation。
-2. Special-material inventory specification。
-3. Special-material regression test plan。
-4. Bounded command/service implementation。
-5. Custom-location crafting profile。
-6. Vite build-pipeline checkpoint。
-7. Progressive type checking。
+目前 active workstreams 只保留兩項：
 
-上述 workstreams 是 planning / target context，不代表已實作。
+1. Docs consolidation closeout。
+2. New-schema data safety stabilization。
+
+Docs consolidation closeout 已完成的部分：
+
+- `docs/README.md` 導覽入口。
+- `docs/CURRENT_STATUS.md` current summary。
+- 文件定位分類與閱讀順序。
+
+Docs consolidation closeout 尚未完成的部分：
+
+- planning / historical 文件整理。
+- 過時狀態文字改寫或移入 archive。
+- active-only `CURRENT_LIMITATIONS.md` 重整。
+- broken-link-safe archive relocation。
+
+New-schema data safety stabilization 聚焦：
+
+- new-schema backup lifecycle。
+- Factory Reset scope。
+- backup/reset 的 docs -> tests -> pure service -> production integration 順序。
+
+## Paused / Backlog Workstreams
+
+Paused 不代表取消；approved target 不代表 implementation authorization。
+
+- Special-material implementation。
+- Custom-location crafting profile。
+- Stable Item ID migration。
+- Canonical transaction migration。
+- Account-total product inventory。
+- Vite。
+- Progressive type checking。
+- CSP。
+- SQLite。
+- Location service extraction。
+
+## Data-safety Architecture Boundary
+
+Future data-safety implementation boundary：
+
+```text
+UI
+-> backup/reset application service
+-> codec/validation
+-> repository/storage backend
+```
+
+Boundary rules：
+
+- This is future implementation boundary, not current implementation。
+- Do not split `state.js` preemptively。
+- Export、import、reset must remain separate checkpoints。
+- Do not wire everything into the production path in one step。
+- `app.js` should call pure services only after tests and service contracts exist。
+- This section does not define SQLite or canonical transaction work。
 
 ## Reviewed Core Specifications
 

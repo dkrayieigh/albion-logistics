@@ -1,5 +1,53 @@
 # Albion Logistics ERP Current Limitations
 
+## New-schema backup lifecycle
+
+Status: Active
+Risk: High
+Affected area: Backup / Storage
+
+Current behavior:
+
+- Production export still uses legacy storage keys.
+- Production import still writes legacy storage keys.
+- Active v2 key is not yet included in a production backup round-trip.
+- Existing backup regression coverage mainly protects the legacy path.
+
+Exit conditions:
+
+- v2 backup envelope / version is defined.
+- Active v2 state can be exported.
+- v2 import is validated.
+- Invalid input causes zero mutation.
+- Write failure rollback is covered.
+- Export/import round-trip regression exists.
+- Legacy backup policy is explicitly documented.
+- Manual smoke checklist is complete.
+
+This section documents the limitation only. It does not define implementation code or service API.
+
+## Factory Reset scope
+
+Status: Active
+Risk: High
+Affected area: Storage / Reset
+
+Current behavior:
+
+- Reset still uses broad `localStorage.clear()`.
+- This can affect keys beyond Albion Logistics if the same origin contains unrelated storage.
+
+Exit conditions:
+
+- Albion Logistics owned storage keys are explicitly defined.
+- Reset only removes owned keys.
+- Unrelated `localStorage` keys are preserved.
+- v2 and explicit legacy mode behavior is documented.
+- Cancelled / failed reset causes zero mutation.
+- Regression tests and manual smoke checklist are complete.
+
+This section documents the limitation only. It does not define implementation code or service API.
+
 ## 文件定位
 本文件記錄目前系統仍存在的限制、技術債與尚未完成的重構項目。
 

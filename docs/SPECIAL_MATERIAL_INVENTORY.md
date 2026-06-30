@@ -3,11 +3,14 @@
 Status: Target
 Authority: Approved specification
 Current implementation: Not implemented
+Implementation status: Paused
 Last reviewed: 2026-06-30
 
 本文件定義 Artifact / Alchemy 特殊材料庫存的 approved target specification。這不是 current implementation 宣告，也不代表 schema、storage、writer、backup、transaction payload 或 UI 已完成。
 
 本文件不得被解讀為要求立即修改 `src`、tests、storage key、`schemaVersion`、backup format、transaction payload、custom location implementation 或 release/version metadata。
+
+Paused means this target is not active implementation work. No tests, helper, writer/storage, UI, or crafting integration is authorized by this file. Special-material implementation is blocked until new-schema backup lifecycle, import atomicity, and scoped reset are complete.
 
 ## A. Current Implementation Summary
 
@@ -284,7 +287,7 @@ All remaining unresolved decisions can be deferred to tests-only pure contract w
 
 ## J. Next Approved Step
 
-Next approved step: **Tests-only special-material pure contract**.
+Next approved step after data-safety stabilization: **Tests-only special-material pure contract**.
 
 Scope:
 
