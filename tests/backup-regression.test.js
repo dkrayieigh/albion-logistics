@@ -877,7 +877,9 @@ test('TEST-B04: valid v2 backup imports through production restore service only'
   assert.deepEqual(storageSetCalls.map(call => call.key), [NEW_SCHEMA_STORAGE_KEY]);
   assert.deepEqual(storageRemoveCalls, []);
   assert.deepEqual(Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, localStorage.getItem(key)])), beforeLegacy);
-  assert.notEqual(localStorage.getItem(NEW_SCHEMA_STORAGE_KEY), encodeNewSchemaState(initialCanonical).serialized);
+  const decodedImported = decodeNewSchemaState(localStorage.getItem(NEW_SCHEMA_STORAGE_KEY));
+  assert.equal(decodedImported.ok, true);
+  assert.deepEqual(decodedImported.state, importedCanonical);
   assert.equal(JSON.stringify(state), beforeRuntime);
 });
 
@@ -1084,6 +1086,101 @@ test('TEST-B04: v2 envelope in legacy mode is rejected without legacy writes', {
   assert.deepEqual(storageRemoveCalls, []);
   assert.equal(reloadCount, 0);
   assert.match(alerts.at(-1) || '', /JSON 格式不符|JSON 解析錯誤/);
+});
+
+test('TEST-B04: legacy import rejects mixed v2 envelope and legacy roots before field parsing', { concurrency: false }, () => {
+  resetMocks();
+  startProductionLegacyMode();
+  resetExportTracking();
+  const mixedBackup = {
+    format: 'albion-logistics-backup',
+    backupFormatVersion: 1,
+    exportedAt: '2026-06-30T00:00:00.000Z',
+    state: makeRuntimeBridgeNewSchemaState(),
+    inventory: {},
+    assets: { cash: 0, debt: 0 },
+    transactions: []
+  };
+
+  importBackupText(JSON.stringify(mixedBackup));
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /AMBIGUOUS_BACKUP_FORMAT/);
+});
+
+test('TEST-B04: legacy import rejects unknown format marker with legacy roots as ambiguous', { concurrency: false }, () => {
+  resetMocks();
+  startProductionLegacyMode();
+  resetExportTracking();
+
+  importBackupText(JSON.stringify({
+    format: 'unknown-backup',
+    inventory: {},
+    assets: { cash: 0, debt: 0 },
+    transactions: []
+  }));
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /AMBIGUOUS_BACKUP_FORMAT/);
+});
+
+test('TEST-B04: legacy import rejects unknown format marker without legacy roots as unsupported', { concurrency: false }, () => {
+  resetMocks();
+  startProductionLegacyMode();
+  resetExportTracking();
+
+  importBackupText(JSON.stringify({
+    format: 'unknown-backup',
+    state: {}
+  }));
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /UNSUPPORTED_BACKUP_FORMAT/);
+});
+
+test('TEST-B04: legacy import rejects malformed root before confirm or mutation', { concurrency: false }, () => {
+  resetMocks();
+  startProductionLegacyMode();
+  resetExportTracking();
+
+  importBackupText(JSON.stringify([]));
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /INVALID_BACKUP_ROOT/);
+});
+
+test('TEST-B04: valid legacy import preserves existing v2 raw string', { concurrency: false }, () => {
+  resetMocks();
+  startProductionLegacyMode();
+  localStorage.setItem(NEW_SCHEMA_STORAGE_KEY, 'sentinel-v2-raw');
+  resetExportTracking();
+
+  importBackup({
+    inventory: {},
+    assets: { cash: 1, debt: 0 },
+    transactions: [],
+    laborerInventory: {},
+    laborerLogs: [],
+    customLocations: []
+  });
+
+  assert.equal(confirmCalls, 1);
+  assert.equal(reloadCount, 1);
+  assert.equal(localStorage.getItem(NEW_SCHEMA_STORAGE_KEY), 'sentinel-v2-raw');
+  assert.deepEqual(storageSetCalls.map(call => call.key), LEGACY_STORAGE_KEYS);
+  assert.deepEqual(storageRemoveCalls, []);
 });
 
 test('TEST-B04: readable JSON backup imports, reloads, and remains loadState-compatible', { concurrency: false }, () => {

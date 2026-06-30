@@ -232,9 +232,12 @@ async function exportData() {
 }
 
 function importLegacyBackupText(text) {
+  const classified = parseBackup(text);
+  if (!classified.ok) return alert(formatImportError(classified.errors, classified.innerErrors));
+  if (classified.status === 'v2') return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
+
   try {
-    const data = JSON.parse(text);
-    if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.hasOwn(data, 'inventory') || !Object.hasOwn(data, 'assets') || !Object.hasOwn(data, 'transactions')) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
+    const data = classified.legacyPayload;
     const parseBackupField = value => typeof value === 'string' ? JSON.parse(value) : value;
     const inventory = parseBackupField(data.inventory); const assets = parseBackupField(data.assets); const transactions = parseBackupField(data.transactions);
     const laborerInventory = Object.hasOwn(data, 'laborerInventory') ? parseBackupField(data.laborerInventory) : undefined; const laborerLogs = Object.hasOwn(data, 'laborerLogs') ? parseBackupField(data.laborerLogs) : undefined; const customLocations = Object.hasOwn(data, 'customLocations') ? parseBackupField(data.customLocations) : undefined;
