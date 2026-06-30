@@ -3,7 +3,7 @@ import {
   decodeNewSchemaState
 } from './newSchemaStorageCodec.js';
 
-const NEW_SCHEMA_STORAGE_KEY = 'albion-logistics-v2-state';
+export const NEW_SCHEMA_STORAGE_KEY = 'albion-logistics-v2-state';
 
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
