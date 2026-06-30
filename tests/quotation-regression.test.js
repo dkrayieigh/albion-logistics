@@ -8,6 +8,7 @@ import {
 } from '../src/calculators/quotationCalculator.js';
 import { TAX_RATE } from '../src/data/constants.js';
 import { resolveGeneralMaterialDisplayName } from '../src/presenters/materialDisplay.js';
+import { formatSilver, parseNum } from '../src/utils/formatters.js';
 
 const plainRecipe = {
   name: 'Plain Item',
@@ -415,6 +416,13 @@ test('quotation planner cleanup uses intake wording display mapping and static r
   assert.match(html, /85% EMV/);
   assert.match(html, /GP 8%/);
   assert.match(html, /GP 10%/);
+  assert.match(html, /<button class="btn btn-secondary" id="quote-quick-90" data-quote-action="quick">90% EMV<\/button>/);
+  assert.match(html, /<button class="btn btn-secondary" id="quote-quick-85" data-quote-action="quick">85% EMV<\/button>/);
+  assert.match(html, /<button class="btn btn-secondary" id="quote-quick-margin-8" data-quote-action="quick">GP 8%<\/button>/);
+  assert.match(html, /<button class="btn btn-secondary" id="quote-quick-margin-10" data-quote-action="quick">GP 10%<\/button>/);
+  assert.match(html, /GP 8% reference/);
+  assert.match(html, /GP 10% reference/);
+  assert.doesNotMatch(html, /quote-quick-90-label|quote-quick-85-label/);
   assert.match(html, /<option value="鋼條">鋼條 \/ Bars<\/option>/);
   assert.match(html, /<option value="布料">布料 \/ Cloth<\/option>/);
   assert.match(html, /<option value="板材">板材 \/ Planks<\/option>/);
@@ -423,6 +431,8 @@ test('quotation planner cleanup uses intake wording display mapping and static r
   assert.match(source, /resolveGeneralMaterialDisplayName\(recipe\.sub\)/);
   assert.match(source, /resetQuoteOutputs/);
   assert.match(source, /setQuickQuoteValue/);
+  assert.doesNotMatch(source, /quote-quick-90-label|quote-quick-85-label/);
+  assert.doesNotMatch(source, /Choose Target to enter material estimates/);
   assert.doesNotMatch(source, /setHTML\('quote-result-box', `<div class="quote-summary-grid"/);
 });
 
@@ -441,8 +451,9 @@ test('quotation material estimate rows keep discounts only for normal materials'
   assert.match(html, /Material Estimates/);
   assert.match(source, /const materialRows/);
   assert.match(source, /const specialRows/);
-  assert.match(source, /特殊材料<br><span>Special Materials<\/span>/);
+  assert.match(source, /<label class="form-label">特殊材料<br><span style="font-size: 0\.8em; opacity: 0\.7;">Special Materials<\/span><\/label>/);
   assert.match(source, /Special Materials/);
+  assert.doesNotMatch(source, /quote-special-heading/);
   assert.match(source, /Fixed requirement/);
   assert.match(source, /renderMaterialEstimateRows[\s\S]*renderDiscountButtons\(row\.key\)/);
   assert.doesNotMatch(source, /renderSpecialEstimateRows[\s\S]*renderDiscountButtons\(row\.key\)/);
@@ -500,6 +511,39 @@ test('quotation price edits refresh calculation without rebuilding material inpu
   assert.doesNotMatch(source, /data-quote-action'\) === 'price'\) renderQuotation\(\)/);
   assert.match(source, /setDiscount\(key, discount\)[\s\S]*refreshQuotationCalculation\(\)/);
   assert.match(source, /quote-price-\$\{lineKey\}/);
+});
+
+test('quotation money formatter displays grouped integers while parser keeps numeric inputs', () => {
+  assert.equal(formatSilver(2140000), '2,140,000');
+  assert.equal(formatSilver(1926000), '1,926,000');
+  assert.equal(formatSilver(16987274), '16,987,274');
+  assert.equal(formatSilver(-15061274), '-15,061,274');
+  assert.equal(formatSilver(0), '0');
+  assert.equal(parseNum('2140000'), 2140000);
+  assert.equal(parseNum('2,140,000'), 2140000);
+});
+
+test('format-num input source formats on blur or change without input-time comma rewriting', () => {
+  const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /cleanNumericInputValue/);
+  assert.match(app, /formatNumericInput/);
+  assert.match(app, /document\.addEventListener\('change'[\s\S]*formatNumericInput/);
+  assert.match(app, /document\.addEventListener\('blur'[\s\S]*formatNumericInput/);
+  assert.match(app, /formatSilver\(parseNum\(raw\)\)/);
+  assert.doesNotMatch(app, /document\.addEventListener\('input'[\s\S]*toLocaleString\(\)/);
+});
+
+test('quotation margin presentation can show uncapped negative percentages with tone classes', () => {
+  const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+
+  assert.equal(((-15061274 / 1926000) * 100).toFixed(1), '-782.0');
+  assert.match(source, /formatPercent\(quote\.customQuote\.marginRate\)/);
+  assert.match(source, /setToneClass\('quote-profit', quote\.customQuote\.profit\)/);
+  assert.match(source, /setToneClass\('quote-margin', quote\.customQuote\.marginRate\)/);
+  assert.match(css, /\.quote-tone-positive\s*\{[^}]*color:\s*var\(--accent-green\)/s);
+  assert.match(css, /\.quote-tone-negative\s*\{[^}]*color:\s*var\(--accent-red\)/s);
 });
 
 test('quotation autocomplete policy is present without app owned input history', () => {

@@ -1,4 +1,4 @@
-﻿import { escapeHTML } from './utils/formatters.js';
+﻿import { escapeHTML, formatSilver, parseNum } from './utils/formatters.js';
 import {
   state,
   enableNewSchemaRuntime,
@@ -199,58 +199,49 @@ function importData(e) {
   reader.readAsText(file); e.target.value = '';
 }
 
-// === 全局事件監聽 (解決千分位游標跳動) ===
+const DECIMAL_RATE_INPUT_IDS = new Set([
+  'hideout-map-bonus',
+  'hideout-focus-rrr',
+  'quote-hideout-map-bonus',
+  'quote-hideout-focus-rrr'
+]);
+
+function isFormatNumInput(target) {
+  return target?.classList?.contains('format-num');
+}
+
+function cleanNumericInputValue(value) {
+  const cleaned = String(value || '').replace(/[^\d,.-]/g, '');
+  const negative = cleaned.trim().startsWith('-');
+  const unsigned = cleaned.replace(/-/g, '');
+  const [integerPart, ...decimalParts] = unsigned.split('.');
+  const decimal = decimalParts.length > 0 ? `.${decimalParts.join('')}` : '';
+  return `${negative ? '-' : ''}${integerPart}${decimal}`;
+}
+
+function formatNumericInput(input) {
+  if (!input || DECIMAL_RATE_INPUT_IDS.has(input.id)) return;
+  const raw = cleanNumericInputValue(input.value);
+  if (raw === '' || raw === '-') return;
+  input.value = formatSilver(parseNum(raw));
+}
+
+// === 全局事件監聽：輸入時不重排千分位，blur/change 才格式化 ===
 document.addEventListener('input', function(e) {
-  if (e.target.classList.contains('format-num')) {
+  if (isFormatNumInput(e.target)) {
     const input = e.target;
-    let cursorPos = input.selectionStart;
-    const oldVal = input.value;
-    
-    // 若不支援 selectionStart (防呆)，則直接使用舊版邏輯
-    if (cursorPos === null) {
-      let rawVal = oldVal.replace(/[^\d-]/g, '');
-      if (rawVal === '' || rawVal === '-') return;
-      let parsed = parseInt(rawVal, 10);
-      if (!isNaN(parsed)) input.value = parsed.toLocaleString();
-      return;
-    }
-
-    // 計算游標前有幾個「有效字元」(數字或負號)
-    let validCharsBefore = 0;
-    for (let i = 0; i < cursorPos; i++) {
-      if (/[0-9-]/.test(oldVal[i])) {
-        validCharsBefore++;
-      }
-    }
-
-    // 濾除雜訊
-    let rawVal = oldVal.replace(/[^\d-]/g, '');
-    if (rawVal === '' || rawVal === '-') return;
-
-    let parsed = parseInt(rawVal, 10);
-    if (!isNaN(parsed)) {
-      const newVal = parsed.toLocaleString();
-      input.value = newVal;
-
-      // 計算還原游標的新位置
-      let newCursorPos = newVal.length;
-      let validCharCount = 0;
-      
-      for (let i = 0; i < newVal.length; i++) {
-        if (validCharCount === validCharsBefore) {
-          newCursorPos = i;
-          break;
-        }
-        if (/[0-9-]/.test(newVal[i])) {
-          validCharCount++;
-        }
-      }
-
-      input.setSelectionRange(newCursorPos, newCursorPos);
-    }
+    const cleaned = cleanNumericInputValue(input.value);
+    if (input.value !== cleaned) input.value = cleaned;
   }
 });
 
+document.addEventListener('change', function(e) {
+  if (isFormatNumInput(e.target)) formatNumericInput(e.target);
+});
+
+document.addEventListener('blur', function(e) {
+  if (isFormatNumInput(e.target)) formatNumericInput(e.target);
+}, true);
 export function initGlobalEvents() {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', (e) => {

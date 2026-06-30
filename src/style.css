@@ -586,14 +586,6 @@ input[type="number"]::-webkit-inner-spin-button {
   background: rgba(255, 255, 255, 0.035);
 }
 
-.quote-special-heading {
-  color: var(--accent-yellow);
-  font-size: 0.82rem;
-  font-weight: 700;
-  margin-top: 4px;
-  text-transform: uppercase;
-}
-
 .quote-discounts {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -610,6 +602,14 @@ input[type="number"]::-webkit-inner-spin-button {
 .quote-muted {
   color: var(--text-muted);
   font-size: 0.78rem;
+}
+
+.quote-tone-positive {
+  color: var(--accent-green);
+}
+
+.quote-tone-negative {
+  color: var(--accent-red);
 }
 
 .quote-quick-grid {

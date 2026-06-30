@@ -36,6 +36,14 @@ function setHTML(id, html) {
   if (element) element.innerHTML = html;
 }
 
+function setToneClass(id, value) {
+  const element = byId(id);
+  if (!element) return;
+  element.classList.remove('quote-tone-positive', 'quote-tone-negative');
+  if (value > 0) element.classList.add('quote-tone-positive');
+  if (value < 0) element.classList.add('quote-tone-negative');
+}
+
 function numberFrom(id) {
   return parseNum(byId(id)?.value || '0');
 }
@@ -102,13 +110,12 @@ function materialPrice(lineKey) {
   return numberFrom(getPriceKey(lineKey));
 }
 
-function setQuickQuoteValue(buttonId, labelId, value) {
+function setQuickQuoteValue(buttonId, value) {
   const button = byId(buttonId);
   if (button) {
     if (value === null || value === undefined) button.removeAttribute('data-value');
     else button.setAttribute('data-value', value);
   }
-  if (labelId) setText(labelId, value === null || value === undefined ? '0' : formatSilver(value));
 }
 
 function resetQuoteOutputs() {
@@ -125,10 +132,12 @@ function resetQuoteOutputs() {
   setText('quote-ref-margin-10', '0');
   setText('quote-profit', '0');
   setText('quote-margin', '-');
-  setQuickQuoteValue('quote-quick-90', 'quote-quick-90-label', null);
-  setQuickQuoteValue('quote-quick-85', 'quote-quick-85-label', null);
-  setQuickQuoteValue('quote-quick-margin-8', null, null);
-  setQuickQuoteValue('quote-quick-margin-10', null, null);
+  setToneClass('quote-profit', 0);
+  setToneClass('quote-margin', null);
+  setQuickQuoteValue('quote-quick-90', null);
+  setQuickQuoteValue('quote-quick-85', null);
+  setQuickQuoteValue('quote-quick-margin-8', null);
+  setQuickQuoteValue('quote-quick-margin-10', null);
 }
 
 function renderDiscountButtons(key) {
@@ -216,7 +225,7 @@ function buildInputs(recipe) {
 
 function renderMaterialRows(recipe) {
   if (!recipe) {
-    setHTML('quote-material-inputs', '<div class="quote-hint">🔍 Choose Target to enter material estimates.</div>');
+    setHTML('quote-material-inputs', '');
     return;
   }
 
@@ -257,7 +266,7 @@ function renderMaterialRows(recipe) {
     </div>`;
   }).join('');
   const specialHtml = specialRows.length > 0
-    ? `<div class="quote-special-heading">特殊材料<br><span>Special Materials</span></div>${renderSpecialEstimateRows(specialRows)}`
+    ? `<label class="form-label">特殊材料<br><span style="font-size: 0.8em; opacity: 0.7;">Special Materials</span></label>${renderSpecialEstimateRows(specialRows)}`
     : '';
 
   setHTML('quote-material-inputs', `${renderMaterialEstimateRows(materialRows)}${specialHtml}`);
@@ -287,10 +296,10 @@ function renderResult(quoteResult) {
   setText('quote-ref-85', formatSilver(quote.references.estimate85));
   setText('quote-ref-margin-8', formatSilver(quote.references.margin8));
   setText('quote-ref-margin-10', formatSilver(quote.references.margin10));
-  setText('quote-quick-90-label', formatSilver(quote.references.estimate90));
-  setText('quote-quick-85-label', formatSilver(quote.references.estimate85));
   setText('quote-profit', formatSilver(quote.customQuote.profit));
   setText('quote-margin', formatPercent(quote.customQuote.marginRate));
+  setToneClass('quote-profit', quote.customQuote.profit);
+  setToneClass('quote-margin', quote.customQuote.marginRate);
 
   setHTML('quote-result-box', '<button class="btn btn-primary" id="quote-add-to-queue" data-quote-action="enqueue">加入製作清單<br><span style="font-size:0.8em;opacity:0.7;">Add to Queue</span></button>');
 }
@@ -421,8 +430,8 @@ export function updateQuickQuoteButtons() {
   const result = calculateQuotation(buildInputs(recipe));
   if (!result.ok) return;
   const refs = result.quote.references;
-  setQuickQuoteValue('quote-quick-90', 'quote-quick-90-label', refs.estimate90);
-  setQuickQuoteValue('quote-quick-85', 'quote-quick-85-label', refs.estimate85);
-  setQuickQuoteValue('quote-quick-margin-8', null, refs.margin8);
-  setQuickQuoteValue('quote-quick-margin-10', null, refs.margin10);
+  setQuickQuoteValue('quote-quick-90', refs.estimate90);
+  setQuickQuoteValue('quote-quick-85', refs.estimate85);
+  setQuickQuoteValue('quote-quick-margin-8', refs.margin8);
+  setQuickQuoteValue('quote-quick-margin-10', refs.margin10);
 }
