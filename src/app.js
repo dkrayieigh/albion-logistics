@@ -23,6 +23,7 @@ import { createBrowserStorageBackend } from './adapters/browserStorageBackend.js
 import { parseBackup } from './adapters/newSchemaBackupCodec.js';
 import { restoreBackup } from './services/newSchemaBackupImportService.js';
 import { createBackupFromRepository } from './services/newSchemaBackupExportService.js';
+import { resetOwnedStorage } from './services/scopedFactoryResetService.js';
 
 // ==========================================
 // 全域共用 UI 函式
@@ -52,10 +53,33 @@ function switchTab(tId) {
 
 function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
 
+function formatResetError(errors, innerErrors = []) {
+  const codes = [
+    ...(Array.isArray(errors) ? errors : []),
+    ...(Array.isArray(innerErrors) ? innerErrors : [])
+  ];
+  return `Factory Reset 失敗：${codes.length > 0 ? codes.join(', ') : 'RESET_FAILED'}`;
+}
+
 function resetSystemData() {
-  if (confirm('⚠️ 警告：這將會清除您所有的庫存、流水帳與設定資料，且無法復原！\n確定要清空嗎？')) {
-    localStorage.clear(); location.reload();
+  const confirmed = confirm('⚠️ 警告：這會刪除 Albion Logistics 的新版與 legacy 資料，且無法復原。\n不會刪除同 origin 的其他非 Albion Logistics 資料。\n成功後系統將重新載入。\n確定要執行 Factory Reset 嗎？');
+  if (!confirmed) return;
+
+  const binding = createBrowserStorageBackend(localStorage);
+  if (!binding.ok) return alert(formatResetError(binding.errors));
+
+  const result = resetOwnedStorage(binding.backend);
+  if (result.ok && result.status === 'reset-complete') {
+    alert('Factory Reset 成功，系統將重新載入。');
+    location.reload();
+    return;
   }
+  if (result.ok && result.status === 'reset-noop') {
+    alert('目前沒有可清除的 Albion Logistics 資料。');
+    return;
+  }
+
+  alert(formatResetError(result.errors, result.innerErrors));
 }
 
 // 供 Crafting 與 App 共用的品質藥丸渲染

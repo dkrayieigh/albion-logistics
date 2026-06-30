@@ -70,11 +70,15 @@ let toastCalls = [];
 let storageGetCalls = [];
 let storageSetCalls = [];
 let storageRemoveCalls = [];
+let clearCalls = 0;
 let fileReaderReads = 0;
 let fileReaderShouldError = false;
 
 globalThis.localStorage = {
-  clear: () => storage.clear(),
+  clear: () => {
+    clearCalls++;
+    storage.clear();
+  },
   getItem: key => {
     storageGetCalls.push(key);
     return storage.get(key) ?? null;
@@ -163,6 +167,7 @@ function resetMocks() {
   storageGetCalls = [];
   storageSetCalls = [];
   storageRemoveCalls = [];
+  clearCalls = 0;
   fileReaderReads = 0;
   fileReaderShouldError = false;
   delete window.__TAURI__;
@@ -177,6 +182,17 @@ function resetExportTracking() {
   storageGetCalls = [];
   storageSetCalls = [];
   storageRemoveCalls = [];
+  clearCalls = 0;
+}
+
+function resetResetTracking() {
+  alerts = [];
+  confirmCalls = 0;
+  reloadCount = 0;
+  storageGetCalls = [];
+  storageSetCalls = [];
+  storageRemoveCalls = [];
+  clearCalls = 0;
 }
 
 function seedStorage(data) {
@@ -522,6 +538,17 @@ const LEGACY_STORAGE_KEYS = [
   'albion_crafting_custom_locs'
 ];
 
+const OWNED_STORAGE_KEYS = [
+  NEW_SCHEMA_STORAGE_KEY,
+  ...LEGACY_STORAGE_KEYS
+];
+
+const UNRELATED_STORAGE_SENTINELS = {
+  'unrelated-key': 'keep-unrelated',
+  'albion-logistics-v2-state-extra': 'keep-v2-like',
+  albion_crafting_unknown: 'keep-legacy-like'
+};
+
 const CURRENT_RUNTIME_LOCATION_KEYS = [
   'LaborerIsland',
   'Fort Sterling',
@@ -556,6 +583,46 @@ function makeValidSerializedNewSchemaState() {
 
   assert.equal(encoded.ok, true);
   return encoded.serialized;
+}
+
+function seedOwnedStorage(entries = makeOwnedStorageEntries()) {
+  for (const [key, value] of Object.entries(entries)) {
+    localStorage.setItem(key, value);
+  }
+}
+
+function makeOwnedStorageEntries(prefix = 'owned') {
+  return Object.fromEntries(OWNED_STORAGE_KEYS.map((key, index) => [key, `${prefix}:${index}:${key}`]));
+}
+
+function seedUnrelatedStorageSentinels() {
+  for (const [key, value] of Object.entries(UNRELATED_STORAGE_SENTINELS)) {
+    localStorage.setItem(key, value);
+  }
+}
+
+function assertOwnedStorageAbsent() {
+  for (const key of OWNED_STORAGE_KEYS) assert.equal(storage.has(key), false, key);
+}
+
+function assertOwnedStorageRestored(snapshot) {
+  for (const key of OWNED_STORAGE_KEYS) {
+    if (Object.hasOwn(snapshot, key)) assert.equal(storage.get(key), snapshot[key], key);
+    else assert.equal(storage.has(key), false, key);
+  }
+}
+
+function assertUnrelatedSentinelsUntouched() {
+  for (const [key, value] of Object.entries(UNRELATED_STORAGE_SENTINELS)) {
+    assert.equal(storage.get(key), value, key);
+    assert.equal(storageGetCalls.includes(key), false, key);
+    assert.equal(storageSetCalls.some(call => call.key === key), false, key);
+    assert.equal(storageRemoveCalls.includes(key), false, key);
+  }
+}
+
+function runFactoryReset() {
+  getElement('btn-reset-system').handlers.click();
 }
 
 const BROWSER_STORAGE_BACKEND_ERROR_ORDER = [
@@ -626,6 +693,230 @@ function customIdGenerator(...ids) {
   let index = 0;
   return () => ids[index++];
 }
+
+test('TEST-B04: Factory Reset confirmation cancel does not compose backend mutate clear or reload', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  seedOwnedStorage();
+  seedUnrelatedStorageSentinels();
+  resetResetTracking();
+  confirmResult = false;
+
+  runFactoryReset();
+
+  assert.equal(confirmCalls, 1);
+  assert.deepEqual(storageGetCalls, []);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 0);
+  assert.deepEqual(alerts, []);
+});
+
+test('TEST-B04: Factory Reset clears all owned keys in v2 mode through scoped service only', { concurrency: false }, () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  startProductionV2Mode(canonical);
+  for (const key of LEGACY_STORAGE_KEYS) localStorage.setItem(key, `legacy:${key}`);
+  seedUnrelatedStorageSentinels();
+  const beforeRuntime = JSON.stringify(state);
+  resetResetTracking();
+
+  runFactoryReset();
+
+  assert.equal(confirmCalls, 1);
+  assertOwnedStorageAbsent();
+  assertUnrelatedSentinelsUntouched();
+  assert.deepEqual(storageGetCalls, [...OWNED_STORAGE_KEYS, ...OWNED_STORAGE_KEYS]);
+  assert.deepEqual(storageRemoveCalls, OWNED_STORAGE_KEYS);
+  assert.deepEqual(storageSetCalls, []);
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 1);
+  assert.equal(alerts.some(message => /成功|清除/.test(message)), true);
+  assert.equal(JSON.stringify(state), beforeRuntime);
+});
+
+test('TEST-B04: Factory Reset in legacy mode removes legacy keys and v2 sentinel', { concurrency: false }, () => {
+  resetMocks();
+  startProductionLegacyMode();
+  seedOwnedStorage(makeOwnedStorageEntries('legacy-mode'));
+  seedUnrelatedStorageSentinels();
+  resetResetTracking();
+
+  runFactoryReset();
+
+  assertOwnedStorageAbsent();
+  assertUnrelatedSentinelsUntouched();
+  assert.deepEqual(storageRemoveCalls, OWNED_STORAGE_KEYS);
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 1);
+});
+
+test('TEST-B04: Factory Reset can recover blocked startup by scoped owned-key reset', { concurrency: false }, () => {
+  resetMocks();
+  localStorage.setItem(NEW_SCHEMA_STORAGE_KEY, '{"schemaVersion":2}');
+  for (const key of LEGACY_STORAGE_KEYS) localStorage.setItem(key, `legacy:${key}`);
+  seedUnrelatedStorageSentinels();
+  const startup = startApplicationState(localStorage, {
+    showBlockedError() {}
+  });
+  assert.equal(startup.ok, false);
+  resetResetTracking();
+
+  runFactoryReset();
+
+  assertOwnedStorageAbsent();
+  assertUnrelatedSentinelsUntouched();
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 1);
+});
+
+test('TEST-B04: Factory Reset reports reset-noop without writes clears or reload', { concurrency: false }, () => {
+  resetMocks();
+  seedUnrelatedStorageSentinels();
+  resetResetTracking();
+
+  runFactoryReset();
+
+  assert.deepEqual(storageGetCalls, OWNED_STORAGE_KEYS);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 0);
+  assert.equal(alerts.some(message => /沒有|無/.test(message) && /清除|資料/.test(message)), true);
+  assertUnrelatedSentinelsUntouched();
+});
+
+test('TEST-B04: Factory Reset reports backend composition failure without mutation or reload', { concurrency: false }, () => {
+  resetMocks();
+  seedOwnedStorage();
+  seedUnrelatedStorageSentinels();
+  resetResetTracking();
+  const originalRemoveItem = localStorage.removeItem;
+  Object.defineProperty(localStorage, 'removeItem', {
+    configurable: true,
+    get() {
+      throw new Error('remove getter failed');
+    }
+  });
+
+  try {
+    runFactoryReset();
+  } finally {
+    Object.defineProperty(localStorage, 'removeItem', {
+      configurable: true,
+      writable: true,
+      value: originalRemoveItem
+    });
+  }
+
+  assert.deepEqual(storageGetCalls, []);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /INVALID_BROWSER_STORAGE/);
+  assertUnrelatedSentinelsUntouched();
+});
+
+test('TEST-B04: Factory Reset remove failure rolls back exact owned snapshot without reload', { concurrency: false }, () => {
+  resetMocks();
+  const snapshot = makeOwnedStorageEntries('remove-failure');
+  snapshot[NEW_SCHEMA_STORAGE_KEY] = '{malformed-v2-raw';
+  seedOwnedStorage(snapshot);
+  seedUnrelatedStorageSentinels();
+  resetResetTracking();
+  const originalRemoveItem = localStorage.removeItem;
+  localStorage.removeItem = key => {
+    storageRemoveCalls.push(key);
+    storage.delete(key);
+    if (key === LEGACY_STORAGE_KEYS[2]) throw new Error('remove failed');
+  };
+
+  try {
+    runFactoryReset();
+  } finally {
+    localStorage.removeItem = originalRemoveItem;
+  }
+
+  assertOwnedStorageRestored(snapshot);
+  assertUnrelatedSentinelsUntouched();
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /STORAGE_REMOVE_FAILED/);
+});
+
+test('TEST-B04: Factory Reset verification failure rolls back exact snapshot without reload', { concurrency: false }, () => {
+  resetMocks();
+  const snapshot = makeOwnedStorageEntries('verification-failure');
+  seedOwnedStorage(snapshot);
+  seedUnrelatedStorageSentinels();
+  resetResetTracking();
+  const originalGetItem = localStorage.getItem;
+  localStorage.getItem = key => {
+    storageGetCalls.push(key);
+    const resetVerification = storageRemoveCalls.length === OWNED_STORAGE_KEYS.length &&
+      storageSetCalls.length === 0;
+    if (resetVerification && key === LEGACY_STORAGE_KEYS[0]) return 'reappeared';
+    return storage.get(key) ?? null;
+  };
+
+  try {
+    runFactoryReset();
+  } finally {
+    localStorage.getItem = originalGetItem;
+  }
+
+  assertOwnedStorageRestored(snapshot);
+  assertUnrelatedSentinelsUntouched();
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /STORAGE_VERIFICATION_FAILED/);
+});
+
+test('TEST-B04: Factory Reset rollback failure reports fatal codes without retry clear or reload', { concurrency: false }, () => {
+  resetMocks();
+  const snapshot = makeOwnedStorageEntries('rollback-failure');
+  seedOwnedStorage(snapshot);
+  seedUnrelatedStorageSentinels();
+  resetResetTracking();
+  const originalRemoveItem = localStorage.removeItem;
+  const originalSetItem = localStorage.setItem;
+  localStorage.removeItem = key => {
+    storageRemoveCalls.push(key);
+    storage.delete(key);
+    if (key === LEGACY_STORAGE_KEYS[2]) throw new Error('remove failed');
+  };
+  localStorage.setItem = (key, value) => {
+    storageSetCalls.push({ key, value: String(value) });
+    if (key === NEW_SCHEMA_STORAGE_KEY) throw new Error('rollback set failed');
+    storage.set(key, String(value));
+  };
+
+  try {
+    runFactoryReset();
+  } finally {
+    localStorage.removeItem = originalRemoveItem;
+    localStorage.setItem = originalSetItem;
+  }
+
+  assert.equal(clearCalls, 0);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /ROLLBACK_FAILED/);
+  assert.match(alerts.at(-1) || '', /STORAGE_REMOVE_FAILED/);
+  assert.match(alerts.at(-1) || '', /STORAGE_WRITE_FAILED/);
+  assert.equal(storageRemoveCalls.filter(key => key === LEGACY_STORAGE_KEYS[2]).length, 1);
+  assertUnrelatedSentinelsUntouched();
+});
+
+test('TEST-B04: resetSystemData source no longer calls localStorage.clear', { concurrency: false }, () => {
+  const source = readFileSync('src/app.js', 'utf8');
+  const resetStart = source.indexOf('function resetSystemData()');
+  const nextFunction = source.indexOf('function setTierHintVisibility', resetStart);
+  const resetSource = source.slice(resetStart, nextFunction);
+
+  assert.doesNotMatch(resetSource, /localStorage\.clear\s*\(/);
+});
 
 test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback', { concurrency: false }, async () => {
   resetMocks();
