@@ -53,17 +53,13 @@ function resetSystemData() {
 }
 
 // 供 Crafting 與 App 共用的品質藥丸渲染
-export function renderQualityPillsGroup(containerId, activeQuality, callback, hintText = 'Choose Material Tier') {
+function setTierHintVisibility(elementId, visible) {
+  const hint = document.getElementById(elementId);
+  if (hint) hint.style.display = visible ? '' : 'none';
+}
+
+export function renderQualityPillsGroup(containerId, activeQuality, callback) {
   const ctn = document.getElementById(containerId); ctn.innerHTML = '';
-  if (!activeQuality) {
-    const hint = document.createElement('div');
-    hint.className = 'pill-hint field-inline-hint';
-    hint.innerText = hintText;
-    hint.style.fontSize = '0.85rem';
-    hint.style.color = 'var(--accent-yellow)';
-    hint.style.marginBottom = '8px';
-    ctn.appendChild(hint);
-  }
   const matrix = document.createElement('div');
   matrix.className = 'quality-matrix';
   QUALITY_MATRIX_ROWS.forEach(row => {
@@ -82,8 +78,8 @@ export function renderQualityPillsGroup(containerId, activeQuality, callback, hi
 }
 
 // 修正：使用 Setter 函式更新狀態，而不是直接綁在 window 上
-function updateCraftQualityPills() { renderQualityPillsGroup('craft-quality-pill-group', currentCraftQuality, q => { setCurrentCraftQuality(q); updateCraftQualityPills(); Crafting.runCraftingCalculator(); }, 'Choose Target Tier'); }
-function updateBuyQualityPills() { renderQualityPillsGroup('buy-quality-pill-group', currentBuyQuality, q => { setCurrentBuyQuality(q); updateBuyQualityPills(); }, 'Choose Material Tier'); }
+function updateCraftQualityPills() { setTierHintVisibility('craft-tier-hint', !currentCraftQuality); renderQualityPillsGroup('craft-quality-pill-group', currentCraftQuality, q => { setCurrentCraftQuality(q); updateCraftQualityPills(); Crafting.runCraftingCalculator(); }); }
+function updateBuyQualityPills() { setTierHintVisibility('buy-tier-hint', !currentBuyQuality); renderQualityPillsGroup('buy-quality-pill-group', currentBuyQuality, q => { setCurrentBuyQuality(q); updateBuyQualityPills(); }); }
 // 共用城市下拉選單邏輯
 const SYSTEM_CITIES_ARR = [
   {id: 'Thetford', name: 'Thetford 紫城'}, {id: 'Martlock', name: 'Martlock 藍城'}, {id: 'Bridgewatch', name: 'Bridgewatch 黃城'}, {id: 'Lymhurst', name: 'Lymhurst 綠城'}, {id: 'Fort Sterling', name: 'Fort Sterling 白城'}

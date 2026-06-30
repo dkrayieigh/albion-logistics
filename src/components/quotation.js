@@ -112,12 +112,8 @@ function renderQualityMatrix() {
   const container = byId('quote-quality-pill-group');
   if (!container) return;
   container.innerHTML = '';
-  if (!quoteDraft.quality) {
-    const hint = document.createElement('div');
-    hint.innerText = 'Choose Target Tier';
-    hint.className = 'quote-hint field-inline-hint';
-    container.appendChild(hint);
-  }
+  const hint = byId('quote-tier-hint');
+  if (hint) hint.style.display = quoteDraft.quality ? 'none' : '';
   const matrix = document.createElement('div');
   matrix.className = 'quality-matrix';
   QUOTE_QUALITY_ROWS.forEach(row => {

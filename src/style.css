@@ -1069,15 +1069,31 @@ tr:hover td {
 
 .field-label-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  min-width: 0;
 }
 
-.field-inline-hint {
+.field-label-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.field-label-copy small {
   color: var(--text-secondary);
   font-size: 0.8em;
   font-weight: 500;
+  line-height: 1.2;
+}
+
+.field-inline-hint {
+  color: var(--accent-yellow);
+  font-size: 0.8em;
+  font-weight: 500;
+  line-height: 1.2;
   white-space: nowrap;
 }
 

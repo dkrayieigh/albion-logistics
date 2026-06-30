@@ -326,7 +326,7 @@ test('quotation UI uses crafting-compatible quantity controls and tier labels', 
   assert.match(html, /id="btn-quote-qty-add-1" data-val="1">\+1/);
   assert.match(html, /id="btn-quote-qty-add-10" data-val="10">\+10/);
   assert.match(source, /btn-quote-qty-sub-10/);
-  assert.match(html, /<span>目標階級<\/span><span class="field-inline-hint">Target Tier<\/span>/);
+  assert.match(html, /<div class="field-label-copy"><span>目標階級<\/span><small>Target Tier<\/small><\/div>\s*<span id="quote-tier-hint" class="field-inline-hint">Choose Target Tier<\/span>/);
   assert.match(html, /<span>製作數量<\/span><span class="field-inline-hint">Quantity<\/span>/);
   assert.match(html, /<span>製作地點<\/span><span class="field-inline-hint">Location<\/span>/);
   assert.match(html, /id="quote-rra-badge">RRR: --<\/span>/);
@@ -334,6 +334,9 @@ test('quotation UI uses crafting-compatible quantity controls and tier labels', 
   assert.match(html, /Material Tier/);
   assert.doesNotMatch(html, /Material Quality|Craft Amount|Crafting Location|Quote Result|Return rate|Current Return Rate/);
   assert.match(source, /Choose Target Tier/);
+  assert.match(source, /quote-tier-hint/);
+  assert.match(source, /hint\.style\.display = quoteDraft\.quality \? 'none' : ''/);
+  assert.doesNotMatch(source, /quote-hint field-inline-hint|appendChild\(hint\)/);
   assert.match(source, /RRR: --/);
   assert.match(source, /quote\.returnRate/);
 });

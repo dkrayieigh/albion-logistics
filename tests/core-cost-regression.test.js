@@ -161,7 +161,8 @@ test('UI version and craft quantity controls use the v0.4.4 / -10 -1 +1 +10 cont
   assert.match(html, /id="craft-recipe"[^>]*value=""/);
   assert.match(html, /<button id="btn-open-item-selector"[\s\S]*🔍 Choose Target[\s\S]*id="craft-recipe-display">Choose Target<\/span>/);
   assert.match(html, /🔍 Choose Target/);
-  assert.match(html, /<span>目標階級<\/span><span class="field-inline-hint">Target Tier<\/span>/);
+  assert.match(html, /<div class="field-label-copy"><span>目標階級<\/span><small>Target Tier<\/small><\/div>\s*<span id="craft-tier-hint" class="field-inline-hint">Choose Target Tier<\/span>/);
+  assert.match(html, /<div class="field-label-copy"><span>材料階級<\/span><small>Material Tier<\/small><\/div>\s*<span id="buy-tier-hint" class="field-inline-hint">Choose Material Tier<\/span>/);
   assert.match(html, /<span>製作數量<\/span><span class="field-inline-hint">Quantity<\/span>/);
   assert.match(html, /<span>製作地點<\/span><span class="field-inline-hint">Location<\/span>/);
   assert.match(html, /id="rra-badge">RRR: --<\/span>/);
@@ -180,6 +181,11 @@ test('CSS hides native number spinners and defines five-column quality matrix la
   assert.match(css, /-webkit-appearance:\s*none/);
   assert.match(css, /\.quality-matrix\s*\{/);
   assert.match(css, /\.quality-matrix-row\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(css, /\.field-label-row\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /\.field-label-row\s*\{[^}]*justify-content:\s*space-between/s);
+  assert.match(css, /\.field-label-row\s*\{[^}]*align-items:\s*flex-end/s);
+  assert.match(css, /\.field-label-copy\s*\{[^}]*flex-direction:\s*column/s);
+  assert.match(css, /\.field-inline-hint\s*\{[^}]*color:\s*var\(--accent-yellow\)[^}]*white-space:\s*nowrap/s);
   assert.match(css, /@media \(max-width:\s*900px\)/);
 });
 
@@ -235,28 +241,34 @@ test('quality renderer keeps boundary quality callbacks intact', { concurrency: 
   assert.deepEqual(selected, ['4.0', '8.4']);
 });
 
-test('quality renderer still shows the selection hint without removing the matrix', { concurrency: false }, () => {
+test('quality renderer leaves tier hints outside the pill container', { concurrency: false }, () => {
   resetState();
 
+  const hint = getElement('buy-tier-hint');
+  hint.style.display = '';
   App.renderQualityPillsGroup('buy-quality-pill-group', '', () => {});
 
   const container = getElement('buy-quality-pill-group');
-  const { rows, buttons } = flattenQualityMatrix(container);
-  assert.equal(container.children[0].innerText, 'Choose Material Tier');
-  assert.match(container.children[0].className, /field-inline-hint/);
+  const { matrix, rows, buttons } = flattenQualityMatrix(container);
+  assert.equal(container.children.length, 1);
+  assert.equal(container.children[0], matrix);
+  assert.doesNotMatch(container.innerHTML, /pill-hint|Choose Material Tier/);
+  assert.equal(hint.style.display, '');
   assert.equal(rows.length, 5);
   assert.equal(buttons.length, 25);
+
+  const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /ctn\.appendChild\(hint\)|pill-hint|hintText/);
 });
 
 test('crafting and purchase quality controls use the shared matrix renderer', { concurrency: false }, () => {
   const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
 
-  assert.match(source, /function updateCraftQualityPills\(\) \{ renderQualityPillsGroup\('craft-quality-pill-group'/);
-  assert.match(source, /Choose Target Tier/);
-  assert.match(source, /function updateBuyQualityPills\(\) \{ renderQualityPillsGroup\('buy-quality-pill-group'/);
-  assert.match(source, /Choose Material Tier/);
+  assert.match(source, /setTierHintVisibility\('craft-tier-hint', !currentCraftQuality\)/);
+  assert.match(source, /setTierHintVisibility\('buy-tier-hint', !currentBuyQuality\)/);
   assert.doesNotMatch(source, /QUAL_GROUPS\.forEach/);
   assert.doesNotMatch(source, /Material Quality/);
+  assert.doesNotMatch(source, /hintText|createElement\('div'\)[\s\S]{0,160}pill-hint|ctn\.appendChild\(hint\)/);
 });
 
 test('laborer harvest tier switch resets unsubmitted output rows to the new tier default', { concurrency: false }, () => {
