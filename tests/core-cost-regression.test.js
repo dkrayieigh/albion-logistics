@@ -163,8 +163,9 @@ test('UI version and craft quantity controls use the v0.4.4 / -10 -1 +1 +10 cont
   assert.match(html, /🔍 Choose Target/);
   assert.match(html, /<div class="field-label-copy"><span>目標階級<\/span><small>Target Tier<\/small><\/div>\s*<span id="craft-tier-hint" class="field-inline-hint">Choose Target Tier<\/span>/);
   assert.match(html, /<div class="field-label-copy"><span>材料階級<\/span><small>Material Tier<\/small><\/div>\s*<span id="buy-tier-hint" class="field-inline-hint">Choose Material Tier<\/span>/);
-  assert.match(html, /<span>製作數量<\/span><span class="field-inline-hint">Quantity<\/span>/);
-  assert.match(html, /<span>製作地點<\/span><span class="field-inline-hint">Location<\/span>/);
+  assert.match(html, /採購入庫<br><span[^>]*>Intake<\/span>/);
+  assert.match(html, /<span class="field-label-copy"><span>製作數量<\/span><small>Quantity<\/small><\/span><\/label>/);
+  assert.match(html, /<span class="field-label-copy"><span>製作地點<\/span><small>Location<\/small><\/span><\/label>/);
   assert.match(html, /id="rra-badge">RRR: --<\/span>/);
   assert.doesNotMatch(html, /Craft Amount|Crafting Location|Material Quality|Return rate|Current Return Rate/);
   assert.doesNotMatch(html, /id="out-main-label"|id="out-main-qty"|id="out-sub-label"|id="out-sub-qty"/);

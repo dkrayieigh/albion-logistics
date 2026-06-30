@@ -6,6 +6,8 @@ import {
   calculateQuoteForMargin,
   calculateQuotation
 } from '../src/calculators/quotationCalculator.js';
+import { TAX_RATE } from '../src/data/constants.js';
+import { resolveGeneralMaterialDisplayName } from '../src/presenters/materialDisplay.js';
 
 const plainRecipe = {
   name: 'Plain Item',
@@ -186,6 +188,64 @@ test('quotation calculator returns estimate references and true margin quotes', 
   assert.equal(result.quote.customQuote.profit, result.quote.customQuote.total - result.quote.totalCost);
 });
 
+test('quotation calculator audit fixture matches manual production quote arithmetic', () => {
+  const quantity = 20;
+  const quality = '6.3';
+  const shopFeeRate = 690;
+  const estimatedSaleTotal = 30000000;
+  const customQuoteTotal = 22500000;
+  const result = calculateQuotation({
+    recipe: plainRecipe,
+    quality,
+    quantity,
+    city: 'Thetford',
+    focus: true,
+    prices: {
+      '鋼條_6.3': 105000,
+      '布料_6.3': 22000
+    },
+    discounts: {
+      '鋼條_6.3': 5,
+      '布料_6.3': 0
+    },
+    shopFeeRate,
+    estimatedSaleTotal,
+    customQuoteTotal
+  });
+
+  const returnRate = 0.479;
+  const mainGross = plainRecipe.mainBaseQty * quantity;
+  const subGross = plainRecipe.subBaseQty * quantity;
+  const mainNet = mainGross - Math.floor(mainGross * returnRate);
+  const subNet = subGross - Math.floor(subGross * returnRate);
+  const mainAppliedUnit = 105000 * 0.95;
+  const subAppliedUnit = 22000;
+  const mainCost = mainNet * mainAppliedUnit;
+  const subCost = subNet * subAppliedUnit;
+  const tierMultiplier = Math.pow(2, 6 + 3);
+  const itemValue = (plainRecipe.mainBaseQty * tierMultiplier + plainRecipe.subBaseQty * tierMultiplier) * quantity;
+  const shopFee = Math.round(itemValue * TAX_RATE * shopFeeRate);
+  const totalCost = mainCost + subCost + shopFee;
+
+  assert.equal(result.ok, true);
+  assert.equal(result.quote.returnRate, returnRate);
+  assert.equal(result.quote.materials[0].quantity, mainNet);
+  assert.equal(result.quote.materials[0].appliedUnitPrice, mainAppliedUnit);
+  assert.equal(result.quote.materials[0].estimatedCost, mainCost);
+  assert.equal(result.quote.materials[1].quantity, subNet);
+  assert.equal(result.quote.materials[1].appliedUnitPrice, subAppliedUnit);
+  assert.equal(result.quote.materialCost, mainCost + subCost);
+  assert.equal(result.quote.shopFee, shopFee);
+  assert.equal(result.quote.totalCost, totalCost);
+  assert.equal(result.quote.unitCost, totalCost / quantity);
+  assert.equal(result.quote.references.estimate90, estimatedSaleTotal * 0.9);
+  assert.equal(result.quote.references.estimate85, estimatedSaleTotal * 0.85);
+  assert.equal(result.quote.references.margin8, totalCost / 0.92);
+  assert.equal(result.quote.references.margin10, totalCost / 0.90);
+  assert.equal(result.quote.customQuote.profit, customQuoteTotal - totalCost);
+  assert.equal(result.quote.customQuote.marginRate, (customQuoteTotal - totalCost) / customQuoteTotal);
+});
+
 test('quotation calculator supports negative profit and null margin for zero quote', () => {
   const negative = calculateQuotation({
     recipe: plainRecipe,
@@ -297,6 +357,7 @@ test('quotation uses shared recipe source and no native select renderer', () => 
   const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
 
   assert.match(source, /import \{ RECIPES, enqueueCraftingPlan, getRecipeDisplayName, openItemSelector \} from ['"]\.\/crafting\.js['"]/);
+  assert.match(source, /from ['"]\.\.\/presenters\/materialDisplay\.js['"]/);
   assert.doesNotMatch(source, /ALBION_DB|function allRecipes|Object\.values\(ALBION_DB\)|innerHTML = RECIPES\.map/);
   assert.doesNotMatch(source, /quote-recipe'\)\?\.addEventListener\('change'/);
 });
@@ -318,6 +379,7 @@ test('quotation UI uses crafting-compatible quantity controls and tier labels', 
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
   const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
 
+  assert.match(html, /id="quote-qty" value="20"/);
   ['sub-10', 'sub-1', 'add-1', 'add-10'].forEach(suffix => {
     assert.match(html, new RegExp(`id="btn-quote-qty-${suffix}"`));
   });
@@ -327,8 +389,8 @@ test('quotation UI uses crafting-compatible quantity controls and tier labels', 
   assert.match(html, /id="btn-quote-qty-add-10" data-val="10">\+10/);
   assert.match(source, /btn-quote-qty-sub-10/);
   assert.match(html, /<div class="field-label-copy"><span>目標階級<\/span><small>Target Tier<\/small><\/div>\s*<span id="quote-tier-hint" class="field-inline-hint">Choose Target Tier<\/span>/);
-  assert.match(html, /<span>製作數量<\/span><span class="field-inline-hint">Quantity<\/span>/);
-  assert.match(html, /<span>製作地點<\/span><span class="field-inline-hint">Location<\/span>/);
+  assert.match(html, /<span class="field-label-copy"><span>製作數量<\/span><small>Quantity<\/small><\/span><\/label>/);
+  assert.match(html, /<span class="field-label-copy"><span>製作地點<\/span><small>Location<\/small><\/span><\/label>/);
   assert.match(html, /id="quote-rra-badge">RRR: --<\/span>/);
   assert.match(html, /Target Tier/);
   assert.match(html, /Material Tier/);
@@ -341,6 +403,37 @@ test('quotation UI uses crafting-compatible quantity controls and tier labels', 
   assert.match(source, /quote\.returnRate/);
 });
 
+test('quotation planner cleanup uses intake wording display mapping and static result cards', () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
+
+  assert.match(html, /採購入庫<br><span[^>]*>Intake<\/span>/);
+  assert.doesNotMatch(html, /採購入庫<br><span[^>]*>Purchase<\/span>/);
+  assert.match(html, /<span>主料<br><small>Main<\/small><\/span><strong id="quote-main-label">-<\/strong><em id="quote-consumption-main">0<\/em>/);
+  assert.match(html, /<span>副料<br><small>Sub<\/small><\/span><strong id="quote-sub-label">-<\/strong><em id="quote-consumption-sub">0<\/em>/);
+  assert.match(html, /90% EMV/);
+  assert.match(html, /85% EMV/);
+  assert.match(html, /GP 8%/);
+  assert.match(html, /GP 10%/);
+  assert.match(html, /<option value="鋼條">鋼條 \/ Bars<\/option>/);
+  assert.match(html, /<option value="布料">布料 \/ Cloth<\/option>/);
+  assert.match(html, /<option value="板材">板材 \/ Planks<\/option>/);
+  assert.match(html, /<option value="皮革">皮革 \/ Leather<\/option>/);
+  assert.match(source, /resolveGeneralMaterialDisplayName\(recipe\.main\)/);
+  assert.match(source, /resolveGeneralMaterialDisplayName\(recipe\.sub\)/);
+  assert.match(source, /resetQuoteOutputs/);
+  assert.match(source, /setQuickQuoteValue/);
+  assert.doesNotMatch(source, /setHTML\('quote-result-box', `<div class="quote-summary-grid"/);
+});
+
+test('general material display presenter maps runtime material names without changing keys', () => {
+  assert.equal(resolveGeneralMaterialDisplayName('鋼條'), 'Bars');
+  assert.equal(resolveGeneralMaterialDisplayName('布料'), 'Cloth');
+  assert.equal(resolveGeneralMaterialDisplayName('板材'), 'Planks');
+  assert.equal(resolveGeneralMaterialDisplayName('皮革'), 'Leather');
+  assert.equal(resolveGeneralMaterialDisplayName('Unknown Material'), 'Unknown Material');
+});
+
 test('quotation material estimate rows keep discounts only for normal materials', () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
   const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
@@ -348,6 +441,7 @@ test('quotation material estimate rows keep discounts only for normal materials'
   assert.match(html, /Material Estimates/);
   assert.match(source, /const materialRows/);
   assert.match(source, /const specialRows/);
+  assert.match(source, /特殊材料<br><span>Special Materials<\/span>/);
   assert.match(source, /Special Materials/);
   assert.match(source, /Fixed requirement/);
   assert.match(source, /renderMaterialEstimateRows[\s\S]*renderDiscountButtons\(row\.key\)/);

@@ -89,7 +89,7 @@
               
               <div class="form-row">
                 <div class="form-group">
-                  <label class="form-label field-label-row"><span>製作數量</span><span class="field-inline-hint">Quantity</span></label>
+                  <label class="form-label field-label-row"><span class="field-label-copy"><span>製作數量</span><small>Quantity</small></span></label>
                   <div style="display:flex; gap:5px; align-items:center;">
                     <input type="number" id="craft-qty" value="20" autocomplete="off" inputmode="numeric"  style="flex:1; font-weight:bold; color:var(--accent-cyan);">
                     <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" id="btn-craft-qty-sub-10" data-val="-10">-10</button>
@@ -99,7 +99,7 @@
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label field-label-row"><span>製作地點</span><span class="field-inline-hint">Location</span></label>
+                  <label class="form-label field-label-row"><span class="field-label-copy"><span>製作地點</span><small>Location</small></span></label>
                   <select id="craft-city" ></select>
                 </div>
               </div>
@@ -190,9 +190,9 @@
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label class="form-label field-label-row"><span>製作數量</span><span class="field-inline-hint">Quantity</span></label>
+                  <label class="form-label field-label-row"><span class="field-label-copy"><span>製作數量</span><small>Quantity</small></span></label>
                   <div class="quantity-stepper">
-                    <input type="number" id="quote-qty" value="1" autocomplete="off" inputmode="numeric">
+                    <input type="number" id="quote-qty" value="20" autocomplete="off" inputmode="numeric">
                     <button class="btn btn-secondary" id="btn-quote-qty-sub-10" data-val="-10">-10</button>
                     <button class="btn btn-secondary" id="btn-quote-qty-sub-1" data-val="-1">-1</button>
                     <button class="btn btn-secondary" id="btn-quote-qty-add-1" data-val="1">+1</button>
@@ -200,7 +200,7 @@
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label field-label-row"><span>製作地點</span><span class="field-inline-hint">Location</span></label>
+                  <label class="form-label field-label-row"><span class="field-label-copy"><span>製作地點</span><small>Location</small></span></label>
                   <select id="quote-city"></select>
                 </div>
               </div>
@@ -223,8 +223,8 @@
                 </div>
               </div>
               <div class="quote-consumption-band">
-                <div><span>主料</span><strong id="quote-main-label">-</strong><em id="quote-consumption-main">0</em></div>
-                <div><span>副料</span><strong id="quote-sub-label">-</strong><em id="quote-consumption-sub">0</em></div>
+                <div><span>主料<br><small>Main</small></span><strong id="quote-main-label">-</strong><em id="quote-consumption-main">0</em></div>
+                <div><span>副料<br><small>Sub</small></span><strong id="quote-sub-label">-</strong><em id="quote-consumption-sub">0</em></div>
               </div>
               <div class="form-group">
                 <label class="form-label">一般材料估價<br><span style="font-size: 0.8em; opacity: 0.7;">Material Estimates</span></label>
@@ -251,15 +251,15 @@
               </div>
               <div class="quote-reference-grid">
                 <div><span>估價總價</span><strong id="quote-est-total-display">0</strong></div>
-                <div><span>90% 參考</span><strong id="quote-ref-90">0</strong></div>
-                <div><span>85% 參考</span><strong id="quote-ref-85">0</strong></div>
+                <div><span>90% EMV</span><strong id="quote-ref-90">0</strong></div>
+                <div><span>85% EMV</span><strong id="quote-ref-85">0</strong></div>
                 <div><span>店鋪使用費</span><strong id="quote-shop-fee-result">0</strong></div>
               </div>
               <div class="quote-quick-grid">
-                <button class="btn btn-secondary" id="quote-quick-90" data-quote-action="quick">估價 90%<br><span id="quote-quick-90-label">Quick</span></button>
-                <button class="btn btn-secondary" id="quote-quick-85" data-quote-action="quick">估價 85%<br><span id="quote-quick-85-label">Quick</span></button>
-                <button class="btn btn-secondary" id="quote-quick-margin-8" data-quote-action="quick">毛利率 8%<br><span id="quote-ref-margin-8">0</span></button>
-                <button class="btn btn-secondary" id="quote-quick-margin-10" data-quote-action="quick">毛利率 10%<br><span id="quote-ref-margin-10">0</span></button>
+                <button class="btn btn-secondary" id="quote-quick-90" data-quote-action="quick">90% EMV<br><span id="quote-quick-90-label">0</span></button>
+                <button class="btn btn-secondary" id="quote-quick-85" data-quote-action="quick">85% EMV<br><span id="quote-quick-85-label">0</span></button>
+                <button class="btn btn-secondary" id="quote-quick-margin-8" data-quote-action="quick">GP 8%<br><span id="quote-ref-margin-8">0</span></button>
+                <button class="btn btn-secondary" id="quote-quick-margin-10" data-quote-action="quick">GP 10%<br><span id="quote-ref-margin-10">0</span></button>
               </div>
               <div class="form-row">
                 <div class="form-group">
@@ -288,14 +288,14 @@
         <div class="panel-grid">
           <div class="left-col">
             <div class="card">
-              <div class="card-header"><h3 class="card-title">採購入庫<br><span style="font-size: 0.8em; opacity: 0.7;">Purchase</span></h3></div>
+              <div class="card-header"><h3 class="card-title">採購入庫<br><span style="font-size: 0.8em; opacity: 0.7;">Intake</span></h3></div>
               <div class="form-group" style="margin-bottom:15px;">
                 <label class="form-label">採購物品</label>
                 <select id="buy-item">
-                  <option value="鋼條">鋼條</option>
-                  <option value="布料">布料</option>
-                  <option value="板材">板材</option>
-                  <option value="皮革">皮革</option>
+                  <option value="鋼條">鋼條 / Bars</option>
+                  <option value="布料">布料 / Cloth</option>
+                  <option value="板材">板材 / Planks</option>
+                  <option value="皮革">皮革 / Leather</option>
                 </select>
               </div>
               <div class="form-group" style="margin-bottom:15px;">
