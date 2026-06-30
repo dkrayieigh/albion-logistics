@@ -408,6 +408,8 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 - Artifact and alchemy material identity is not yet modeled as Tier-only inventory.
 - Special material purchase unit-price / total-price entry is not yet a separate schema path.
 - Special materials currently remain part of crafting workflow behavior, not a dedicated persisted inventory module.
+- Formal special-material inventory scope is not decided. `SPECIAL_MATERIAL_INVENTORY.md` records location-based and account-wide target options without selecting a schema.
+- Current recipe / Planner / Crafting support is calculation/display-oriented and does not create special-material inventory, WAC storage, intake transactions, or backup/export fields.
 
 ### Ledger English Presentation Mapping（Current / Low–Medium implementation risk）
 
@@ -480,3 +482,38 @@ Known limitations:
 - No account-total product inventory.
 - No formal special-material inventory.
 - Cost-adjustment semantics pending.
+
+## Special Material Inventory Gap
+
+主規格：`SPECIAL_MATERIAL_INVENTORY.md`。
+
+Current behavior:
+
+- Recipes can carry `artifactName`、`artifactQty` and `alchemyName` metadata。
+- Alchemy requirement can vary by Tier。
+- Planner can estimate Artifact / Alchemy cost manually。
+- Crafting queue / shopping list can show Artifact / Alchemy cost components。
+- Current crafting cost can include manually entered Artifact / Alchemy cost。
+
+Current gaps:
+
+- No formal `artifactInventory` root。
+- No formal `alchemyInventory` root。
+- No special-material `qtyByCity` / `qtyByLocation` storage。
+- No special-material `globalAvgCost` storage。
+- No special-material purchase / intake writer。
+- No formal special-material deduction from inventory during crafting。
+- No backup/export schema for special-material inventory。
+- No canonical transaction payload for special-material purchase or consumption。
+
+Risk:
+
+- High。Formal special-material inventory affects identity, inventory quantity, WAC, cash, crafting cost, transaction semantics, backup/export and rollback。
+
+Spec Lead decisions still required:
+
+- Location-based vs account-wide target inventory。
+- Stable special-material ID format。
+- Whether purchase location is inventory location or transaction metadata。
+- Compatibility period between manual-cost crafting and formal inventory。
+- Backup/export and rollback strategy。

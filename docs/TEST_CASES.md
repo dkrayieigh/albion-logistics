@@ -762,6 +762,7 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 - Global WAC is maintained for special materials。
 - Manufacturing consumption is fixed and does not apply return rate。
 - Special materials do not create regional inventory and cannot be transported。
+- Formal location-based vs account-wide inventory scope must be decided before executable tests are written。
 
 ### Cost Adjustment（Future）
 
@@ -806,3 +807,44 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 - Runtime display excludes inactive custom entries.
 - Restart round-trip and save failure rollback are covered.
 - This does not define per-location hideout crafting profile, map bonus / focus RRR metadata, backup/reset lifecycle, or migration.
+
+## Future Test Plan：Special Material Formal Inventory
+
+本節只列 future test plan / not yet implemented。正式測試必須等 `SPECIAL_MATERIAL_INVENTORY.md` 的 target scope、identity contract、writer boundary、backup/rollback 與 compatibility mode 決策完成後再落地。
+
+### Purchase / Intake
+
+1. Artifact purchase success。
+2. Alchemy purchase success。
+3. Quantity increases。
+4. WAC updates。
+5. Cash decreases。
+6. Purchase transaction is created。
+7. Save failure rollback restores inventory, cash, transaction and storage effects。
+8. Invalid quantity / price / material / location blocks before mutation。
+
+### Crafting
+
+9. Artifact requirement validation。
+10. Alchemy Tier requirement validation。
+11. No return rate is applied to special materials。
+12. Insufficient special material blocks before mutation。
+13. Crafted output cost includes special-material cost。
+14. Crafted output cost uses special-material WAC in formal inventory mode。
+15. Manual cost input does not silently mix with formal inventory cost。
+16. Transaction / inventory / cash atomicity。
+
+### Location
+
+17. System location behavior if location-based scope is selected。
+18. Active custom location behavior。
+19. Inactive custom location is blocked。
+20. Rename preserves inventory by stable ID if location-based scope is selected。
+
+### Compatibility
+
+21. Manual-cost legacy path remains available during compatibility period。
+22. Formal mode does not read manual estimate as inventory evidence。
+23. Backup round-trip。
+24. Unknown material ID blocks。
+25. No silent migration。

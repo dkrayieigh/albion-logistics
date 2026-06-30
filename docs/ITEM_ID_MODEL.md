@@ -138,3 +138,13 @@ Current implementation note：
 - Shared picker 可以改善選擇一致性，但不改 storage key、transaction payload 或 item identity model。
 - Current compatibility key 仍可能是 legacy 中文 item key 或 recipe display name。
 - Stable Item ID catalog、Stable product ID、artifact/alchemy Stable ID 仍是 future target。
+
+## Special Material Identity Boundary
+
+Artifact / Alchemy identity proposal is documented in `SPECIAL_MATERIAL_INVENTORY.md` and remains future target.
+
+- Artifact identity must not depend on display name parsing。
+- Alchemy identity must include concrete material kind and Tier；it must not collapse into a generic `alchemy` key。
+- Future metadata should distinguish stable id、Chinese name、English name、category and tier。
+- Temporary examples such as `artifact:<normalized-key>` or `alchemy:<tier>:<normalized-key>` are proposal only, not current implementation and not final ID format。
+- Current code may still use recipe metadata such as `artifactName`、`artifactQty` and `alchemyName`。

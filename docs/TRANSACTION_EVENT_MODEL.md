@@ -209,3 +209,13 @@ Future model 必須明確區分 cash impact 與 valuation impact：
 - Multiple raw aliases may deduplicate to one display category for UI grouping/filtering。
 - Ledger presentation mapping 不是 canonical event writer，不是 payload canonicalization，也不是 legacy fallback removal。
 - Cost Adjustment cash-impact semantic correction 仍是 future work；不得把 presentation mapping 解讀為成本校正事件模型已完成。
+
+## Special Material Transaction Boundary
+
+Special material purchase / consumption transaction design is future work and is tracked in `SPECIAL_MATERIAL_INVENTORY.md`。
+
+- Current implementation does not have a dedicated Artifact / Alchemy purchase writer。
+- Current implementation does not have a dedicated special-material acquisition transaction。
+- Current crafting may include manually entered Artifact / Alchemy cost in crafting calculation, but this is not formal inventory intake evidence。
+- Future design must separately define legacy-compatible writer proposal and future canonical event proposal。
+- Proposed command names such as `PURCHASE_SPECIAL_MATERIAL` and `CONSUME_SPECIAL_MATERIAL` are future command names only, not current canonical payload。

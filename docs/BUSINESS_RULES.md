@@ -235,6 +235,8 @@ mainMaterialCost
 - 特殊材料維護 `globalAvgCost`。
 - 特殊材料不考慮返還率，製作消耗時以固定需求量扣除。
 - 特殊材料採購入庫必須允許輸入單價或整批總額，系統再計算等價的單位成本。
+- Formal special-material inventory scope 尚未決定；location-based 與 account-wide 兩案請見 `SPECIAL_MATERIAL_INVENTORY.md`。
+- Current implementation 尚未建立 dedicated Artifact / Alchemy inventory root、special-material purchase writer、formal WAC storage 或 backup/export schema。
 
 ### Laborer Inventory
 
@@ -280,3 +282,11 @@ mainMaterialCost
 - Runtime 只顯示 active custom entries。
 - Restart round-trip 與 save failure rollback 已納入 current safety boundary。
 - Hideout crafting profile、map bonus / focus RRR、biome / map quality / location metadata 仍不是正式 location profile schema。
+
+### Special Material Current / Future Boundary
+
+- Current recipes may contain `artifactName`、`artifactQty` 與 `alchemyName`。
+- Current Planner can calculate Artifact / Alchemy cost from manual estimates, but it does not write inventory。
+- Current Crafting queue / shopping list can display Artifact / Alchemy cost components。
+- Current storage does not contain formal Artifact / Alchemy inventory。
+- Future formal inventory rules, intake flow, crafting deduction flow, WAC behavior, custom location boundary, and test plan are tracked in `SPECIAL_MATERIAL_INVENTORY.md`。

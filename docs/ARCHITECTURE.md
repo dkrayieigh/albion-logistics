@@ -142,3 +142,9 @@
 - Removed custom locations 會保留 inactive registry entry 與原 displayName，不直接硬刪 registry evidence。
 - Restart round-trip 與 save failure rollback 屬於目前 test-covered safety boundary。
 - Backup/reset/migration 與 per-location hideout crafting profile 不在本 checkpoint 範圍。
+
+## Special Material Inventory Architecture Boundary
+
+特殊材料正式庫存規格見 `SPECIAL_MATERIAL_INVENTORY.md`。該文件是 future architecture target，不代表目前已新增 Artifact / Alchemy inventory root、purchase writer、crafting deduction writer、backup schema 或 transaction payload。
+
+Current implementation 仍只在 recipe metadata、Planner calculation、crafting queue / shopping-list display 與 current crafting cost calculation 中使用 Artifact / Alchemy 資訊。未來若實作，應先建立 bounded service/helper 並以 regression tests 保護後，再接 UI、inventory、cash、ledger 與 storage。
