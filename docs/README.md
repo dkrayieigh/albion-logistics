@@ -128,6 +128,7 @@
 
 ### Focused workflow docs
 
+- [Backup / Reset Contract](./BACKUP_RESET_CONTRACT.md)
 - [Special Material Inventory](./SPECIAL_MATERIAL_INVENTORY.md)
 - [Sale Valuation Workflow](./SALE_VALUATION_WORKFLOW.md)
 - [Crafting Incident Recovery](./CRAFTING_INCIDENT_RECOVERY.md)

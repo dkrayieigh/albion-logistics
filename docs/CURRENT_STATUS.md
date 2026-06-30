@@ -106,6 +106,7 @@ New-schema data safety stabilization 聚焦：
 
 - new-schema backup lifecycle。
 - Factory Reset scope。
+- active contract: [Backup / Reset Contract](./BACKUP_RESET_CONTRACT.md)。
 - backup/reset 的 docs -> tests -> pure service -> production integration 順序。
 
 ## Paused / Backlog Workstreams

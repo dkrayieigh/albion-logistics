@@ -26,6 +26,8 @@ Exit conditions:
 
 This section documents the limitation only. It does not define implementation code or service API.
 
+Contract reference: [Backup / Reset Contract](./BACKUP_RESET_CONTRACT.md).
+
 ## Factory Reset scope
 
 Status: Active
@@ -47,6 +49,8 @@ Exit conditions:
 - Regression tests and manual smoke checklist are complete.
 
 This section documents the limitation only. It does not define implementation code or service API.
+
+Contract reference: [Backup / Reset Contract](./BACKUP_RESET_CONTRACT.md).
 
 ## 文件定位
 本文件記錄目前系統仍存在的限制、技術債與尚未完成的重構項目。

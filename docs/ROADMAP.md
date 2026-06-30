@@ -27,6 +27,7 @@
 - 定義 new-schema backup lifecycle。
 - 定義 scoped Factory Reset 的 owned-key boundary。
 - 定義 legacy backup policy、rollback 與 manual smoke expectations。
+- Contract reviewed: [Backup / Reset Contract](./BACKUP_RESET_CONTRACT.md)。
 
 不包含：
 
