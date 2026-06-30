@@ -78,6 +78,13 @@ test('createBackup accepts only exact ISO exportedAt strings with milliseconds',
     assert.equal(result.status, 'invalid');
     assert.deepEqual(result.errors, ['INVALID_EXPORTED_AT']);
   }
+
+  assert.doesNotThrow(() => createBackup(state));
+  assert.deepEqual(createBackup(state).errors, ['INVALID_EXPORTED_AT']);
+  assert.doesNotThrow(() => createBackup(state, null));
+  assert.deepEqual(createBackup(state, null).errors, ['INVALID_EXPORTED_AT']);
+  assert.doesNotThrow(() => createBackup(state, 1));
+  assert.deepEqual(createBackup(state, 1).errors, ['INVALID_EXPORTED_AT']);
 });
 
 test('createBackup rejects invalid canonical state and preserves inner codec errors', () => {
@@ -95,19 +102,30 @@ test('createBackup rejects invalid canonical state and preserves inner codec err
 
 test('createBackup rejects runtime qtyByCity shape and does not mutate input state', () => {
   const state = makeState();
-  const before = JSON.stringify(state);
   state.inventory['鋼條_6.3'] = {
     qtyByCity: { Thetford: 1 },
     globalAvgCost: 100
   };
+  const before = JSON.stringify(state);
 
   const result = createBackup(state, { exportedAt: EXPORTED_AT });
 
   assert.equal(result.ok, false);
   assert.deepEqual(result.errors, ['INVALID_BACKUP_STATE']);
   assert.deepEqual(result.innerErrors, ['INVALID_INVENTORY', 'LEGACY_FIELD_NOT_ALLOWED']);
-  delete state.inventory['鋼條_6.3'];
-  assert.equal(JSON.stringify(makeState()), before);
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('createBackup returns detached envelope state on success', () => {
+  const state = makeState();
+  const result = createBackup(state, { exportedAt: EXPORTED_AT });
+
+  assert.equal(result.ok, true);
+  result.envelope.state.inventory['鋼條_6.3'].qtyByLocation.thetford = 999;
+  result.envelope.state.assets.cash = 1;
+
+  assert.equal(state.inventory['鋼條_6.3'].qtyByLocation.thetford, 12);
+  assert.equal(state.assets.cash, 12345);
 });
 
 test('classifyBackup distinguishes v2 legacy and invalid roots', () => {
@@ -145,13 +163,18 @@ test('classifyBackup rejects ambiguous unsupported and malformed v2 envelopes in
   const backup = makeBackup().envelope;
 
   assert.deepEqual(classifyBackup({ ...backup, inventory: {} }).errors, [
-    'INVALID_BACKUP_ROOT',
     'AMBIGUOUS_BACKUP_FORMAT'
   ]);
-  assert.deepEqual(classifyBackup({ ...backup, format: 'other-format' }).errors, [
+  assert.deepEqual(classifyBackup({ ...backup, customLocations: [] }).errors, [
+    'AMBIGUOUS_BACKUP_FORMAT'
+  ]);
+  assert.deepEqual(classifyBackup({ ...backup, laborerLogs: [] }).errors, [
+    'AMBIGUOUS_BACKUP_FORMAT'
+  ]);
+  assert.deepEqual(classifyBackup({ ...backup, format: 'other-format', extra: true }).errors, [
     'UNSUPPORTED_BACKUP_FORMAT'
   ]);
-  assert.deepEqual(classifyBackup({ ...backup, backupFormatVersion: 2 }).errors, [
+  assert.deepEqual(classifyBackup({ ...backup, backupFormatVersion: 2, extra: true }).errors, [
     'UNSUPPORTED_BACKUP_VERSION'
   ]);
   assert.deepEqual(classifyBackup({ ...backup, extra: true }).errors, ['INVALID_BACKUP_ROOT']);
@@ -216,6 +239,27 @@ test('createBackupFromRepository exports only loaded canonical repository state'
   assert.deepEqual(parseBackup(result.backupText).state, result.envelope.state);
 });
 
+test('createBackupFromRepository rejects loaded runtime qtyByCity state as invalid backup state', () => {
+  const state = makeState();
+  state.inventory['鋼條_6.3'] = {
+    qtyByCity: { Thetford: 1 },
+    globalAvgCost: 100
+  };
+  const result = createBackupFromRepository(
+    {
+      load() {
+        return { ok: true, status: 'loaded', state, errors: [] };
+      }
+    },
+    { exportedAt: EXPORTED_AT }
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'invalid');
+  assert.deepEqual(result.errors, ['INVALID_BACKUP_STATE']);
+  assert.deepEqual(result.innerErrors, ['INVALID_INVENTORY', 'LEGACY_FIELD_NOT_ALLOWED']);
+});
+
 test('createBackupFromRepository maps repository states and failures without fallback', () => {
   assert.deepEqual(createBackupFromRepository({ load: 1 }, { exportedAt: EXPORTED_AT }), {
     ok: false,
@@ -252,6 +296,68 @@ test('createBackupFromRepository maps repository states and failures without fal
     createBackupFromRepository({ load: () => Promise.resolve({}) }, { exportedAt: EXPORTED_AT }).errors,
     ['STORAGE_READ_FAILED']
   );
+});
+
+test('createBackupFromRepository safely resolves and invokes repository load once', () => {
+  assert.deepEqual(createBackupFromRepository(null, { exportedAt: EXPORTED_AT }).errors, [
+    'INVALID_STORAGE_BACKEND'
+  ]);
+  assert.deepEqual(createBackupFromRepository(1, { exportedAt: EXPORTED_AT }).errors, [
+    'INVALID_STORAGE_BACKEND'
+  ]);
+
+  const throwingGetter = {};
+  Object.defineProperty(throwingGetter, 'load', {
+    get() {
+      throw new Error('getter failed');
+    }
+  });
+  assert.deepEqual(createBackupFromRepository(throwingGetter, { exportedAt: EXPORTED_AT }).errors, [
+    'INVALID_STORAGE_BACKEND'
+  ]);
+
+  let calls = 0;
+  const state = makeState();
+  const repository = {
+    load() {
+      calls += 1;
+      return { ok: true, status: 'loaded', state, errors: [] };
+    }
+  };
+  assert.equal(createBackupFromRepository(repository, { exportedAt: EXPORTED_AT }).ok, true);
+  assert.equal(calls, 1);
+});
+
+test('createBackupFromRepository normalizes repository error arrays defensively', () => {
+  const duplicateErrors = ['STORAGE_READ_FAILED', 'INVALID_STORAGE_BACKEND', 'STORAGE_READ_FAILED'];
+  const duplicateResult = createBackupFromRepository(
+    { load: () => ({ ok: false, status: 'error', errors: duplicateErrors }) },
+    { exportedAt: EXPORTED_AT }
+  );
+  assert.deepEqual(duplicateResult.errors, ['INVALID_STORAGE_BACKEND', 'STORAGE_READ_FAILED']);
+
+  const unknownErrors = ['SOMETHING_ELSE'];
+  const unknownResult = createBackupFromRepository(
+    { load: () => ({ ok: false, status: 'error', errors: unknownErrors }) },
+    { exportedAt: EXPORTED_AT }
+  );
+  assert.deepEqual(unknownResult.errors, ['STORAGE_READ_FAILED']);
+
+  const malformedErrorResult = createBackupFromRepository(
+    { load: () => ({ ok: false, status: 'error', errors: 'STORAGE_READ_FAILED' }) },
+    { exportedAt: EXPORTED_AT }
+  );
+  assert.deepEqual(malformedErrorResult.errors, ['STORAGE_READ_FAILED']);
+  assert.deepEqual(malformedErrorResult.innerErrors, []);
+
+  const invalidErrors = ['INVALID_INVENTORY'];
+  const invalidResult = createBackupFromRepository(
+    { load: () => ({ ok: false, status: 'invalid', errors: invalidErrors }) },
+    { exportedAt: EXPORTED_AT }
+  );
+  invalidResult.errors.push('MUTATED');
+  invalidResult.innerErrors.push('MUTATED');
+  assert.deepEqual(invalidErrors, ['INVALID_INVENTORY']);
 });
 
 test('backup modules remain pure and isolated from production integration surfaces', () => {

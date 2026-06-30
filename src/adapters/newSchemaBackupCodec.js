@@ -19,6 +19,8 @@ const ERROR_ORDER = [
 
 const ENVELOPE_KEYS = ['format', 'backupFormatVersion', 'exportedAt', 'state'];
 const LEGACY_REQUIRED_KEYS = ['inventory', 'assets', 'transactions'];
+const LEGACY_OPTIONAL_KEYS = ['laborerInventory', 'laborerLogs', 'customLocations'];
+const LEGACY_ROOT_KEYS = [...LEGACY_REQUIRED_KEYS, ...LEGACY_OPTIONAL_KEYS];
 
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -48,7 +50,7 @@ function hasLegacyRequiredKeys(value) {
 }
 
 function hasAnyLegacyRootKey(value) {
-  return LEGACY_REQUIRED_KEYS.some(key => Object.hasOwn(value, key));
+  return LEGACY_ROOT_KEYS.some(key => Object.hasOwn(value, key));
 }
 
 function isValidExportedAt(value) {
@@ -77,33 +79,35 @@ function validateCanonicalState(state) {
 }
 
 export function classifyBackup(value) {
-  const errors = [];
-
   if (!isPlainObject(value)) {
-    pushError(errors, 'INVALID_BACKUP_ROOT');
-    return resultBase(false, 'invalid', errors);
+    return resultBase(false, 'invalid', ['INVALID_BACKUP_ROOT']);
   }
 
-  if (!Object.hasOwn(value, 'format')) {
-    if (hasLegacyRequiredKeys(value)) return resultBase(true, 'legacy');
-    pushError(errors, 'INVALID_BACKUP_ROOT');
-    return resultBase(false, 'invalid', errors);
+  const hasFormat = Object.hasOwn(value, 'format');
+
+  if (hasFormat) {
+    if (hasAnyLegacyRootKey(value)) {
+      return resultBase(false, 'invalid', ['AMBIGUOUS_BACKUP_FORMAT']);
+    }
+    if (value.format !== BACKUP_FORMAT) {
+      return resultBase(false, 'invalid', ['UNSUPPORTED_BACKUP_FORMAT']);
+    }
+    if (value.backupFormatVersion !== BACKUP_FORMAT_VERSION) {
+      return resultBase(false, 'invalid', ['UNSUPPORTED_BACKUP_VERSION']);
+    }
+    if (!hasExactKeys(value, ENVELOPE_KEYS)) {
+      return resultBase(false, 'invalid', ['INVALID_BACKUP_ROOT']);
+    }
+    return resultBase(true, 'v2');
   }
 
-  if (hasAnyLegacyRootKey(value)) pushError(errors, 'AMBIGUOUS_BACKUP_FORMAT');
-  if (value.format !== BACKUP_FORMAT) pushError(errors, 'UNSUPPORTED_BACKUP_FORMAT');
-  if (value.backupFormatVersion !== BACKUP_FORMAT_VERSION) {
-    pushError(errors, 'UNSUPPORTED_BACKUP_VERSION');
-  }
-  if (!hasExactKeys(value, ENVELOPE_KEYS)) pushError(errors, 'INVALID_BACKUP_ROOT');
-
-  if (errors.length > 0) return resultBase(false, 'invalid', errors);
-  return resultBase(true, 'v2');
+  if (hasLegacyRequiredKeys(value)) return resultBase(true, 'legacy');
+  return resultBase(false, 'invalid', ['INVALID_BACKUP_ROOT']);
 }
 
 export function createBackup(state, options = {}) {
   const errors = [];
-  const exportedAt = options.exportedAt;
+  const exportedAt = options && typeof options === 'object' ? options.exportedAt : undefined;
 
   if (!isValidExportedAt(exportedAt)) pushError(errors, 'INVALID_EXPORTED_AT');
 
