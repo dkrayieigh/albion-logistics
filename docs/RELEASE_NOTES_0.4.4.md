@@ -4,9 +4,9 @@ Release notes
 
 Prepared from commit: `4b618fd2456aca7021863d5d4c4dc0f202e458b7`
 
-Status: release candidate; production build, tag, GitHub Release, and artifact upload are pending.
+Status: release candidate; production build and NSIS installer smoke are complete; tag, GitHub Release, and artifact upload are pending.
 
-These notes summarize the current 0.4.4 release-candidate behavior. They do not claim that a release tag, installer, packaged artifact, or GitHub Release has already been created.
+These notes summarize the current 0.4.4 release-candidate behavior. They do not claim that a release tag, GitHub Release, artifact upload, or MSI installation smoke has already been completed.
 
 ## 1. Highlights
 
@@ -20,6 +20,9 @@ These notes summarize the current 0.4.4 release-candidate behavior. They do not 
 - Factory Reset is scoped to Albion Logistics owned keys.
 - Unrelated same-origin storage keys are preserved by scoped reset.
 - User-confirmed Tauri dev app manual smoke for 0.4.4: PASS.
+- Production Tauri build: PASS.
+- NSIS installer smoke: PASS.
+- Built executable ProductVersion / FileVersion: `0.4.4`.
 
 ## 2. Data Safety
 
@@ -82,13 +85,19 @@ Legacy backup policy:
 - Stable Item ID migration remains future work.
 - Canonical transaction migration remains future work.
 - Progressive `checkJs`, Vite, CSP hardening, and SQLite remain future work.
-- Production build, installer / artifact verification, release tag, GitHub Release, and artifact upload are still pending.
+- MSI was built but is not yet documented as installation-smoke verified.
+- Release tag, GitHub Release, and artifact upload are still pending.
 - Selecting a legacy backup while running in v2 mode may not provide clear user-facing feedback.
 
 ## 8. Validation Completed
 
 - Local automated regression gate has been run in the closeout sequence.
 - User-confirmed Tauri manual smoke: PASS.
+- Production Tauri build: PASS.
+- Built executable version: `0.4.4`.
+- NSIS installation: PASS.
+- Installed-app launch / restart: PASS.
+- Installed-app export: PASS.
 - Browser export transport covered.
 - Tauri native save-dialog export transport covered.
 - v2 import restore covered.
@@ -104,7 +113,6 @@ This document intentionally does not record a fixed automated test count because
 
 ## 9. Not Included In 0.4.4
 
-- Production installer build.
 - Release tag creation.
 - GitHub Release publication.
 - Artifact upload.

@@ -122,10 +122,12 @@ Affected area: Build / Packaging / Security hardening
 
 Current limitation:
 
-- Production Tauri build is pending for the 0.4.4 release artifact.
-- Installer / release artifact verification is pending.
+- Production Tauri build completed for 0.4.4.
+- NSIS installer smoke completed successfully.
+- MSI was built but is not documented as installation-smoke verified.
 - v0.4.4 tag is pending.
 - GitHub Release is pending.
+- Artifact upload is pending.
 - Progressive `checkJs` is not enabled as a release gate.
 - Vite migration is not complete.
 - CSP hardening is not complete; CSP is still effectively not a packaged-artifact gate.

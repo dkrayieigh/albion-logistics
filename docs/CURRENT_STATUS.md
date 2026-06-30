@@ -74,11 +74,21 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - The current codebase is a 0.4.4 release candidate.
 - User-confirmed Tauri dev app manual smoke for 0.4.4: PASS.
 - Export/import/reset/startup and numeric-input UX hotfix regressions are passing locally.
-- Production build is pending.
-- Installer / release artifact verification is pending.
+- Version metadata is consistent at `0.4.4` across package, lockfile, Cargo, Tauri config, and built executable metadata.
+- Production Tauri build: PASS.
+- NSIS installer build: PASS.
+- User-confirmed installed-app smoke: PASS.
+- Installed executable ProductVersion / FileVersion: `0.4.4`.
+- Installed app launch: PASS.
+- Installed app restart: PASS.
+- Numeric input UX: PASS.
+- Quotation queue immediate update: PASS.
+- Native save dialog / export: PASS.
 - v0.4.4 tag is pending.
 - GitHub Release is pending.
 - Artifact upload is pending.
+- Default release artifacts remain pending until tag / GitHub Release / upload are complete. The intended formal upload set is `albion-logistics_0.4.4_x64-setup.exe` and `SHA256SUMS.txt`.
+- MSI was built, but is not documented as installation-smoke verified.
 
 This means 0.4.4 is release-candidate complete from the documented source and regression perspective, but it is not documented here as released.
 
