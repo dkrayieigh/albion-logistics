@@ -29,10 +29,12 @@ export function createBrowserStorageBackend(storage) {
 
   let getItem;
   let setItem;
+  let removeItem;
 
   try {
     getItem = storage.getItem;
     setItem = storage.setItem;
+    removeItem = storage.removeItem;
   } catch {
     return invalidBrowserStorageResult();
   }
@@ -41,17 +43,25 @@ export function createBrowserStorageBackend(storage) {
     return invalidBrowserStorageResult();
   }
 
+  const backend = {
+    getItem(key) {
+      return getItem.call(storage, key);
+    },
+
+    setItem(key, value) {
+      return setItem.call(storage, key, value);
+    }
+  };
+
+  if (typeof removeItem === 'function') {
+    backend.removeItem = function removeBrowserStorageItem(key) {
+      return removeItem.call(storage, key);
+    };
+  }
+
   return {
     ok: true,
-    backend: {
-      getItem(key) {
-        return getItem.call(storage, key);
-      },
-
-      setItem(key, value) {
-        return setItem.call(storage, key, value);
-      }
-    },
+    backend,
     errors: []
   };
 }

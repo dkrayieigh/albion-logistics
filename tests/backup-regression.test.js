@@ -9,6 +9,7 @@ import {
   encodeNewSchemaState,
   decodeNewSchemaState
 } from '../src/adapters/newSchemaStorageCodec.js';
+import { createBackup } from '../src/adapters/newSchemaBackupCodec.js';
 import {
   projectNewSchemaToRuntime,
   projectRuntimeToNewSchema
@@ -60,6 +61,7 @@ globalThis.Event = class Event {
 const storage = new Map();
 let alerts = [];
 let confirmResult = true;
+let confirmCalls = 0;
 let createdBlob;
 let reloadCount = 0;
 let browserDownloadCount = 0;
@@ -67,6 +69,9 @@ let tauriInvocations = [];
 let toastCalls = [];
 let storageGetCalls = [];
 let storageSetCalls = [];
+let storageRemoveCalls = [];
+let fileReaderReads = 0;
+let fileReaderShouldError = false;
 
 globalThis.localStorage = {
   clear: () => storage.clear(),
@@ -77,11 +82,18 @@ globalThis.localStorage = {
   setItem: (key, value) => {
     storageSetCalls.push({ key, value: String(value) });
     storage.set(key, String(value));
+  },
+  removeItem: key => {
+    storageRemoveCalls.push(key);
+    storage.delete(key);
   }
 };
 
 globalThis.alert = message => alerts.push(message);
-globalThis.confirm = () => confirmResult;
+globalThis.confirm = () => {
+  confirmCalls++;
+  return confirmResult;
+};
 globalThis.location = {
   reload: () => {
     reloadCount++;
@@ -103,6 +115,11 @@ globalThis.URL = {
 };
 globalThis.FileReader = class FileReader {
   readAsText(file) {
+    fileReaderReads++;
+    if (fileReaderShouldError) {
+      this.onerror({ target: { error: new Error('read failed') } });
+      return;
+    }
     this.onload({ target: { result: file.contents } });
   }
 };
@@ -137,6 +154,7 @@ function resetMocks() {
   storage.clear();
   alerts = [];
   confirmResult = true;
+  confirmCalls = 0;
   createdBlob = undefined;
   reloadCount = 0;
   browserDownloadCount = 0;
@@ -144,6 +162,9 @@ function resetMocks() {
   toastCalls = [];
   storageGetCalls = [];
   storageSetCalls = [];
+  storageRemoveCalls = [];
+  fileReaderReads = 0;
+  fileReaderShouldError = false;
   delete window.__TAURI__;
   getElement('import-file').value = '';
 }
@@ -155,6 +176,7 @@ function resetExportTracking() {
   toastCalls = [];
   storageGetCalls = [];
   storageSetCalls = [];
+  storageRemoveCalls = [];
 }
 
 function seedStorage(data) {
@@ -195,6 +217,24 @@ function importBackup(data) {
   };
   getElement('import-file').handlers.change({ target });
   return target;
+}
+
+function importBackupText(text) {
+  const target = {
+    files: [{ contents: text }],
+    value: 'backup.json'
+  };
+  getElement('import-file').handlers.change({ target });
+  return target;
+}
+
+function createV2BackupTextFromState(canonical = makeRuntimeBridgeNewSchemaState()) {
+  const created = createBackup(canonical, {
+    exportedAt: '2026-06-30T00:00:00.000Z'
+  });
+
+  assert.equal(created.ok, true);
+  return created.backupText;
 }
 
 function storageSnapshot() {
@@ -538,6 +578,11 @@ function makeBrowserStorageDouble(initialEntries = {}) {
     setItem(key, value) {
       calls.push({ method: 'setItem', key, value });
       entries.set(key, String(value));
+    },
+
+    removeItem(key) {
+      calls.push({ method: 'removeItem', key });
+      entries.delete(key);
     }
   };
 }
@@ -812,8 +857,238 @@ test('TEST-B04: v2 export does not mutate v2 storage legacy keys or runtime stat
   assert.equal(JSON.stringify(state), beforeRuntime);
 });
 
+test('TEST-B04: valid v2 backup imports through production restore service only', { concurrency: false }, () => {
+  resetMocks();
+  const initialCanonical = makeRuntimeBridgeNewSchemaState();
+  const importedCanonical = makeRuntimeBridgeNewSchemaState();
+  const itemKey = Object.keys(importedCanonical.inventory)[0];
+  importedCanonical.inventory[itemKey].qtyByLocation.thetford = 42;
+  startProductionV2Mode(initialCanonical);
+  for (const key of LEGACY_STORAGE_KEYS) localStorage.setItem(key, `legacy:${key}`);
+  const beforeRuntime = JSON.stringify(state);
+  const beforeLegacy = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, localStorage.getItem(key)]));
+  resetExportTracking();
+
+  importBackupText(createV2BackupTextFromState(importedCanonical));
+
+  assert.equal(confirmCalls, 1);
+  assert.equal(reloadCount, 1);
+  assert.equal(alerts.some(message => /匯入成功/.test(message)), true);
+  assert.deepEqual(storageSetCalls.map(call => call.key), [NEW_SCHEMA_STORAGE_KEY]);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.deepEqual(Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, localStorage.getItem(key)])), beforeLegacy);
+  assert.notEqual(localStorage.getItem(NEW_SCHEMA_STORAGE_KEY), encodeNewSchemaState(initialCanonical).serialized);
+  assert.equal(JSON.stringify(state), beforeRuntime);
+});
+
+test('TEST-B04: valid v2 import cancel does not compose backend mutate or reload', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+  confirmResult = false;
+  const before = storageSnapshot();
+
+  importBackupText(createV2BackupTextFromState());
+
+  assert.equal(confirmCalls, 1);
+  assert.equal(storageSnapshot(), before);
+  assert.deepEqual(storageGetCalls, []);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.equal(alerts.some(message => /匯入成功/.test(message)), false);
+});
+
+test('TEST-B04: invalid v2 import preflight stops before confirm backend mutation or reload', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+
+  importBackupText('{invalid');
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageGetCalls, []);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /INVALID_JSON/);
+});
+
+test('TEST-B04: invalid v2 envelope reports stable codes without mutation', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+  const invalidEnvelope = JSON.stringify({
+    format: 'albion-logistics-backup',
+    backupFormatVersion: 1,
+    exportedAt: 'not-a-date',
+    state: {}
+  });
+
+  importBackupText(invalidEnvelope);
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /INVALID_EXPORTED_AT/);
+  assert.match(alerts.at(-1) || '', /INVALID_BACKUP_STATE/);
+});
+
+test('TEST-B04: legacy backup in v2 mode requires legacy path without mutation', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+
+  importBackup({ inventory: {}, assets: { cash: 0, debt: 0 }, transactions: [] });
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageGetCalls, []);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /LEGACY_BACKUP_REQUIRES_LEGACY_PATH/);
+});
+
+test('TEST-B04: v2 import reports invalid storage backend without reload', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+  const originalRemoveItem = localStorage.removeItem;
+  delete localStorage.removeItem;
+
+  try {
+    importBackupText(createV2BackupTextFromState());
+  } finally {
+    localStorage.removeItem = originalRemoveItem;
+  }
+
+  assert.equal(confirmCalls, 1);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /INVALID_STORAGE_BACKEND/);
+});
+
+test('TEST-B04: v2 import verification failure restores old v2 raw and does not reload', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  const oldRaw = localStorage.getItem(NEW_SCHEMA_STORAGE_KEY);
+  resetExportTracking();
+  const originalGetItem = localStorage.getItem;
+  let readCount = 0;
+  localStorage.getItem = key => {
+    storageGetCalls.push(key);
+    if (key !== NEW_SCHEMA_STORAGE_KEY) return originalGetItem.call(localStorage, key);
+    readCount++;
+    if (readCount === 2) return '{"schemaVersion":2}';
+    return storage.get(key) ?? null;
+  };
+
+  try {
+    importBackupText(createV2BackupTextFromState());
+  } finally {
+    localStorage.getItem = originalGetItem;
+  }
+
+  assert.equal(localStorage.getItem(NEW_SCHEMA_STORAGE_KEY), oldRaw);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /STORAGE_VERIFICATION_FAILED/);
+});
+
+test('TEST-B04: v2 import rollback failure reports fatal code without retry or reload', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+  const originalGetItem = localStorage.getItem;
+  let readCount = 0;
+  localStorage.getItem = key => {
+    storageGetCalls.push(key);
+    if (key !== NEW_SCHEMA_STORAGE_KEY) return originalGetItem.call(localStorage, key);
+    readCount++;
+    if (readCount >= 2) return '{"schemaVersion":2}';
+    return storage.get(key) ?? null;
+  };
+
+  try {
+    importBackupText(createV2BackupTextFromState());
+  } finally {
+    localStorage.getItem = originalGetItem;
+  }
+
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /ROLLBACK_FAILED/);
+  assert.equal(storageSetCalls.filter(call => call.key === NEW_SCHEMA_STORAGE_KEY).length, 2);
+});
+
+test('TEST-B04: blocked production mode rejects import before FileReader or mutation', { concurrency: false }, () => {
+  resetMocks();
+  localStorage.setItem(NEW_SCHEMA_STORAGE_KEY, '{"schemaVersion":2}');
+  const startup = startApplicationState(localStorage, {
+    showBlockedError() {}
+  });
+  assert.equal(startup.ok, false);
+  resetExportTracking();
+
+  importBackupText(createV2BackupTextFromState());
+
+  assert.equal(fileReaderReads, 0);
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageGetCalls, []);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /IMPORT_MODE_BLOCKED/);
+});
+
+test('TEST-B04: FileReader error reports read failure and clears input without mutation', { concurrency: false }, () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+  fileReaderShouldError = true;
+
+  const target = importBackupText(createV2BackupTextFromState());
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageGetCalls, []);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.equal(target.value, '');
+  assert.match(alerts.at(-1) || '', /IMPORT_READ_FAILED/);
+});
+
+test('TEST-B04: legacy import cancel does not mutate storage or reload', { concurrency: false }, () => {
+  resetMocks();
+  startProductionLegacyMode();
+  resetExportTracking();
+  confirmResult = false;
+
+  importBackup({ inventory: {}, assets: { cash: 0, debt: 0 }, transactions: [] });
+
+  assert.equal(confirmCalls, 1);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+});
+
+test('TEST-B04: v2 envelope in legacy mode is rejected without legacy writes', { concurrency: false }, () => {
+  resetMocks();
+  startProductionLegacyMode();
+  resetExportTracking();
+
+  importBackupText(createV2BackupTextFromState());
+
+  assert.equal(confirmCalls, 0);
+  assert.deepEqual(storageSetCalls, []);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(reloadCount, 0);
+  assert.match(alerts.at(-1) || '', /JSON 格式不符|JSON 解析錯誤/);
+});
+
 test('TEST-B04: readable JSON backup imports, reloads, and remains loadState-compatible', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '新格式交易' }));
   const inventory = {
     '布料_6.1': {
@@ -843,6 +1118,7 @@ test('TEST-B04: readable JSON backup imports, reloads, and remains loadState-com
 
 test('TEST-B04: legacy JSON-string backup imports without losing transactions', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const transactions = Array.from({ length: 150 }, (_, index) => ({ id: index + 1, type: '舊格式交易' }));
   const inventory = { '布料_6.1': { qtyByCity: { Thetford: 500 }, globalAvgCost: 6000 } };
   const assets = { cash: 3000000, debt: 0 };
@@ -862,6 +1138,7 @@ test('TEST-B04: legacy JSON-string backup imports without losing transactions', 
 
 test('D63: legacy Chinese item key backup import preserves qtyByCity, globalAvgCost, and cash', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const inventory = {
     '布料_6.1': {
       qtyByCity: {
@@ -894,6 +1171,7 @@ test('D63: legacy Chinese item key backup import preserves qtyByCity, globalAvgC
 
 test('D63: legacy customLocations string backup import preserves custom warehouse qtyByCity', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const customLocation = '公會T8地堡';
   const inventory = {
     '布料_6.1': {
@@ -926,6 +1204,7 @@ test('D63: legacy customLocations string backup import preserves custom warehous
 
 test('D63: large legacy transaction backup import preserves count and legacy transaction fields', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const legacySamples = [
     {
       date: '2026-06-18',
@@ -1007,6 +1286,7 @@ test('D63: large legacy transaction backup import preserves count and legacy tra
 
 test('D76: legacy multi-item multi-location backup preserves all location quantities', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const backup = legacyLocationBackupFixture();
 
   importBackup(backup);
@@ -1027,6 +1307,7 @@ test('D76: legacy multi-item multi-location backup preserves all location quanti
 
 test('D76: loadState preserves imported legacy location maps and custom location strings', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const backup = legacyLocationBackupFixture();
 
   importBackup(backup);
@@ -1048,6 +1329,7 @@ test('D76: loadState preserves imported legacy location maps and custom location
 
 test('D76: location adapter reads imported qtyByCity wrapper without changing state', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const backup = legacyLocationBackupFixture();
 
   importBackup(backup);
@@ -1065,6 +1347,7 @@ test('D76: location adapter reads imported qtyByCity wrapper without changing st
 
 test('D76: custom location literal keys remain strings without registry conversion', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const backup = legacyLocationBackupFixture();
 
   importBackup(backup);
@@ -1081,6 +1364,7 @@ test('D76: custom location literal keys remain strings without registry conversi
 
 test('D76: legacy backup zero location quantity is preserved through import loadState and adapter read', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const backup = legacyLocationBackupFixture();
   backup.inventory['布料_6.1'].qtyByCity.Martlock = 0;
 
@@ -1126,6 +1410,7 @@ test('D76: legacy backup export import round trip preserves qtyByCity storage sh
   const exported = JSON.parse(createdBlob.parts.join(''));
 
   resetMocks();
+  startProductionLegacyMode();
   importBackup(exported);
 
   const importedInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.inventory));
@@ -1138,6 +1423,7 @@ test('D76: legacy backup export import round trip preserves qtyByCity storage sh
 
 test('D76: future qtyByLocation remains adapter-only sample while imported legacy backup stays qtyByCity', { concurrency: false }, () => {
   resetMocks();
+  startProductionLegacyMode();
   const futureSample = normalizeLocationMap({
     qtyByLocation: {
       thetford: 120,
@@ -3312,6 +3598,63 @@ test('browser storage backend should forward getItem and setItem arguments witho
   assert.equal(calls[1].value, value);
 });
 
+test('browser storage backend should expose removeItem with storage this binding when available', { concurrency: false }, () => {
+  class StorageDouble {
+    constructor(initialEntries = {}) {
+      this.entries = new Map(Object.entries(initialEntries));
+      this.calls = [];
+    }
+
+    getItem(key) {
+      this.calls.push({ method: 'getItem', thisValue: this, key });
+      return this.entries.has(key) ? this.entries.get(key) : null;
+    }
+
+    setItem(key, value) {
+      this.calls.push({ method: 'setItem', thisValue: this, key, value });
+      this.entries.set(key, String(value));
+    }
+
+    removeItem(key) {
+      this.calls.push({ method: 'removeItem', thisValue: this, key });
+      this.entries.delete(key);
+    }
+  }
+
+  const storageDouble = new StorageDouble({ keep: 'yes', remove: 'old' });
+  const binding = createBrowserStorageBackend(storageDouble);
+
+  assert.equal(binding.ok, true);
+  assert.equal(typeof binding.backend.removeItem, 'function');
+  binding.backend.removeItem('remove');
+
+  assert.equal(storageDouble.entries.get('keep'), 'yes');
+  assert.equal(storageDouble.entries.has('remove'), false);
+  assert.deepEqual(storageDouble.calls, [
+    { method: 'removeItem', thisValue: storageDouble, key: 'remove' }
+  ]);
+});
+
+test('browser storage backend should keep read-write binding when removeItem is absent', { concurrency: false }, () => {
+  const storageDouble = {
+    entries: new Map(),
+    getItem(key) {
+      return this.entries.has(key) ? this.entries.get(key) : null;
+    },
+    setItem(key, value) {
+      this.entries.set(key, String(value));
+    }
+  };
+
+  const binding = createBrowserStorageBackend(storageDouble);
+
+  assert.equal(binding.ok, true);
+  assert.equal(typeof binding.backend.getItem, 'function');
+  assert.equal(typeof binding.backend.setItem, 'function');
+  assert.equal(Object.hasOwn(binding.backend, 'removeItem'), false);
+  assert.equal(createNewSchemaStorageRepository(binding.backend).save(makeValidNewSchemaState()).ok, true);
+});
+
 test('browser storage backend should reject invalid or throwing storage method contracts', { concurrency: false }, () => {
   const invalidContracts = [
     null,
@@ -3336,6 +3679,13 @@ test('browser storage backend should reject invalid or throwing storage method c
     {
       getItem() {},
       get setItem() {
+        throw new Error('getter failure');
+      }
+    },
+    {
+      getItem() {},
+      setItem() {},
+      get removeItem() {
         throw new Error('getter failure');
       }
     },
@@ -3461,7 +3811,7 @@ test('browser storage backend should remain isolated from global localStorage st
   const source = readFileSync('src/adapters/browserStorageBackend.js', 'utf8');
   assert.equal(storageSnapshot(), before);
   assert.doesNotMatch(source, /\bglobalThis\b|\bwindow\b|\bdocument\b|\blocalStorage\b/);
-  assert.doesNotMatch(source, /state\.js|src\/app|component|backup|writer|repository|codec|removeItem|key\(|length|albion_crafting|NEW_SCHEMA_STORAGE_KEY/i);
+  assert.doesNotMatch(source, /state\.js|src\/app|component|backup|writer|repository|codec|key\(|length|albion_crafting|NEW_SCHEMA_STORAGE_KEY/i);
 });
 
 // Future browser new-schema repository composition contract:
@@ -4312,6 +4662,7 @@ test('TEST-B04: invalid backup data cannot overwrite existing localStorage', { c
   for (const [name, backup] of Object.entries(invalidBackups)) {
     await t.test(name, () => {
       resetMocks();
+      startProductionLegacyMode();
       seedStorage({
         inventory: validInventory,
         assets: validAssets,

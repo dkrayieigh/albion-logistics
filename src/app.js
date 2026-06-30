@@ -19,6 +19,9 @@ import * as Ledger from './components/ledger.js';
 import * as Quotation from './components/quotation.js';
 import * as WindowControls from './components/window-controls.js';
 import { createBrowserNewSchemaRepository } from './adapters/browserNewSchemaRepository.js';
+import { createBrowserStorageBackend } from './adapters/browserStorageBackend.js';
+import { parseBackup } from './adapters/newSchemaBackupCodec.js';
+import { restoreBackup } from './services/newSchemaBackupImportService.js';
 import { createBackupFromRepository } from './services/newSchemaBackupExportService.js';
 
 // ==========================================
@@ -170,6 +173,14 @@ function formatExportError(errors) {
   return `備份匯出失敗：${codes}`;
 }
 
+function formatImportError(errors, innerErrors = []) {
+  const codes = [
+    ...(Array.isArray(errors) ? errors : []),
+    ...(Array.isArray(innerErrors) ? innerErrors : [])
+  ];
+  return `匯入失敗：${codes.length > 0 ? codes.join(', ') : 'IMPORT_FAILED'}`;
+}
+
 function createV2BackupText(now) {
   const created = createBrowserNewSchemaRepository(localStorage);
   if (!created.ok) return { ok: false, errors: created.errors };
@@ -219,28 +230,66 @@ async function exportData() {
   }
   window.showToast('資料匯出成功！', 'success');
 }
+
+function importLegacyBackupText(text) {
+  try {
+    const data = JSON.parse(text);
+    if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.hasOwn(data, 'inventory') || !Object.hasOwn(data, 'assets') || !Object.hasOwn(data, 'transactions')) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
+    const parseBackupField = value => typeof value === 'string' ? JSON.parse(value) : value;
+    const inventory = parseBackupField(data.inventory); const assets = parseBackupField(data.assets); const transactions = parseBackupField(data.transactions);
+    const laborerInventory = Object.hasOwn(data, 'laborerInventory') ? parseBackupField(data.laborerInventory) : undefined; const laborerLogs = Object.hasOwn(data, 'laborerLogs') ? parseBackupField(data.laborerLogs) : undefined; const customLocations = Object.hasOwn(data, 'customLocations') ? parseBackupField(data.customLocations) : undefined;
+    if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory) || !assets || typeof assets !== 'object' || Array.isArray(assets) || !Array.isArray(transactions)) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
+    if ((laborerInventory !== undefined && (!laborerInventory || typeof laborerInventory !== 'object' || Array.isArray(laborerInventory))) || (laborerLogs !== undefined && !Array.isArray(laborerLogs)) || (customLocations !== undefined && !Array.isArray(customLocations))) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
+    if (confirm("⚠️ 這將會覆寫目前的所有紀錄，確定要匯入嗎？")) {
+      localStorage.setItem('albion_crafting_stocks', JSON.stringify(inventory)); localStorage.setItem('albion_crafting_assets', JSON.stringify(assets)); localStorage.setItem('albion_crafting_transactions', JSON.stringify(transactions));
+      if(laborerInventory !== undefined) localStorage.setItem('albion_crafting_laborer_stocks', JSON.stringify(laborerInventory));
+      if(laborerLogs !== undefined) localStorage.setItem('albion_crafting_laborer_logs', JSON.stringify(laborerLogs));
+      if(customLocations !== undefined) localStorage.setItem('albion_crafting_custom_locs', JSON.stringify(customLocations));
+      alert("匯入成功！系統將重新載入。"); location.reload();
+    }
+  } catch(err) { alert("匯入失敗：JSON 解析錯誤，已中斷操作！"); }
+}
+
+function importV2BackupText(text) {
+  const parsed = parseBackup(text);
+  if (!parsed.ok) return alert(formatImportError(parsed.errors, parsed.innerErrors));
+  if (parsed.status === 'legacy') return alert(formatImportError(['LEGACY_BACKUP_REQUIRES_LEGACY_PATH']));
+  if (!confirm("⚠️ 這將會覆寫目前的新版資料；legacy 資料不會被修改。成功後系統將重新載入。\n確定要匯入嗎？")) return;
+
+  const binding = createBrowserStorageBackend(localStorage);
+  if (!binding.ok) return alert(formatImportError(binding.errors));
+
+  const result = restoreBackup(binding.backend, text);
+  if (!result.ok || result.status !== 'committed') {
+    return alert(formatImportError(result.errors, result.innerErrors));
+  }
+
+  alert("匯入成功！系統將重新載入。");
+  location.reload();
+}
+
 function importData(e) {
   const file = e.target.files[0]; if (!file) return;
+  if (productionStorageMode !== 'legacy' && productionStorageMode !== 'v2') {
+    alert(formatImportError([`IMPORT_MODE_${productionStorageMode.toUpperCase()}`]));
+    e.target.value = '';
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = function(evt) {
     try {
-      const data = JSON.parse(evt.target.result);
-      if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.hasOwn(data, 'inventory') || !Object.hasOwn(data, 'assets') || !Object.hasOwn(data, 'transactions')) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
-      const parseBackupField = value => typeof value === 'string' ? JSON.parse(value) : value;
-      const inventory = parseBackupField(data.inventory); const assets = parseBackupField(data.assets); const transactions = parseBackupField(data.transactions);
-      const laborerInventory = Object.hasOwn(data, 'laborerInventory') ? parseBackupField(data.laborerInventory) : undefined; const laborerLogs = Object.hasOwn(data, 'laborerLogs') ? parseBackupField(data.laborerLogs) : undefined; const customLocations = Object.hasOwn(data, 'customLocations') ? parseBackupField(data.customLocations) : undefined;
-      if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory) || !assets || typeof assets !== 'object' || Array.isArray(assets) || !Array.isArray(transactions)) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
-      if ((laborerInventory !== undefined && (!laborerInventory || typeof laborerInventory !== 'object' || Array.isArray(laborerInventory))) || (laborerLogs !== undefined && !Array.isArray(laborerLogs)) || (customLocations !== undefined && !Array.isArray(customLocations))) return alert("匯入失敗：JSON 格式不符或損壞，已中斷操作！");
-      if (confirm("⚠️ 這將會覆寫目前的所有紀錄，確定要匯入嗎？")) {
-        localStorage.setItem('albion_crafting_stocks', JSON.stringify(inventory)); localStorage.setItem('albion_crafting_assets', JSON.stringify(assets)); localStorage.setItem('albion_crafting_transactions', JSON.stringify(transactions));
-        if(laborerInventory !== undefined) localStorage.setItem('albion_crafting_laborer_stocks', JSON.stringify(laborerInventory));
-        if(laborerLogs !== undefined) localStorage.setItem('albion_crafting_laborer_logs', JSON.stringify(laborerLogs));
-        if(customLocations !== undefined) localStorage.setItem('albion_crafting_custom_locs', JSON.stringify(customLocations));
-        alert("匯入成功！系統將重新載入。"); location.reload();
-      }
-    } catch(err) { alert("匯入失敗：JSON 解析錯誤，已中斷操作！"); }
+      if (productionStorageMode === 'legacy') importLegacyBackupText(evt.target.result);
+      else importV2BackupText(evt.target.result);
+    } finally {
+      e.target.value = '';
+    }
   };
-  reader.readAsText(file); e.target.value = '';
+  reader.onerror = function() {
+    alert(formatImportError(['IMPORT_READ_FAILED']));
+    e.target.value = '';
+  };
+  reader.readAsText(file);
 }
 
 const DECIMAL_RATE_INPUT_IDS = new Set([
