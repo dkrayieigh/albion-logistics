@@ -1148,6 +1148,109 @@ test('TEST-B04: v2 export does not mutate v2 storage legacy keys or runtime stat
   assert.equal(JSON.stringify(state), beforeRuntime);
 });
 
+test('TEST-B04: production v2 export import round-trip restores canonical state', { concurrency: false }, async () => {
+  resetMocks();
+  const sourceCanonical = makeRuntimeBridgeNewSchemaState();
+  const sourceItemKey = Object.keys(sourceCanonical.inventory)[0];
+  const sourceLaborerCategory = Object.keys(sourceCanonical.laborerInventory)[0];
+  const customLocationId = 'custom:round-trip-001';
+
+  sourceCanonical.assets.cash = 9876543;
+  sourceCanonical.assets.debt = 123456;
+  sourceCanonical.locationRegistry[customLocationId] = {
+    locationId: customLocationId,
+    displayName: 'Round Trip Warehouse',
+    type: 'custom',
+    active: true
+  };
+  sourceCanonical.inventory[sourceItemKey].qtyByLocation.thetford = 77;
+  sourceCanonical.inventory[sourceItemKey].qtyByLocation[customLocationId] = 19;
+  sourceCanonical.inventory[sourceItemKey].globalAvgCost = 54321;
+  sourceCanonical.transactions = [
+    {
+      type: 'round-trip-source',
+      itemKey: sourceItemKey,
+      quantity: 7,
+      locationId: customLocationId
+    }
+  ];
+  sourceCanonical.laborerInventory[sourceLaborerCategory]['6.1'] = 8;
+  sourceCanonical.laborerLogs = [
+    {
+      type: 'round-trip-laborer-source',
+      item: sourceLaborerCategory,
+      quality: '6.1',
+      quantity: 8
+    }
+  ];
+  assert.equal(encodeNewSchemaState(sourceCanonical).ok, true);
+  const sourceSnapshot = JSON.parse(JSON.stringify(sourceCanonical));
+
+  startProductionV2Mode(sourceCanonical);
+  for (const key of LEGACY_STORAGE_KEYS) localStorage.setItem(key, `legacy-sentinel:${key}`);
+  const legacyRawBefore = Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, localStorage.getItem(key)]));
+  const runtimeBeforeImport = JSON.stringify(state);
+  resetExportTracking();
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(browserDownloadCount, 1);
+  assert.ok(createdBlob);
+  assert.ok(Array.isArray(createdBlob.parts));
+  assert.deepEqual(tauriInvocations, []);
+  assert.deepEqual(toastCalls.map(call => call.type), ['success']);
+  const backupText = createdBlob.parts.join('');
+  const exported = JSON.parse(backupText);
+  assert.equal(exported.format, 'albion-logistics-backup');
+  assert.equal(exported.backupFormatVersion, 1);
+  assert.deepEqual(exported.state, sourceSnapshot);
+  const decodedExportedState = decodeNewSchemaState(JSON.stringify(exported.state));
+  assert.equal(decodedExportedState.ok, true);
+  assert.deepEqual(decodedExportedState.state, sourceSnapshot);
+
+  const mutationCanonical = makeRuntimeBridgeNewSchemaState();
+  const mutationItemKey = Object.keys(mutationCanonical.inventory)[0];
+  mutationCanonical.assets.cash = 111;
+  mutationCanonical.assets.debt = 222;
+  mutationCanonical.inventory[mutationItemKey].qtyByLocation.thetford = 1;
+  mutationCanonical.inventory[mutationItemKey].globalAvgCost = 999;
+  mutationCanonical.transactions = [
+    { type: 'round-trip-mutation-a', quantity: 1 },
+    { type: 'round-trip-mutation-b', quantity: 2 }
+  ];
+  const encodedMutation = encodeNewSchemaState(mutationCanonical);
+  assert.equal(encodedMutation.ok, true);
+  localStorage.setItem(NEW_SCHEMA_STORAGE_KEY, encodedMutation.serialized);
+  const decodedMutation = decodeNewSchemaState(localStorage.getItem(NEW_SCHEMA_STORAGE_KEY));
+  assert.equal(decodedMutation.ok, true);
+  assert.deepEqual(decodedMutation.state, mutationCanonical);
+  assert.notDeepEqual(decodedMutation.state, sourceSnapshot);
+
+  alerts = [];
+  confirmCalls = 0;
+  reloadCount = 0;
+  toastCalls = [];
+  storageGetCalls = [];
+  storageSetCalls = [];
+  storageRemoveCalls = [];
+  clearCalls = 0;
+  const importTarget = importBackupText(backupText);
+
+  assert.equal(confirmCalls, 1);
+  assert.equal(alerts.length, 1);
+  assert.equal(reloadCount, 1);
+  assert.equal(importTarget.value, '');
+  const decodedRestored = decodeNewSchemaState(localStorage.getItem(NEW_SCHEMA_STORAGE_KEY));
+  assert.equal(decodedRestored.ok, true);
+  assert.deepEqual(decodedRestored.state, sourceSnapshot);
+  assert.notDeepEqual(decodedRestored.state, mutationCanonical);
+  assert.deepEqual(Object.fromEntries(LEGACY_STORAGE_KEYS.map(key => [key, localStorage.getItem(key)])), legacyRawBefore);
+  assert.deepEqual(storageSetCalls.map(call => call.key), [NEW_SCHEMA_STORAGE_KEY]);
+  assert.deepEqual(storageRemoveCalls, []);
+  assert.equal(clearCalls, 0);
+  assert.equal(JSON.stringify(state), runtimeBeforeImport);
+});
+
 test('TEST-B04: valid v2 backup imports through production restore service only', { concurrency: false }, () => {
   resetMocks();
   const initialCanonical = makeRuntimeBridgeNewSchemaState();
