@@ -60,7 +60,7 @@ Rules:
 3. `backupFormatVersion` and `state.schemaVersion` are separate:
    - `backupFormatVersion` describes the backup envelope.
    - `schemaVersion` describes the canonical state.
-4. `exportedAt` is required, must be a valid ISO-8601 UTC string, and is informational metadata only.
+4. `exportedAt` is required, must be a canonical ISO-8601 UTC millisecond string, and is informational metadata only.
 5. `state` must be canonical state and must pass the existing new-schema codec.
 6. `state` must not be runtime `qtyByCity` projection.
 7. `state` must not contain legacy backup fields.
@@ -69,9 +69,23 @@ Rules:
 
 ## Export Source Contract
 
+Future application service must source v2 export through the injected new-schema repository:
+
+1. Call repository `load()`.
+2. Only `ok: true` and `status: loaded` may enter backup codec creation.
+3. `missing` returns `BACKUP_SOURCE_MISSING`.
+4. `invalid` returns `INVALID_BACKUP_STATE` with inner codec errors where available.
+5. `error` returns `STORAGE_READ_FAILED` or repository-derived storage errors.
+6. Do not export from runtime state.
+7. Do not call `projectRuntimeToNewSchema` as export source.
+8. Do not read legacy keys.
+9. Do not fallback.
+
+Pure backup codec only receives already-loaded canonical state. Repository orchestration belongs to the future application service layer.
+
 v2 export must use:
 
-- active canonical state
+- canonical state loaded from the injected new-schema repository
 - existing new-schema codec validation
 
 v2 export must not use:
@@ -83,7 +97,7 @@ v2 export must not use:
 
 Export flow:
 
-1. Receive active canonical state.
+1. Load canonical state through the injected new-schema repository.
 2. Validate canonical state.
 3. Create backup envelope.
 4. Serialize readable JSON.
@@ -98,6 +112,34 @@ UI integration responsibilities are separate:
 - fs write
 - browser Blob download
 - toast
+
+## exportedAt Contract
+
+Canonical timestamp rule:
+
+- `typeof exportedAt === 'string'`
+- `Date.parse(exportedAt)` is finite
+- `new Date(exportedAt).toISOString() === exportedAt`
+
+Accepted shape:
+
+```text
+YYYY-MM-DDTHH:mm:ss.sssZ
+```
+
+Create-backup rule:
+
+- Pure codec receives explicit `exportedAt` as an option.
+- Pure codec must not use ambient current time by itself.
+- Production integration may pass `new Date().toISOString()`.
+
+Future tests:
+
+- canonical millisecond UTC timestamp accepted
+- UTC string without milliseconds blocked
+- date-only string blocked
+- invalid date blocked
+- timezone offset string blocked even if `Date.parse` accepts it
 
 ## Backup Classification
 
@@ -114,7 +156,7 @@ Required:
 
 ### legacy backup
 
-Legacy backup has no v2 format marker and may contain legacy required fields:
+Legacy backup has no v2 format marker and must contain all three required root fields:
 
 - `inventory`
 - `assets`
@@ -125,6 +167,8 @@ Common optional legacy fields:
 - `laborerInventory`
 - `laborerLogs`
 - `customLocations`
+
+Missing any required field means invalid, not legacy. Classification does not mean the full legacy validation has already passed.
 
 ### ambiguous / invalid
 
@@ -271,7 +315,7 @@ Reset flow:
 2. Service snapshots currently existing owned-key raw values.
 3. Remove owned keys.
 4. Verify owned keys no longer exist.
-5. Verify unrelated keys are preserved.
+5. Do not enumerate or inspect unrelated keys.
 6. Only then report reset-complete.
 
 If remove or verification fails:
@@ -281,6 +325,14 @@ If remove or verification fails:
 - keep unrelated keys unchanged
 - return `ROLLBACK_FAILED` if rollback fails
 - do not reload
+
+Unrelated-key preservation is verified by tests, not by service enumeration. Tests should seed sentinel unrelated keys and assert:
+
+- sentinel value is unchanged
+- sentinel receives no `setItem` call
+- sentinel receives no `removeItem` call
+
+Rollback only restores owned keys. It must not infer ownership from names that merely look related or share a prefix.
 
 If no owned key exists:
 
@@ -299,6 +351,7 @@ Backup/reset pure service uses an injected synchronous backend:
 Rules:
 
 - Do not access global `localStorage`.
+- Do not require `keys()`, `length`, `key(index)`, or any storage enumeration API.
 - Do not support Promise / thenable backend methods.
 - Backend errors map to stable error result.
 - Do not depend on DOM, FileReader, Tauri, or Blob.
@@ -350,6 +403,7 @@ Initial error codes:
 - `AMBIGUOUS_BACKUP_FORMAT`
 - `UNSUPPORTED_BACKUP_FORMAT`
 - `UNSUPPORTED_BACKUP_VERSION`
+- `BACKUP_SOURCE_MISSING`
 - `INVALID_EXPORTED_AT`
 - `INVALID_BACKUP_STATE`
 - `LEGACY_BACKUP_REQUIRES_LEGACY_PATH`
@@ -374,60 +428,73 @@ Envelope:
 2. exact format marker
 3. unsupported backup version
 4. state `schemaVersion` validation
-5. invalid `exportedAt`
-6. extra root key blocked
-7. missing root key blocked
+5. canonical millisecond UTC `exportedAt` accepted
+6. UTC string without milliseconds blocked
+7. date-only `exportedAt` blocked
+8. invalid date blocked
+9. timezone offset string blocked
+10. extra root key blocked
+11. missing root key blocked
 
 Classification:
 
-8. v2 identified
-9. legacy identified
-10. mixed root blocked
-11. unknown format does not fallback
-12. partial legacy blocked
+12. v2 identified
+13. legacy identified only when `inventory`, `assets`, and `transactions` all exist
+14. missing required legacy field is invalid
+15. mixed root blocked
+16. unknown format does not fallback
+17. partial legacy blocked
 
 Export:
 
-13. canonical state export
-14. export does not read legacy keys
-15. invalid canonical state does not create backup
-16. runtime `qtyByCity` shape cannot be v2 export
+18. repository `load()` loaded state is exported
+19. repository missing returns `BACKUP_SOURCE_MISSING`
+20. repository invalid returns `INVALID_BACKUP_STATE`
+21. repository error maps to storage read failure
+22. export does not read runtime state
+23. export does not call `projectRuntimeToNewSchema`
+24. export does not read legacy keys
+25. invalid canonical state does not create backup
+26. runtime `qtyByCity` shape cannot be v2 export
 
 Import:
 
-17. valid round-trip
-18. invalid JSON zero mutation
-19. invalid envelope zero mutation
-20. invalid canonical state zero mutation
-21. legacy backup in v2 path blocked
-22. v2 import does not mutate legacy keys
-23. successful import writes only v2 key
-24. read-back verification
+27. valid round-trip
+28. invalid JSON zero mutation
+29. invalid envelope zero mutation
+30. invalid canonical state zero mutation
+31. legacy backup in v2 path blocked
+32. v2 import does not mutate legacy keys
+33. successful import writes only v2 key
+34. read-back verification
 
 Rollback:
 
-25. `setItem` failure restores old value
-26. verification failure restores old value
-27. absent previous key failure removes partial write
-28. rollback failure reports fatal error
+35. `setItem` failure restores old value
+36. verification failure restores old value
+37. absent previous key failure removes partial write
+38. rollback failure reports fatal error
 
 Reset:
 
-29. removes all seven owned keys
-30. preserves unrelated keys
-31. cancelled UI path zero mutation
-32. remove failure rollback
-33. verification failure rollback
-34. no owned keys returns noop
-35. future reset service must not use `localStorage.clear()`
+39. removes all seven owned keys
+40. unrelated sentinel value unchanged
+41. unrelated sentinel receives no `setItem` call
+42. unrelated sentinel receives no `removeItem` call
+43. reset service does not use storage enumeration
+44. cancelled UI path zero mutation
+45. remove failure rollback
+46. verification failure rollback
+47. no owned keys returns noop
+48. future reset service must not use `localStorage.clear()`
 
 Purity:
 
-36. no DOM
-37. no FileReader
-38. no Tauri
-39. no global `localStorage`
-40. no reload / toast / confirm
+49. no DOM
+50. no FileReader
+51. no Tauri
+52. no global `localStorage`
+53. no reload / toast / confirm
 
 Do not add `test.todo` or skipped tests from this docs-only contract. Tests require a separate approved task.
 
@@ -435,11 +502,15 @@ Do not add `test.todo` or skipped tests from this docs-only contract. Tests requ
 
 Next approved step: **Tests-only new-schema backup/reset regression contract**.
 
+This means a tests-first pure backup codec/service checkpoint. It does not mean the pure service is already implemented.
+
 Allowed scope:
 
 - add regression tests
 - create test fixtures
 - test future pure service contract
+- run targeted tests locally before any test-only checkpoint is considered complete
+- run the full discovered test suite before pairing tests with pure module implementation in a later task
 
 Forbidden scope:
 
@@ -450,5 +521,7 @@ Forbidden scope:
 - UI
 - real backup format implementation
 - new `schemaVersion`
+- commit or push failing, skipped, or `test.todo` checkpoints to master
+- move into production integration before tests and pure module are complete
 
 Any implementation beyond tests-only requires a new Spec Lead decision.

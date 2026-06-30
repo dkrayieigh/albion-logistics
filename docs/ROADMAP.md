@@ -43,6 +43,8 @@
 - 驗證 invalid input zero mutation。
 - 驗證 write failure rollback。
 - 驗證 unrelated `localStorage` key preservation。
+- Tests must be written and passing locally before any test-only checkpoint is considered complete。
+- Do not push failing tests, `test.todo`, or skipped placeholders to master。
 
 不包含：
 
@@ -57,12 +59,14 @@
 - 建立 pure service / codec boundary。
 - 驗證 v2 backup envelope / version。
 - 維持 export、import、reset 分離。
+- Pure module implementation may only pair with tests after targeted and full discovered test suites pass。
 
 不包含：
 
 - production UI integration。
 - automatic legacy migration。
 - transaction payload migration。
+- `app.js` / `state.js` / production integration。
 
 ### Phase 5：Export integration
 
