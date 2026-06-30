@@ -58,18 +58,27 @@ globalThis.Event = class Event {
 };
 
 const storage = new Map();
-globalThis.localStorage = {
-  clear: () => storage.clear(),
-  getItem: key => storage.get(key) ?? null,
-  setItem: (key, value) => storage.set(key, String(value))
-};
-
 let alerts = [];
 let confirmResult = true;
 let createdBlob;
 let reloadCount = 0;
 let browserDownloadCount = 0;
 let tauriInvocations = [];
+let toastCalls = [];
+let storageGetCalls = [];
+let storageSetCalls = [];
+
+globalThis.localStorage = {
+  clear: () => storage.clear(),
+  getItem: key => {
+    storageGetCalls.push(key);
+    return storage.get(key) ?? null;
+  },
+  setItem: (key, value) => {
+    storageSetCalls.push({ key, value: String(value) });
+    storage.set(key, String(value));
+  }
+};
 
 globalThis.alert = message => alerts.push(message);
 globalThis.confirm = () => confirmResult;
@@ -112,7 +121,7 @@ const {
   removeCustomLocation
 } = await import('../src/core/state.js');
 
-window.showToast = () => {};
+window.showToast = (message, type) => toastCalls.push({ message, type });
 initGlobalEvents();
 
 const STORAGE_KEYS = {
@@ -132,14 +141,51 @@ function resetMocks() {
   reloadCount = 0;
   browserDownloadCount = 0;
   tauriInvocations = [];
+  toastCalls = [];
+  storageGetCalls = [];
+  storageSetCalls = [];
   delete window.__TAURI__;
   getElement('import-file').value = '';
+}
+
+function resetExportTracking() {
+  createdBlob = undefined;
+  browserDownloadCount = 0;
+  tauriInvocations = [];
+  toastCalls = [];
+  storageGetCalls = [];
+  storageSetCalls = [];
 }
 
 function seedStorage(data) {
   for (const [field, value] of Object.entries(data)) {
     localStorage.setItem(STORAGE_KEYS[field], JSON.stringify(value));
   }
+}
+
+function seedV2Storage(canonical = makeRuntimeBridgeNewSchemaState()) {
+  const encoded = encodeNewSchemaState(canonical);
+  assert.equal(encoded.ok, true);
+  localStorage.setItem(NEW_SCHEMA_STORAGE_KEY, encoded.serialized);
+  return canonical;
+}
+
+function startProductionLegacyMode() {
+  const result = startApplicationState(localStorage, {
+    confirmEnableNewSchema: () => false,
+    showBlockedError: errors => assert.fail(`unexpected blocked startup: ${errors.join(',')}`)
+  });
+  assert.equal(result.mode, 'legacy');
+  return result;
+}
+
+function startProductionV2Mode(canonical = makeRuntimeBridgeNewSchemaState()) {
+  seedV2Storage(canonical);
+  const result = startApplicationState(localStorage, {
+    showBlockedError: errors => assert.fail(`unexpected blocked startup: ${errors.join(',')}`)
+  });
+  assert.equal(result.mode, 'ready');
+  return result;
 }
 
 function importBackup(data) {
@@ -547,6 +593,8 @@ test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback
     laborerLogs: [{ type: '測試工人紀錄' }],
     customLocations: ['測試倉庫']
   });
+  startProductionLegacyMode();
+  resetExportTracking();
   window.__TAURI__ = {
     core: {
       invoke: async (command, args, options) => {
@@ -564,6 +612,7 @@ test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback
   const exportedText = new TextDecoder().decode(tauriInvocations[1].args);
   assert.match(exportedText, /\n  "inventory": \{/);
   const exported = JSON.parse(exportedText);
+  assert.equal(Object.hasOwn(exported, 'format'), false);
   assert.equal(typeof exported.inventory, 'object');
   assert.equal(Array.isArray(exported.inventory), false);
   assert.equal(typeof exported.assets, 'object');
@@ -575,6 +624,8 @@ test('TEST-B04: Tauri save dialog exports readable JSON without browser fallback
 test('TEST-B04: cancelling Tauri save dialog writes nothing and does not fall back', { concurrency: false }, async () => {
   resetMocks();
   seedStorage({ inventory: {}, assets: { cash: 0, debt: 0 }, transactions: [] });
+  startProductionLegacyMode();
+  resetExportTracking();
   window.__TAURI__ = {
     core: {
       invoke: async command => {
@@ -594,14 +645,171 @@ test('TEST-B04: cancelling Tauri save dialog writes nothing and does not fall ba
 test('TEST-B04: browser fallback exports readable JSON when Tauri API is unavailable', { concurrency: false }, async () => {
   resetMocks();
   seedStorage({ inventory: {}, assets: { cash: 0, debt: 0 }, transactions: [{ id: 1 }] });
+  startProductionLegacyMode();
+  resetExportTracking();
 
   await getElement('btn-export-data').handlers.click();
 
   assert.equal(browserDownloadCount, 1);
   assert.ok(createdBlob);
   const exported = JSON.parse(createdBlob.parts.join(''));
+  assert.equal(Object.hasOwn(exported, 'format'), false);
   assert.equal(Array.isArray(exported.transactions), true);
   assert.equal(exported.transactions.length, 1);
+});
+
+test('TEST-B04: v2 browser export writes exact backup envelope without legacy root fields', { concurrency: false }, async () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  startProductionV2Mode(canonical);
+  const beforeState = JSON.stringify(state);
+  const beforeV2Raw = localStorage.getItem(NEW_SCHEMA_STORAGE_KEY);
+  resetExportTracking();
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(browserDownloadCount, 1);
+  assert.ok(createdBlob);
+  assert.deepEqual(tauriInvocations, []);
+  assert.deepEqual(toastCalls.map(call => call.type), ['success']);
+  const exported = JSON.parse(createdBlob.parts.join(''));
+  assert.equal(exported.format, 'albion-logistics-backup');
+  assert.equal(exported.backupFormatVersion, 1);
+  assert.equal(new Date(exported.exportedAt).toISOString(), exported.exportedAt);
+  assert.match(exported.exportedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  assert.equal(Object.hasOwn(exported, 'inventory'), false);
+  assert.equal(Object.hasOwn(exported, 'assets'), false);
+  assert.equal(Object.hasOwn(exported, 'transactions'), false);
+  const itemKey = Object.keys(canonical.inventory)[0];
+  assert.equal(exported.state.inventory[itemKey].qtyByLocation.laborer_island, 5);
+  assert.equal(Object.hasOwn(exported.state.inventory[itemKey], 'qtyByCity'), false);
+  assert.equal(localStorage.getItem(NEW_SCHEMA_STORAGE_KEY), beforeV2Raw);
+  assert.equal(JSON.stringify(state), beforeState);
+});
+
+test('TEST-B04: v2 Tauri export writes envelope after save dialog without legacy payload', { concurrency: false }, async () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+  window.__TAURI__ = {
+    core: {
+      invoke: async (command, args, options) => {
+        tauriInvocations.push({ command, args, options });
+        if (command === 'plugin:dialog|save') return 'D:\\backups\\v2.json';
+      }
+    }
+  };
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(createdBlob, undefined);
+  assert.equal(browserDownloadCount, 0);
+  assert.deepEqual(tauriInvocations.map(call => call.command), ['plugin:dialog|save', 'plugin:fs|write_text_file']);
+  const exported = JSON.parse(new TextDecoder().decode(tauriInvocations[1].args));
+  assert.equal(exported.format, 'albion-logistics-backup');
+  assert.equal(exported.backupFormatVersion, 1);
+  assert.equal(Object.hasOwn(exported, 'inventory'), false);
+  assert.equal(Object.hasOwn(exported, 'assets'), false);
+  assert.equal(Object.hasOwn(exported, 'transactions'), false);
+  assert.deepEqual(toastCalls.map(call => call.type), ['success']);
+});
+
+test('TEST-B04: v2 export ignores invalid legacy source keys and does not use legacy helper', { concurrency: false }, async () => {
+  resetMocks();
+  for (const key of LEGACY_STORAGE_KEYS) localStorage.setItem(key, 'not-json legacy sentinel');
+  startProductionV2Mode();
+  resetExportTracking();
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(browserDownloadCount, 1);
+  assert.ok(createdBlob);
+  const exported = JSON.parse(createdBlob.parts.join(''));
+  assert.equal(exported.format, 'albion-logistics-backup');
+  assert.deepEqual(storageGetCalls, [NEW_SCHEMA_STORAGE_KEY]);
+  for (const key of LEGACY_STORAGE_KEYS) {
+    assert.equal(localStorage.getItem(key), 'not-json legacy sentinel');
+  }
+});
+
+test('TEST-B04: v2 invalid or missing source blocks export without fallback transport', { concurrency: false }, async () => {
+  resetMocks();
+  startProductionV2Mode();
+  localStorage.setItem(NEW_SCHEMA_STORAGE_KEY, JSON.stringify({ schemaVersion: 2 }));
+  resetExportTracking();
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(createdBlob, undefined);
+  assert.equal(browserDownloadCount, 0);
+  assert.deepEqual(tauriInvocations, []);
+  assert.equal(toastCalls.length, 1);
+  assert.equal(toastCalls[0].type, 'error');
+  assert.match(toastCalls[0].message, /INVALID_BACKUP_STATE|UNSUPPORTED_SCHEMA_VERSION/);
+
+  resetMocks();
+  startProductionV2Mode();
+  storage.delete(NEW_SCHEMA_STORAGE_KEY);
+  resetExportTracking();
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(createdBlob, undefined);
+  assert.equal(browserDownloadCount, 0);
+  assert.deepEqual(tauriInvocations, []);
+  assert.equal(toastCalls.length, 1);
+  assert.equal(toastCalls[0].type, 'error');
+  assert.match(toastCalls[0].message, /BACKUP_SOURCE_MISSING/);
+});
+
+test('TEST-B04: blocked or uninitialized export stops before dialog download or legacy read', { concurrency: false }, async () => {
+  resetMocks();
+  localStorage.setItem(NEW_SCHEMA_STORAGE_KEY, JSON.stringify({ schemaVersion: 2 }));
+  const startup = startApplicationState(localStorage, {
+    confirmEnableNewSchema: () => assert.fail('blocked startup should not confirm initialization'),
+    showBlockedError: () => {}
+  });
+  assert.equal(startup.mode, 'blocked');
+  resetExportTracking();
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(createdBlob, undefined);
+  assert.equal(browserDownloadCount, 0);
+  assert.deepEqual(tauriInvocations, []);
+  assert.deepEqual(storageGetCalls, []);
+  assert.equal(toastCalls.length, 1);
+  assert.equal(toastCalls[0].type, 'error');
+});
+
+test('TEST-B04: export confirmation cancel stops before repository export dialog or download', { concurrency: false }, async () => {
+  resetMocks();
+  startProductionV2Mode();
+  resetExportTracking();
+  confirmResult = false;
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(createdBlob, undefined);
+  assert.equal(browserDownloadCount, 0);
+  assert.deepEqual(tauriInvocations, []);
+  assert.deepEqual(storageGetCalls, []);
+  assert.deepEqual(toastCalls, []);
+});
+
+test('TEST-B04: v2 export does not mutate v2 storage legacy keys or runtime state', { concurrency: false }, async () => {
+  resetMocks();
+  const canonical = makeRuntimeBridgeNewSchemaState();
+  startProductionV2Mode(canonical);
+  for (const key of LEGACY_STORAGE_KEYS) localStorage.setItem(key, `legacy:${key}`);
+  const beforeStorage = storageSnapshot();
+  const beforeRuntime = JSON.stringify(state);
+  resetExportTracking();
+
+  await getElement('btn-export-data').handlers.click();
+
+  assert.equal(browserDownloadCount, 1);
+  assert.equal(storageSnapshot(), beforeStorage);
+  assert.equal(JSON.stringify(state), beforeRuntime);
 });
 
 test('TEST-B04: readable JSON backup imports, reloads, and remains loadState-compatible', { concurrency: false }, () => {
@@ -910,6 +1118,8 @@ test('D76: legacy backup export import round trip preserves qtyByCity storage sh
   resetMocks();
   const backup = legacyLocationBackupFixture();
   seedStorage(backup);
+  startProductionLegacyMode();
+  resetExportTracking();
 
   await getElement('btn-export-data').handlers.click();
   assert.ok(createdBlob);

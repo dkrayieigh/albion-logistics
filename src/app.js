@@ -18,6 +18,8 @@ import * as Laborer from './components/laborer.js';
 import * as Ledger from './components/ledger.js';
 import * as Quotation from './components/quotation.js';
 import * as WindowControls from './components/window-controls.js';
+import { createBrowserNewSchemaRepository } from './adapters/browserNewSchemaRepository.js';
+import { createBackupFromRepository } from './services/newSchemaBackupExportService.js';
 
 // ==========================================
 // 全域共用 UI 函式
@@ -29,6 +31,7 @@ const QUALITY_MATRIX_ROWS = [
   ['7.0', '7.1', '7.2', '7.3', '7.4'],
   ['8.0', '8.1', '8.2', '8.3', '8.4']
 ];
+let productionStorageMode = 'uninitialized';
 
 function showToast(m, t='success') {
   const nt=document.getElementById('toast-notification'); const ic=document.getElementById('toast-icon');
@@ -157,21 +160,62 @@ function handleCityDropdownChange(event) {
 }
 
 // 資料匯出匯入
-async function exportData() {
-  if (!confirm('確定要匯出目前的系統資料嗎？')) return;
+function createLegacyBackupText() {
   const data = { inventory: JSON.parse(localStorage.getItem('albion_crafting_stocks') || '{}'), assets: JSON.parse(localStorage.getItem('albion_crafting_assets') || '{}'), transactions: JSON.parse(localStorage.getItem('albion_crafting_transactions') || '[]'), laborerInventory: JSON.parse(localStorage.getItem('albion_crafting_laborer_stocks') || '{}'), laborerLogs: JSON.parse(localStorage.getItem('albion_crafting_laborer_logs') || '[]'), customLocations: JSON.parse(localStorage.getItem('albion_crafting_custom_locs') || '[]') };
-  const backupText = JSON.stringify(data, null, 2); const d = new Date(); const pad = value => value.toString().padStart(2, '0'); const filename = `albion_data_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.json`;
+  return JSON.stringify(data, null, 2);
+}
+
+function formatExportError(errors) {
+  const codes = Array.isArray(errors) && errors.length > 0 ? errors.join(', ') : 'EXPORT_BLOCKED';
+  return `備份匯出失敗：${codes}`;
+}
+
+function createV2BackupText(now) {
+  const created = createBrowserNewSchemaRepository(localStorage);
+  if (!created.ok) return { ok: false, errors: created.errors };
+
+  const backup = createBackupFromRepository(created.repository, {
+    exportedAt: now.toISOString()
+  });
+  if (!backup.ok) {
+    return {
+      ok: false,
+      errors: [...backup.errors, ...backup.innerErrors]
+    };
+  }
+
+  return { ok: true, backupText: backup.backupText, errors: [] };
+}
+
+function createBackupTextForCurrentMode(now) {
+  if (productionStorageMode === 'legacy') return { ok: true, backupText: createLegacyBackupText(), errors: [] };
+  if (productionStorageMode === 'v2') return createV2BackupText(now);
+  return { ok: false, errors: [`EXPORT_MODE_${productionStorageMode.toUpperCase()}`] };
+}
+
+async function writeBackupText(backupText, filename) {
   const invoke = window.__TAURI__?.core?.invoke;
   if (invoke) {
-    try {
-      const path = await invoke('plugin:dialog|save', { options: { defaultPath: filename, filters: [{ name: 'JSON', extensions: ['json'] }] } });
-      if (!path) return;
-      await invoke('plugin:fs|write_text_file', new TextEncoder().encode(backupText), { headers: { path: encodeURIComponent(path), options: JSON.stringify(undefined) } });
-    } catch (err) {
-      return window.showToast(`備份匯出失敗：${err}`, 'error');
-    }
-  } else {
-    const blob = new Blob([backupText], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+    const path = await invoke('plugin:dialog|save', { options: { defaultPath: filename, filters: [{ name: 'JSON', extensions: ['json'] }] } });
+    if (!path) return false;
+    await invoke('plugin:fs|write_text_file', new TextEncoder().encode(backupText), { headers: { path: encodeURIComponent(path), options: JSON.stringify(undefined) } });
+    return true;
+  }
+
+  const blob = new Blob([backupText], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+  return true;
+}
+
+async function exportData() {
+  if (!confirm('確定要匯出目前的系統資料嗎？')) return;
+  const d = new Date(); const pad = value => value.toString().padStart(2, '0'); const filename = `albion_data_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.json`;
+  const backup = createBackupTextForCurrentMode(d);
+  if (!backup.ok) return window.showToast(formatExportError(backup.errors), 'error');
+  try {
+    const wrote = await writeBackupText(backup.backupText, filename);
+    if (!wrote) return;
+  } catch (err) {
+    return window.showToast(`備份匯出失敗：${err}`, 'error');
   }
   window.showToast('資料匯出成功！', 'success');
 }
@@ -308,17 +352,25 @@ export function startApplicationState(storage, dialogs = {}) {
   const showBlockedError = dialogs.showBlockedError || (errors => window.alert(formatBlockedMessage(errors)));
   const startup = enableNewSchemaRuntime(storage);
 
-  if (startup.ok && startup.mode === 'ready') return startup;
+  if (startup.ok && startup.mode === 'ready') {
+    productionStorageMode = 'v2';
+    return startup;
+  }
 
   if (startup.ok && startup.mode === 'initialize') {
     if (confirmEnableNewSchema()) {
       const initialized = initializeNewSchemaRuntime(storage);
-      if (initialized.ok && initialized.mode === 'ready') return initialized;
+      if (initialized.ok && initialized.mode === 'ready') {
+        productionStorageMode = 'v2';
+        return initialized;
+      }
+      productionStorageMode = 'blocked';
       showBlockedError(initialized.errors);
       return initialized;
     }
 
     loadState();
+    productionStorageMode = 'legacy';
     return {
       ok: true,
       mode: 'legacy',
@@ -328,6 +380,7 @@ export function startApplicationState(storage, dialogs = {}) {
     };
   }
 
+  productionStorageMode = 'blocked';
   showBlockedError(startup.errors);
   return startup;
 }
