@@ -418,9 +418,9 @@ Do not expose raw UI copy through these codes.
 
 Do not duplicate every existing codec inner error. State validation failure may preserve existing codec errors, but backup service top-level error should include `INVALID_BACKUP_STATE`.
 
-## Future Tests-only Contract
+## Future Regression Contract
 
-The following are future test cases, not implemented tests and not `test.todo`.
+The following are future regression cases, not implemented tests and not `test.todo`.
 
 Envelope:
 
@@ -498,30 +498,48 @@ Purity:
 
 Do not add `test.todo` or skipped tests from this docs-only contract. Tests require a separate approved task.
 
-## Next Approved Step
+## Next Approved Checkpoint
 
-Next approved step: **Tests-only new-schema backup/reset regression contract**.
+Next approved checkpoint: **Tests-first pure backup envelope / classification / export service checkpoint**.
 
-This means a tests-first pure backup codec/service checkpoint. It does not mean the pure service is already implemented.
+Tests-first is a local development order, not a standalone tests-only deliverable. The local red phase is part of implementation work and is not a mergeable checkpoint.
 
-Allowed scope:
+Execution order:
 
-- add regression tests
-- create test fixtures
-- test future pure service contract
-- run targeted tests locally before any test-only checkpoint is considered complete
-- run the full discovered test suite before pairing tests with pure module implementation in a later task
+1. Write executable regression tests locally first.
+2. Run targeted tests and confirm they fail for the intended missing behavior.
+3. Do not commit or push the red checkpoint.
+4. Implement the minimum pure codec/export service required by this contract.
+5. Run targeted tests.
+6. Run the full discovered test suite.
+7. Commit and push only when all tests pass.
 
-Forbidden scope:
+Allowed:
+
+- test fixtures
+- executable regression tests
+- pure backup envelope codec
+- backup classification and parsing
+- pure repository-based export service
+- injected repository doubles
+- immutable result objects and stable error codes
+
+Forbidden:
 
 - edit `app.js`
 - edit `state.js`
-- edit production adapter
-- write storage
-- UI
-- real backup format implementation
+- production export/import/reset integration
+- import storage mutation
+- rollback implementation
+- scoped Factory Reset
+- `removeItem` production backend
+- UI / DOM / FileReader / Blob / Tauri
+- storage schema switch
 - new `schemaVersion`
-- commit or push failing, skipped, or `test.todo` checkpoints to master
-- move into production integration before tests and pure module are complete
+- production backup format integration
+- failing tests committed or pushed
+- `test.todo`
+- skipped placeholders
+- fake implementations
 
-Any implementation beyond tests-only requires a new Spec Lead decision.
+The first mergeable checkpoint must include both tests and the minimum pure implementation. It must not advance into import storage mutation, rollback implementation, scoped Factory Reset, or production integration.

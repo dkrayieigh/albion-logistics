@@ -35,31 +35,34 @@
 - reset implementation。
 - storage key/schema 修改。
 
-### Phase 3：Tests-only data-safety regression
+### Phase 3：Tests-first local regression
 
 目標：
 
-- 為 backup/reset contract 建立 tests-only safety net。
-- 驗證 invalid input zero mutation。
-- 驗證 write failure rollback。
-- 驗證 unrelated `localStorage` key preservation。
-- Tests must be written and passing locally before any test-only checkpoint is considered complete。
-- Do not push failing tests, `test.todo`, or skipped placeholders to master。
+- Tests are written first locally.
+- Initial red tests may exist only in the local working tree.
+- Red tests must not be committed or pushed independently.
+- Immediate scope is limited to envelope, classification, parsing, and repository-based export source.
 
 不包含：
 
 - production service。
+- pure module-only merge。
 - UI。
 - writer/storage switch。
+- import storage mutation。
+- rollback implementation。
+- scoped Factory Reset。
 
-### Phase 4：Pure new-schema backup service / codec
+### Phase 4：Minimum pure backup envelope / classification / export service
 
 目標：
 
-- 建立 pure service / codec boundary。
-- 驗證 v2 backup envelope / version。
-- 維持 export、import、reset 分離。
-- Pure module implementation may only pair with tests after targeted and full discovered test suites pass。
+- Minimum pure codec/export service is implemented in the same working checkpoint as Phase 3 tests.
+- Phase 3 and Phase 4 together form the first mergeable checkpoint.
+- Targeted and full discovered test suites must all pass.
+- Do not use `test.todo`, skip, or placeholder behavior to keep the suite green.
+- Scope remains limited to envelope, classification, parsing, and repository-based export source.
 
 不包含：
 
@@ -67,6 +70,9 @@
 - automatic legacy migration。
 - transaction payload migration。
 - `app.js` / `state.js` / production integration。
+- import storage mutation。
+- rollback implementation。
+- scoped Factory Reset。
 
 ### Phase 5：Export integration
 
