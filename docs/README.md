@@ -19,7 +19,7 @@
 4. [Test Cases](./TEST_CASES.md)
 5. 相關 regression tests
 
-`src` current behavior 與 regression tests 是目前 production truth。docs-only plan 不代表 production behavior；future target 不代表 current implementation；migration target 不代表 current storage shape。
+最新 `src` 與 regression tests 用於確認 current behavior。`src` 是 compatibility baseline，但不是絕對真理；confirmed business rules、regression expectations、confirmed bug reports 或 user-confirmed specification 都可能證明 current `src` 存在 bug 或落差。docs-only plan、future target、migration target 仍不能直接當作 current behavior。
 
 ### 規劃下一階段功能
 
@@ -64,35 +64,40 @@
 
 ## 文件權威順序
 
-當 docs 彼此衝突，或 docs 與 `src` / tests 衝突時，請依序判斷：
+當 docs 彼此衝突，或 docs 與 `src` / tests 衝突時，請依序核對：
 
-1. 已核准 business rules、regression tests、已確認 bug reports 與本次明確任務指示
-2. production `src` current behavior
-3. [Current Status](./CURRENT_STATUS.md) current summary
-4. reviewed / approved core specifications
-5. active migration documents
-6. planning / handoff / implementation-gap 文件
-7. historical / archived 文件
+1. confirmed business rules
+2. regression tests 與 regression expectations
+3. latest production `src`
+4. confirmed bug reports
+5. user-confirmed specification
+6. [Current Status](./CURRENT_STATUS.md) current summary
+7. reviewed / approved core specifications
+8. active migration documents
+9. planning / handoff / implementation-gap 文件
+10. historical / archived 文件
 
 注意事項：
 
-- `src` 是 compatibility baseline，但不代表未來目標已完成。
+- `src` 是 compatibility baseline，但不是絕對真理。
+- confirmed business rules、regression expectations、confirmed bug reports 或 user-confirmed specification 可證明 current `src` 存在 bug 或落差。
 - test plan 不等於已測試。
 - docs-only plan 不等於 production behavior。
 - adapter 存在不等於 writer 已切換。
 - future target 不等於 current implementation。
 - migration target 不等於 current storage shape。
 
-## Current Status Override
+## 狀態衝突處理
 
-若舊文件、handoff 或 gap 中的敘述與 [Current Status](./CURRENT_STATUS.md) 衝突，先以 `CURRENT_STATUS.md` 作為目前閱讀入口，再回到原文件確認細節。
+`CURRENT_STATUS.md` 是 current 閱讀入口，不是覆蓋 business rules 或 target specification 的 override。
 
-使用規則：
+處理規則：
 
-1. 不要刪除舊 checkpoint 或 incident context，只把它們視為 archive / planning material。
-2. `CURRENT_STATUS.md` 不取代 business rules 或 target design。
-3. `CURRENT_STATUS.md` 只整理目前 repo、tests 與已知限制的 current snapshot。
-4. 任何會改 storage、writer、backup、migration、schema 或 transaction payload 的工作，仍必須回到對應規格與 tests。
+1. 不得在舊文件追加新的 status override 區塊。
+2. 過時內容應在後續 consolidation 中改寫、刪除，或移入 archive。
+3. Historical checkpoint 可以保留，但不得作為 current truth。
+4. 發現狀態衝突時，必須回到 confirmed business rules、regression tests、latest production `src`、confirmed bug reports 與 user-confirmed specification 交叉核對。
+5. 任何會改 storage、writer、backup、migration、schema 或 transaction payload 的工作，仍必須回到對應規格與 tests。
 
 ## 文件索引
 
@@ -128,4 +133,3 @@
 - [Crafting Incident Recovery](./CRAFTING_INCIDENT_RECOVERY.md)
 - [Crafting Hotfix Smoke Checklist](./CRAFTING_HOTFIX_SMOKE_CHECKLIST.md)
 - [AI Guide](./AI_GUIDE.md)
-
