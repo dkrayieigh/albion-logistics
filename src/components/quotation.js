@@ -5,7 +5,14 @@ import {
   getAlchemyRequirement
 } from '../calculators/quotationCalculator.js';
 import { resolveGeneralMaterialDisplayName } from '../presenters/materialDisplay.js';
-import { RECIPES, enqueueCraftingPlan, getRecipeDisplayName, openItemSelector } from './crafting.js';
+import {
+  RECIPES,
+  enqueueCraftingPlan,
+  getRecipeDisplayName,
+  openItemSelector,
+  renderCraftingQueue,
+  updateShoppingListTotal
+} from './crafting.js';
 
 const QUOTE_QUALITY_ROWS = [
   ['4.0', '4.1', '4.2', '4.3', '4.4'],
@@ -46,6 +53,11 @@ function setToneClass(id, value) {
 
 function numberFrom(id) {
   return parseNum(byId(id)?.value || '0');
+}
+
+function setCalculatedNumericValue(input, value) {
+  if (!input) return;
+  input.value = formatSilver(Math.round(value));
 }
 
 function selectedRecipe() {
@@ -92,8 +104,8 @@ function setQuoteTotal(total) {
   const totalInput = byId('quote-custom-total');
   const unitInput = byId('quote-custom-unit');
   const quantity = selectedQuantity();
-  if (totalInput) totalInput.value = Math.round(total).toString();
-  if (unitInput) unitInput.value = quantity > 0 ? Math.round(total / quantity).toString() : '0';
+  setCalculatedNumericValue(totalInput, total);
+  setCalculatedNumericValue(unitInput, quantity > 0 ? total / quantity : 0);
   renderQuotation();
 }
 
@@ -311,6 +323,8 @@ function enqueueCurrentPlan() {
     return;
   }
 
+  renderCraftingQueue();
+  updateShoppingListTotal();
   window.showToast?.('已加入製作清單', 'success');
   document.getElementById('nav-tab-crafting')?.click?.();
 }
@@ -327,8 +341,8 @@ function syncEstimateInputs(source) {
   const total = byId('quote-est-total');
   if (!unit || !total || quantity <= 0) return;
 
-  if (source === 'unit') total.value = Math.round(parseNum(unit.value) * quantity).toString();
-  if (source === 'total') unit.value = Math.round(parseNum(total.value) / quantity).toString();
+  if (source === 'unit') setCalculatedNumericValue(total, parseNum(unit.value) * quantity);
+  if (source === 'total') setCalculatedNumericValue(unit, parseNum(total.value) / quantity);
 }
 
 function syncQuoteInputs(source) {
@@ -338,11 +352,12 @@ function syncQuoteInputs(source) {
   if (!unit || !total || quantity <= 0) return;
 
   if (source === 'unit') {
-    total.value = Math.round(parseNum(unit.value) * quantity).toString();
-    quoteDraft.quoteTotal = parseNum(total.value);
+    const totalValue = parseNum(unit.value) * quantity;
+    setCalculatedNumericValue(total, totalValue);
+    quoteDraft.quoteTotal = Math.round(totalValue);
   }
   if (source === 'total') {
-    unit.value = Math.round(parseNum(total.value) / quantity).toString();
+    setCalculatedNumericValue(unit, parseNum(total.value) / quantity);
     quoteDraft.quoteTotal = parseNum(total.value);
   }
   quoteDraft.editingQuote = source;

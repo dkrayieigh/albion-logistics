@@ -357,7 +357,7 @@ test('quotation visible planner name and enqueue button use the bounded UI contr
 test('quotation uses shared recipe source and no native select renderer', () => {
   const source = readFileSync(new URL('../src/components/quotation.js', import.meta.url), 'utf8');
 
-  assert.match(source, /import \{ RECIPES, enqueueCraftingPlan, getRecipeDisplayName, openItemSelector \} from ['"]\.\/crafting\.js['"]/);
+  assert.match(source, /RECIPES,\s*enqueueCraftingPlan,\s*getRecipeDisplayName,\s*openItemSelector,\s*renderCraftingQueue,\s*updateShoppingListTotal\s*\}\s*from ['"]\.\/crafting\.js['"]/);
   assert.match(source, /from ['"]\.\.\/presenters\/materialDisplay\.js['"]/);
   assert.doesNotMatch(source, /ALBION_DB|function allRecipes|Object\.values\(ALBION_DB\)|innerHTML = RECIPES\.map/);
   assert.doesNotMatch(source, /quote-recipe'\)\?\.addEventListener\('change'/);
@@ -521,6 +521,313 @@ test('quotation money formatter displays grouped integers while parser keeps num
   assert.equal(formatSilver(0), '0');
   assert.equal(parseNum('2140000'), 2140000);
   assert.equal(parseNum('2,140,000'), 2140000);
+});
+
+class FakeElement {
+  constructor(id = '') {
+    this.id = id;
+    this.value = '';
+    this.checked = false;
+    this.children = [];
+    this.handlers = {};
+    this.attributes = new Map();
+    this.style = {};
+    this.className = '';
+    this.textContent = '';
+    this.innerHTMLSetCount = 0;
+    this.classList = {
+      add: () => {},
+      remove: () => {},
+      toggle: () => {}
+    };
+  }
+
+  set innerHTML(value) {
+    this.innerHTMLSetCount++;
+    this._innerHTML = value;
+    if (value === '') this.children = [];
+  }
+
+  get innerHTML() {
+    return this._innerHTML || '';
+  }
+
+  set innerText(value) {
+    this._innerText = value;
+  }
+
+  get innerText() {
+    return this._innerText || '';
+  }
+
+  addEventListener(type, handler) {
+    if (!this.handlers[type]) this.handlers[type] = [];
+    this.handlers[type].push(handler);
+  }
+
+  appendChild(child) {
+    this.children.push(child);
+    return child;
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(name) ?? null;
+  }
+
+  removeAttribute(name) {
+    this.attributes.delete(name);
+  }
+
+  closest(selector) {
+    if (selector === '[data-quote-action]' && this.attributes.has('data-quote-action')) return this;
+    return null;
+  }
+
+  click() {
+    this.handlers.click?.forEach(handler => handler({ target: this }));
+  }
+
+  trigger(type) {
+    this.handlers[type]?.forEach(handler => handler({ target: this }));
+  }
+}
+
+function makeFakeQuotationDocument() {
+  const elements = new Map();
+  const documentHandlers = {};
+  const doc = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, new FakeElement(id));
+      return elements.get(id);
+    },
+    createElement(tagName) {
+      const element = new FakeElement();
+      element.tagName = tagName.toUpperCase();
+      return element;
+    },
+    querySelectorAll() {
+      return [];
+    },
+    addEventListener(type, handler) {
+      if (!documentHandlers[type]) documentHandlers[type] = [];
+      documentHandlers[type].push(handler);
+    },
+    trigger(type, target) {
+      documentHandlers[type]?.forEach(handler => handler({ target }));
+    }
+  };
+  return { document: doc, elements };
+}
+
+function findElementByText(root, text) {
+  if (root.textContent === text) return root;
+  for (const child of root.children) {
+    const found = findElementByText(child, text);
+    if (found) return found;
+  }
+  return null;
+}
+
+async function setupQuotationHarness() {
+  const harness = makeFakeQuotationDocument();
+  globalThis.document = harness.document;
+  globalThis.window = {
+    showToast(message, tone) {
+      harness.toasts.push({ message, tone });
+    }
+  };
+  harness.toasts = [];
+
+  const { RECIPES } = await import('../src/components/crafting.js');
+  const { craftingQueue } = await import('../src/core/state.js');
+  const quotation = await import('../src/components/quotation.js');
+  craftingQueue.splice(0, craftingQueue.length);
+
+  [
+    'quote-recipe',
+    'quote-recipe-display',
+    'quote-qty',
+    'quote-city',
+    'quote-focus',
+    'quote-hideout-map-bonus',
+    'quote-hideout-focus-rrr',
+    'quote-shop-fee',
+    'quote-est-unit',
+    'quote-est-total',
+    'quote-custom-unit',
+    'quote-custom-total',
+    'btn-quote-qty-sub-10',
+    'btn-quote-qty-sub-1',
+    'btn-quote-qty-add-1',
+    'btn-quote-qty-add-10',
+    'quote-quality-pill-group',
+    'quote-tier-hint',
+    'quote-main-label',
+    'quote-sub-label',
+    'quote-hideout-group',
+    'quote-material-inputs',
+    'quote-result-box',
+    'quote-rra-badge',
+    'quote-consumption-main',
+    'quote-consumption-sub',
+    'quote-total-cost',
+    'quote-unit-cost',
+    'quote-shop-fee-result',
+    'quote-est-total-display',
+    'quote-ref-90',
+    'quote-ref-85',
+    'quote-ref-margin-8',
+    'quote-ref-margin-10',
+    'quote-profit',
+    'quote-margin',
+    'quote-quick-90',
+    'quote-quick-85',
+    'quote-quick-margin-8',
+    'quote-quick-margin-10',
+    'nav-tab-crafting',
+    'global-shopfee',
+    'crafting-queue-tbody',
+    'shopping-list-content',
+    'queue-total-cost',
+    'hideout-focus-rrr',
+    'hideout-map-bonus'
+  ].forEach(id => harness.document.getElementById(id));
+
+  harness.document.getElementById('quote-recipe').value = RECIPES[0].name;
+  harness.document.getElementById('quote-qty').value = '3';
+  harness.document.getElementById('quote-city').value = 'Thetford';
+  harness.document.getElementById('quote-shop-fee').value = '0';
+  harness.document.getElementById('global-shopfee').value = '0';
+  harness.document.getElementById('quote-focus').checked = false;
+  quotation.initQuotationEvents();
+
+  return { ...harness, quotation, craftingQueue };
+}
+
+async function setupReadyQuotationHarness() {
+  const harness = await setupQuotationHarness();
+  const qualityButton = findElementByText(harness.document.getElementById('quote-quality-pill-group'), '4.0');
+  assert.ok(qualityButton);
+  qualityButton.click();
+  return harness;
+}
+
+test('quotation programmatic estimate unit to total uses formatSilver result', async () => {
+  const { document } = await setupQuotationHarness();
+  document.getElementById('quote-est-unit').value = '12345678';
+
+  document.getElementById('quote-est-unit').trigger('input');
+
+  assert.equal(document.getElementById('quote-est-unit').value, '12345678');
+  assert.equal(document.getElementById('quote-est-total').value, formatSilver(12345678 * 3));
+});
+
+test('quotation programmatic estimate total to unit uses formatSilver result', async () => {
+  const { document } = await setupQuotationHarness();
+  document.getElementById('quote-est-total').value = '12345678';
+
+  document.getElementById('quote-est-total').trigger('input');
+
+  assert.equal(document.getElementById('quote-est-total').value, '12345678');
+  assert.equal(document.getElementById('quote-est-unit').value, formatSilver(12345678 / 3));
+});
+
+test('quotation programmatic custom unit to total uses formatSilver result', async () => {
+  const { document } = await setupQuotationHarness();
+  document.getElementById('quote-custom-unit').value = '12345678';
+
+  document.getElementById('quote-custom-unit').trigger('input');
+
+  assert.equal(document.getElementById('quote-custom-unit').value, '12345678');
+  assert.equal(document.getElementById('quote-custom-total').value, formatSilver(12345678 * 3));
+});
+
+test('quotation programmatic custom total to unit uses formatSilver result', async () => {
+  const { document } = await setupQuotationHarness();
+  document.getElementById('quote-custom-total').value = '12345678';
+
+  document.getElementById('quote-custom-total').trigger('input');
+
+  assert.equal(document.getElementById('quote-custom-total').value, '12345678');
+  assert.equal(document.getElementById('quote-custom-unit').value, formatSilver(12345678 / 3));
+});
+
+test('quotation quick quote setQuoteTotal formats both unit and total inputs', async () => {
+  const { document } = await setupReadyQuotationHarness();
+  const button = document.getElementById('quote-quick-90');
+  button.setAttribute('data-quote-action', 'quick');
+  button.setAttribute('data-value', '12345678');
+
+  document.trigger('click', button);
+
+  assert.equal(document.getElementById('quote-custom-total').value, formatSilver(12345678));
+  assert.equal(document.getElementById('quote-custom-unit').value, formatSilver(12345678 / 3));
+});
+
+test('quotation input sync preserves the actively edited source field', async () => {
+  const { document } = await setupQuotationHarness();
+  document.getElementById('quote-est-unit').value = '12345678';
+  document.getElementById('quote-custom-total').value = '12345678';
+
+  document.getElementById('quote-est-unit').trigger('input');
+  document.getElementById('quote-custom-total').trigger('input');
+
+  assert.equal(document.getElementById('quote-est-unit').value, '12345678');
+  assert.equal(document.getElementById('quote-custom-total').value, '12345678');
+  assert.equal(document.getElementById('quote-est-total').value, formatSilver(12345678 * 3));
+  assert.equal(document.getElementById('quote-custom-unit').value, formatSilver(12345678 / 3));
+});
+
+test('quotation enqueue success immediately renders queue and shopping list once without duplicate enqueue', async () => {
+  const { document, craftingQueue } = await setupReadyQuotationHarness();
+  const enqueueButton = new FakeElement('quote-add-to-queue');
+  enqueueButton.setAttribute('data-quote-action', 'enqueue');
+  const queueBody = document.getElementById('crafting-queue-tbody');
+  const shoppingList = document.getElementById('shopping-list-content');
+  const queueTotal = document.getElementById('queue-total-cost');
+  const nav = document.getElementById('nav-tab-crafting');
+  let navClicks = 0;
+  nav.addEventListener('click', () => { navClicks++; });
+  queueBody.innerHTMLSetCount = 0;
+  shoppingList.innerHTMLSetCount = 0;
+  queueTotal.innerHTMLSetCount = 0;
+
+  document.trigger('click', enqueueButton);
+
+  assert.equal(craftingQueue.length, 1);
+  assert.equal(queueBody.innerHTMLSetCount, 1);
+  assert.equal(queueBody.children.length, 1);
+  assert.equal(shoppingList.innerHTMLSetCount, 1);
+  assert.equal(queueTotal.innerHTMLSetCount, 1);
+  assert.equal(navClicks, 1);
+});
+
+test('quotation enqueue failure does not render queue shopping list or switch tabs', async () => {
+  const { document, craftingQueue } = await setupReadyQuotationHarness();
+  document.getElementById('quote-recipe').value = '';
+  const enqueueButton = new FakeElement('quote-add-to-queue');
+  enqueueButton.setAttribute('data-quote-action', 'enqueue');
+  const queueBody = document.getElementById('crafting-queue-tbody');
+  const shoppingList = document.getElementById('shopping-list-content');
+  const queueTotal = document.getElementById('queue-total-cost');
+  const nav = document.getElementById('nav-tab-crafting');
+  let navClicks = 0;
+  nav.addEventListener('click', () => { navClicks++; });
+  queueBody.innerHTMLSetCount = 0;
+  shoppingList.innerHTMLSetCount = 0;
+  queueTotal.innerHTMLSetCount = 0;
+
+  document.trigger('click', enqueueButton);
+
+  assert.equal(craftingQueue.length, 0);
+  assert.equal(queueBody.innerHTMLSetCount, 0);
+  assert.equal(shoppingList.innerHTMLSetCount, 0);
+  assert.equal(queueTotal.innerHTMLSetCount, 0);
+  assert.equal(navClicks, 0);
 });
 
 test('format-num input source formats on blur or change without input-time comma rewriting', () => {
