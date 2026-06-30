@@ -34,9 +34,18 @@ function isThenable(value) {
   }
 }
 
-function normalizeErrors(errors) {
+function normalizeTopLevelErrors(errors) {
   if (!Array.isArray(errors)) return [];
   return ERROR_ORDER.filter(code => errors.includes(code));
+}
+
+function normalizeInnerErrors(innerErrors) {
+  if (!Array.isArray(innerErrors)) return [];
+  const normalized = [];
+  for (const code of innerErrors) {
+    if (typeof code === 'string' && !normalized.includes(code)) normalized.push(code);
+  }
+  return normalized;
 }
 
 function result(ok, status, state, errors = [], innerErrors = []) {
@@ -44,8 +53,8 @@ function result(ok, status, state, errors = [], innerErrors = []) {
     ok,
     status,
     state,
-    errors: normalizeErrors(errors),
-    innerErrors: normalizeErrors(innerErrors)
+    errors: normalizeTopLevelErrors(errors),
+    innerErrors: normalizeInnerErrors(innerErrors)
   };
 }
 

@@ -107,6 +107,12 @@ function makeOneTimeSetFailureBackend(initialEntries, partialWrite = false) {
   });
 }
 
+function makeMalformedCanonicalBackupText(mutator) {
+  const envelope = JSON.parse(makeBackupText());
+  mutator(envelope.state);
+  return JSON.stringify(envelope);
+}
+
 function assertNoBackendAccess(backend) {
   assert.deepEqual(backend.calls, []);
 }
@@ -196,6 +202,48 @@ test('restoreBackup validates backup text before resolving backend methods', () 
   }
 });
 
+test('restoreBackup preserves canonical codec inner errors before backend access', () => {
+  const unsupportedVersion = restoreBackup(
+    makeBackend(),
+    makeMalformedCanonicalBackupText(state => {
+      state.schemaVersion = 2;
+    })
+  );
+
+  assert.deepEqual(unsupportedVersion.errors, ['INVALID_BACKUP_STATE']);
+  assert.deepEqual(unsupportedVersion.innerErrors, ['UNSUPPORTED_SCHEMA_VERSION']);
+
+  const runtimeQtyByCity = restoreBackup(
+    makeBackend(),
+    makeMalformedCanonicalBackupText(state => {
+      state.inventory['鋼條_6.3'] = {
+        qtyByCity: { Thetford: 1 },
+        globalAvgCost: 100
+      };
+    })
+  );
+
+  assert.deepEqual(runtimeQtyByCity.errors, ['INVALID_BACKUP_STATE']);
+  assert.equal(runtimeQtyByCity.innerErrors.includes('INVALID_INVENTORY'), true);
+  assert.equal(runtimeQtyByCity.innerErrors.includes('LEGACY_FIELD_NOT_ALLOWED'), true);
+});
+
+test('restoreBackup result error arrays are defensive copies', () => {
+  const backupText = makeMalformedCanonicalBackupText(state => {
+    state.schemaVersion = 2;
+  });
+  const first = restoreBackup(makeBackend(), backupText);
+
+  first.errors.push('MUTATED');
+  first.innerErrors.push('MUTATED');
+
+  const second = restoreBackup(makeBackend(), backupText);
+  assert.deepEqual(second.errors, ['INVALID_BACKUP_STATE']);
+  assert.deepEqual(second.innerErrors, ['UNSUPPORTED_SCHEMA_VERSION']);
+  assert.notEqual(first.errors, second.errors);
+  assert.notEqual(first.innerErrors, second.innerErrors);
+});
+
 test('restoreBackup rejects legacy backups without auto conversion or backend mutation', () => {
   const backend = makeBackend();
   const result = restoreBackup(
@@ -227,6 +275,20 @@ test('restoreBackup validates backend method contracts safely after backup valid
   assert.deepEqual(restoreBackup(getterThrow, makeBackupText()).errors, [
     'INVALID_STORAGE_BACKEND'
   ]);
+
+  const setGetterThrow = { getItem() {}, removeItem() {} };
+  Object.defineProperty(setGetterThrow, 'setItem', { get() { throw new Error('getter'); } });
+  assert.deepEqual(restoreBackup(setGetterThrow, makeBackupText()).errors, [
+    'INVALID_STORAGE_BACKEND'
+  ]);
+  assert.deepEqual(setGetterThrow.calls, undefined);
+
+  const removeGetterThrow = { getItem() {}, setItem() {} };
+  Object.defineProperty(removeGetterThrow, 'removeItem', { get() { throw new Error('getter'); } });
+  assert.deepEqual(restoreBackup(removeGetterThrow, makeBackupText()).errors, [
+    'INVALID_STORAGE_BACKEND'
+  ]);
+  assert.deepEqual(removeGetterThrow.calls, undefined);
 
   const thenable = makeBackend({}, { getItem: () => ({ then() {} }) });
   assert.deepEqual(restoreBackup(thenable, makeBackupText()).errors, ['STORAGE_READ_FAILED']);
@@ -326,6 +388,26 @@ test('restoreBackup rolls back existing snapshots after write or verification fa
   }
 });
 
+test('restoreBackup restores malformed original snapshot strings without decoding them', () => {
+  const malformedOriginal = 'not-valid-json-original-raw';
+  const setFailure = makeOneTimeSetFailureBackend({ [NEW_SCHEMA_STORAGE_KEY]: malformedOriginal }, true);
+  const writeResult = restoreBackup(setFailure, makeBackupText());
+
+  assert.equal(writeResult.status, 'error');
+  assert.deepEqual(writeResult.errors, ['STORAGE_WRITE_FAILED']);
+  assert.equal(setFailure.entries.get(NEW_SCHEMA_STORAGE_KEY), malformedOriginal);
+
+  const verificationFailure = makeReadBackFailureBackend(
+    { [NEW_SCHEMA_STORAGE_KEY]: malformedOriginal },
+    '{'
+  );
+  const verifyResult = restoreBackup(verificationFailure, makeBackupText());
+
+  assert.equal(verifyResult.status, 'error');
+  assert.deepEqual(verifyResult.errors, ['STORAGE_VERIFICATION_FAILED']);
+  assert.equal(verificationFailure.entries.get(NEW_SCHEMA_STORAGE_KEY), malformedOriginal);
+});
+
 test('restoreBackup removes partial v2 writes when no prior snapshot existed', () => {
   const setFailure = makeBackend({}, { partialSetBeforeThrow: true, setThrow: true });
   const writeResult = restoreBackup(setFailure, makeBackupText());
@@ -389,6 +471,27 @@ test('restoreBackup reports rollback-failed when rollback cannot be verified', (
     result.innerErrors.push('MUTATED');
     assert.notDeepEqual(result.errors, ['ROLLBACK_FAILED']);
   }
+
+  const verificationRollbackFailure = makeReadBackFailureBackend(
+    { [NEW_SCHEMA_STORAGE_KEY]: oldRaw },
+    () => {
+      const different = makeState();
+      different.assets.cash = 999;
+      return encodeNewSchemaState(different).serialized;
+    }
+  );
+  let verificationSetCount = 0;
+  verificationRollbackFailure.setItem = function setItem(key, value) {
+    verificationSetCount += 1;
+    this.calls.push({ method: 'setItem', key, value, thisBound: this === verificationRollbackFailure });
+    this.entries.set(key, String(value));
+    if (verificationSetCount === 2) throw new Error('rollback write failed');
+  };
+
+  const verificationResult = restoreBackup(verificationRollbackFailure, makeBackupText());
+  assert.equal(verificationResult.status, 'rollback-failed');
+  assert.deepEqual(verificationResult.errors, ['ROLLBACK_FAILED']);
+  assert.deepEqual(verificationResult.innerErrors, ['STORAGE_VERIFICATION_FAILED']);
 });
 
 test('restoreBackup source remains pure and isolated from production integration', () => {
