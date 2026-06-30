@@ -85,7 +85,8 @@ This means 0.4.4 is release-candidate complete from the documented source and re
 ## Active Limitations
 
 - Legacy backup files are not automatically converted into canonical v2 state.
-- A v2-mode import of a legacy backup is blocked with guidance to use explicit legacy mode.
+- A v2-mode import does not migrate a legacy backup into canonical v2 state.
+- User-facing feedback for this unsupported legacy-backup path may be missing or unclear.
 - Explicit legacy mode can still read and write legacy data paths.
 - Formal special-material inventory is not implemented.
 - Artifact / alchemy queue fields are still per-queue unit-cost planning inputs.

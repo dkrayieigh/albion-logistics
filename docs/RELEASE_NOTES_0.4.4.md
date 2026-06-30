@@ -42,7 +42,8 @@ Legacy backup policy:
 
 - Legacy backup files are not automatically migrated into v2 canonical state.
 - Explicit legacy mode remains available for legacy data.
-- v2 mode blocks legacy backup import rather than auto-converting it.
+- v2 mode does not auto-convert a legacy backup into canonical v2 state.
+- User-facing feedback for this unsupported path may be missing or unclear.
 - There is no startup-time legacy-to-v2 migration in 0.4.4.
 - This is a known limitation, not a release blocker for the documented 0.4.4 scope.
 
@@ -82,6 +83,7 @@ Legacy backup policy:
 - Canonical transaction migration remains future work.
 - Progressive `checkJs`, Vite, CSP hardening, and SQLite remain future work.
 - Production build, installer / artifact verification, release tag, GitHub Release, and artifact upload are still pending.
+- Selecting a legacy backup while running in v2 mode may not provide clear user-facing feedback.
 
 ## 8. Validation Completed
 

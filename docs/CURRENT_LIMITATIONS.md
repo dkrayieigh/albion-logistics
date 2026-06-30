@@ -27,7 +27,8 @@ Current limitation:
 
 - Legacy backup files are not automatically converted into canonical v2 state.
 - Legacy `qtyByCity` and legacy Chinese item-key data are not migrated into v2 canonical state by the importer.
-- In v2 mode, a legacy backup is blocked with guidance rather than auto-migrated.
+- In v2 mode, a legacy backup is not auto-migrated into canonical v2 state.
+- User-facing feedback for this unsupported path may be missing or unclear.
 - The app does not run startup-time legacy-to-v2 migration.
 - A future migration remains required to transform legacy backups into v2 state.
 
