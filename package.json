@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "test": "node --test tests/ledger-data-safety.test.js tests/core-cost-regression.test.js tests/backup-regression.test.js tests/quotation-regression.test.js tests/ledger-presentation.test.js"
+    "test": "node scripts/run-tests.mjs",
+    "test:watch": "node --watch scripts/run-tests.mjs",
+    "lint": "eslint \"src/calculators/**/*.js\" \"src/presenters/**/*.js\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --check package.json eslint.config.js \"scripts/**/*.mjs\" \".github/workflows/**/*.yml\" .prettierrc.json"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2",
+    "eslint": "^10.6.0",
+    "prettier": "^3.9.4"
   },
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.7.1",
