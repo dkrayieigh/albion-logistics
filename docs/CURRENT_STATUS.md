@@ -3,150 +3,108 @@
 Status: Current
 Authority: Current implementation summary
 Last reviewed: 2026-06-30
-Last verified against commit: `68c21acb1274bee0d27e65727f2b506332181502`
+Last verified against commit: `4b618fd2456aca7021863d5d4c4dc0f202e458b7`
 
-`Last verified against commit` 只表示最後核對點。需要最新狀態時仍應檢查 repo、latest CI run 與目前工作樹；docs-only commit 不需要把此欄位更新成自身 SHA。
-
-本文件是目前 repo 狀態的快速入口。它整理 current implementation、test-covered behavior、active limitations 與 active workstreams；不取代 business rules、target specification、migration plan 或 regression tests。
+`Last verified against commit` is the remote `master` reference supplied for the 0.4.4 release closeout. This file documents current production behavior and release-readiness state; it does not imply that this docs-only update changed source, tests, package metadata, build output, tags, or release artifacts.
 
 ## Production Runtime
 
-- Desktop shell：Tauri 2。
-- Frontend：Vanilla JavaScript / ES modules / HTML / CSS。
-- Production `frontendDist` 指向 `src`。
-- Package version：`0.4.4`。
-- App title：`Albion Logistics v0.4.4`。
-- CI workflow：Windows + Node 22，執行 `npm ci`、`npm test`、`npm run lint`、`npm run format:check`。
-- Active new-schema storage key：`albion-logistics-v2-state`。
-- Production startup/read-write cutover 已存在：ready / initialize / blocked path 已接入 app startup。
-- Ready startup 讀取 new key，投影 canonical state 到 runtime state，hydrate defaults，並讓 active-runtime `saveState()` 寫回 new key。
-- Missing storage + user confirmation 會建立 clean canonical state 並寫入 new key。
-- Missing storage + user cancellation 會明確進入 legacy mode。
-- Invalid/error startup 會 blocked；不建立空資料，不 silent fallback。
-- Explicit legacy mode 仍可用，並使用 legacy localStorage path。
+- Package/app version: `0.4.4`.
+- Desktop shell: Tauri 2.
+- Frontend: vanilla JavaScript / ES modules / HTML / CSS.
+- Production `frontendDist`: `src`.
+- Active new-schema storage key: `albion-logistics-v2-state`.
+- Production v2 startup/read-write is integrated.
+- Ready startup reads the v2 key, projects canonical state to runtime state, hydrates runtime defaults, and active-runtime `saveState()` writes the v2 key.
+- Missing storage with user confirmation initializes and writes a clean canonical v2 state.
+- Missing storage with user cancellation enters explicit legacy mode.
+- Invalid or errored startup blocks without silent legacy fallback.
+- Explicit legacy mode still uses the legacy `albion_crafting_*` localStorage path.
+- Canonical v2 export is integrated in production.
+- Browser download export transport is integrated.
+- Tauri native save-dialog export transport is integrated.
+- Validated atomic v2 import is integrated in production.
+- Import verification failure rolls back instead of leaving partial v2 data.
+- Factory Reset is scoped to Albion Logistics owned v2 and legacy keys.
+- Factory Reset preserves unrelated same-origin storage keys.
+- Legacy backup data is not automatically migrated to v2.
+- No automatic legacy-to-v2 migration runs during startup, import, or reset.
 
-## Stable / Test-covered Areas
+## Stable / Test-Covered Areas
 
-GitHub Actions 目前會自動探索並執行所有 `tests/**/*.test.js`。
+The current automated regression suite covers:
 
-最近確認的 CI 狀態：
+- production v2 export;
+- production v2 import;
+- production export/import round-trip;
+- invalid backup zero mutation;
+- import verification rollback;
+- rollback failure reporting;
+- scoped Factory Reset preservation;
+- unrelated storage key preservation;
+- startup after reset;
+- quotation programmatic calculated-field formatting;
+- queue immediate render after quotation enqueue;
+- numeric input select-all-on-focus;
+- artifact queue label regression;
+- core cost / WAC behavior;
+- crafting material consumption and actual-consumption safety;
+- purchase / sale safety;
+- inventory transfer;
+- ledger data safety;
+- custom location stable-ID add / rename / remove behavior;
+- new-schema codec, repository, runtime projection, and startup decision boundary;
+- browser storage backend and browser repository composition.
 
-- all discovered tests pass
-- ESLint pass
-- Prettier check pass
-
-精確 test count 屬時間性 snapshot，應以 latest CI run 為準，不得寫成長期固定 current state。
-
-主要 test-covered scope：
-
-- core cost / WAC regression。
-- crafting material consumption 與 actual-consumption safety。
-- purchase / sale safety。
-- inventory transfer。
-- ledger data safety。
-- backup legacy regression。
-- quotation / sale valuation calculation。
-- custom location stable-ID add / rename / remove behavior。
-- new-schema codec、repository、runtime projection 與 production startup cutover。
-- browser storage backend、browser repository composition、startup loader / decision boundary。
-- runtime compatibility bridge。
-- tooling CI：test / lint / format-check。
+Do not record a fixed test count here. Treat exact counts as run-specific evidence in closeout reports.
 
 ## Current Implementation Highlights
 
-- 最新 `src` 與 regression tests 用於確認 current behavior。
-- `src` 是 compatibility baseline，但不是絕對真理；confirmed business rules、regression expectations、confirmed bug reports 或 user-confirmed specification 可證明 current `src` 存在 bug 或落差。
-- Crafting Planner / quotation 是 read-only planning path；不寫 inventory、cash、transactions 或 storage。
-- `RECIPES` 是 Crafting 與 Planner 的 shared Item Picker source。
-- Ledger English category / item display 是 presentation mapping；不重寫 stored transaction payload。
-- Custom location add / rename / remove 已使用 stable custom location ID lifecycle；backup/reset/migration 邊界仍需另外處理。
-- Production new-schema runtime path 已接入 startup/read-write；backup import/export 仍是 legacy-only。
-- Runtime compatibility bridge 支援 `qtyByLocation` / `qtyByCity` projection，但這不代表所有 writer、backup、migration 都已完成。
+- Crafting Planner / quotation remains a planning path that hands rows to the transient crafting queue; it does not mutate inventory, cash, transactions, or storage directly.
+- `RECIPES` is the shared Crafting and Planner item source.
+- Ledger English category / item display is presentation mapping and does not migrate stored transaction payloads.
+- Custom location add / rename / remove uses the stable custom-location lifecycle in current runtime behavior.
+- Production new-schema runtime is active for startup/read-write.
+- Backup import/export is now v2-aware in production, while explicit legacy mode remains available for legacy data.
+- Factory Reset uses a scoped owned-key reset path instead of broad `localStorage.clear()`.
+- Artifact and alchemy queue rows remain cost-input planning behavior, not formal special-material inventory.
+
+## Release Readiness
+
+- The current codebase is a 0.4.4 release candidate.
+- User-confirmed Tauri dev app manual smoke for 0.4.4: PASS.
+- Export/import/reset/startup and numeric-input UX hotfix regressions are passing locally.
+- Production build is pending.
+- Installer / release artifact verification is pending.
+- v0.4.4 tag is pending.
+- GitHub Release is pending.
+- Artifact upload is pending.
+
+This means 0.4.4 is release-candidate complete from the documented source and regression perspective, but it is not documented here as released.
 
 ## Active Limitations
 
-- New-schema backup import/export 尚未完成。
-- Factory Reset scope 尚未收斂，仍需避免 broad `localStorage.clear()`。
-- Formal special-material inventory 尚未實作，且 implementation status 已凍結為 Paused。
-- Account-total product inventory 尚未實作。
-- Custom-location crafting profile 尚未定義。
-- Canonical transaction migration 尚未開始。
-- Stable Item ID migration 尚未開始。
-- Legacy fallback 尚未移除。
-- Ledger English mapping 是 presentation layer，不是 payload migration。
-- Cost adjustment canonical event 與 cash-impact / valuation-impact 邊界尚未修正。
-- CSP 仍為 `null`。
-- Vite 尚未導入。
-- SQLite 尚未導入。
-- UI manual smoke checklist 尚未完成。
+- Legacy backup files are not automatically converted into canonical v2 state.
+- A v2-mode import of a legacy backup is blocked with guidance to use explicit legacy mode.
+- Explicit legacy mode can still read and write legacy data paths.
+- Formal special-material inventory is not implemented.
+- Artifact / alchemy queue fields are still per-queue unit-cost planning inputs.
+- Custom warehouse production UI is not complete.
+- Stable Item ID migration remains future work.
+- Canonical transaction migration remains future work.
+- Progressive `checkJs`, Vite, stricter CSP, and SQLite remain future hardening work.
+- CSP is still effectively not hardened for a packaged artifact.
 
-詳細限制請見 [Current Limitations](./CURRENT_LIMITATIONS.md) 與 [Implementation Gap](./IMPLEMENTATION_GAP.md)。
+For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and [Implementation Gap](./IMPLEMENTATION_GAP.md).
 
 ## Active Workstreams
 
-目前 active workstreams 只保留兩項：
+1. 0.4.4 release closeout.
+2. Docs consolidation closeout.
 
-1. Docs consolidation closeout。
-2. New-schema data safety stabilization。
-
-Docs consolidation closeout 已完成的部分：
-
-- `docs/README.md` 導覽入口。
-- `docs/CURRENT_STATUS.md` current summary。
-- 文件定位分類與閱讀順序。
-
-Docs consolidation closeout 尚未完成的部分：
-
-- planning / historical 文件整理。
-- 過時狀態文字改寫或移入 archive。
-- active-only `CURRENT_LIMITATIONS.md` 重整。
-- broken-link-safe archive relocation。
-
-New-schema data safety stabilization 聚焦：
-
-- new-schema backup lifecycle。
-- Factory Reset scope。
-- active contract: [Backup / Reset Contract](./BACKUP_RESET_CONTRACT.md)。
-- backup/reset 的 docs -> tests -> pure service -> production integration 順序。
-
-## Paused / Backlog Workstreams
-
-Paused 不代表取消；approved target 不代表 implementation authorization。
-
-- Special-material implementation。
-- Custom-location crafting profile。
-- Stable Item ID migration。
-- Canonical transaction migration。
-- Account-total product inventory。
-- Vite。
-- Progressive type checking。
-- CSP。
-- SQLite。
-- Location service extraction。
-
-## Data-safety Architecture Boundary
-
-Future data-safety implementation boundary：
-
-```text
-UI
--> backup/reset application service
--> codec/validation
--> repository/storage backend
-```
-
-Boundary rules：
-
-- This is future implementation boundary, not current implementation。
-- Do not split `state.js` preemptively。
-- Export、import、reset must remain separate checkpoints。
-- Do not wire everything into the production path in one step。
-- `app.js` should call pure services only after tests and service contracts exist。
-- This section does not define SQLite or canonical transaction work。
+New-schema data-safety stabilization is complete for the 0.4.4 release-candidate scope documented here. Remaining release work is build / tag / artifact closeout, not more source migration.
 
 ## Reviewed Core Specifications
-
-以下文件包含 current rules、target specifications 或 migration boundaries。閱讀時應以文件內標示的 current / future / migration boundary 為準：
 
 - [Architecture](./ARCHITECTURE.md)
 - [Business Rules](./BUSINESS_RULES.md)
@@ -159,7 +117,7 @@ Boundary rules：
 
 ## Historical / Planning Material
 
-以下文件含有 handoff、gap、checkpoint、adapter plan 或 migration plan。它們可用於追蹤決策，但不應單獨作為 current truth：
+The following documents are useful for context and migration boundaries, but they should not override current source, current tests, confirmed bug reports, or user-confirmed release-closeout facts:
 
 - [Project Handoff](./PROJECT_HANDOFF.md)
 - [Implementation Gap](./IMPLEMENTATION_GAP.md)
@@ -167,5 +125,3 @@ Boundary rules：
 - [Adapter API](./ADAPTER_API.md)
 - [Adapter Test Plan](./ADAPTER_TEST_PLAN.md)
 - [Roadmap](./ROADMAP.md)
-
-若這些文件與本文件發生狀態衝突，先把本文件當作 current 閱讀入口，再回到 confirmed business rules、regression tests、latest production `src`、confirmed bug reports 與 user-confirmed specification 查證。
