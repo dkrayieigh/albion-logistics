@@ -9,7 +9,7 @@ Last verified against commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`
 
 ## Current Master Review
 
-- Current master implementation reviewed against commit: `9cf3e7be2039619b51584baa34421f744e9b938f`.
+- Current master implementation reviewed against commit: `0770b1e08afecc6496411d1037313b9a24e91e11`.
 - Release baseline remains the tagged 0.4.4 release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`.
 - Post-release master includes the Inventory Transfer bounded service extraction. This is current master behavior, not a v0.4.4 release artifact.
 - Post-release master includes Inventory Transfer exact-file ESLint coverage. This is a tooling gate update, not a runtime feature.
@@ -62,6 +62,13 @@ The current automated regression suite covers:
 - pure inventory transfer service contract;
 - inventory transfer service-level validation, immutability, and selected-source sufficiency;
 - inventory transfer integration behavior around legacy save path, WAC preservation, cash/debt preservation, transaction preservation, custom display-name compatibility, and no `qtyByLocation` / Location Registry side effect;
+- pure Special Material purchase / consumption contract;
+- Special Material account-total quantity and WAC;
+- Special Material zero-balance reset and dormant anchor;
+- Special Material identity / entry validation;
+- Special Material location-shaped field rejection;
+- Special Material input immutability;
+- Special Material error priority and public API isolation;
 - ledger data safety;
 - custom location stable-ID add / rename / remove behavior;
 - new-schema codec, repository, runtime projection, and startup decision boundary;
@@ -79,6 +86,10 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - Backup import/export is now v2-aware in production, while explicit legacy mode remains available for legacy data.
 - Factory Reset uses a scoped owned-key reset path instead of broad `localStorage.clear()`.
 - Artifact and alchemy queue rows remain cost-input planning behavior, not formal special-material inventory.
+- `src/services/specialMaterialInventoryService.js` provides the current master pure Special Material purchase / consumption service.
+- This pure service is not wired to state, Crafting, storage, UI, cash, transactions, save, or backup.
+- Formal Special Material inventory root does not exist in production runtime.
+- Current Crafting still uses manual Artifact / Alchemy cost inputs.
 - `src/services/inventoryTransferService.js` provides the current master pure `applyInventoryTransfer()` service.
 - `src/components/inventory.js` remains the DOM input, toast, `state.inventory[key]` assignment, `saveState()`, and UI refresh adapter for transfer.
 - Inventory transfer extraction refactors existing behavior; it does not add transport capability.
@@ -100,6 +111,8 @@ Current partial ESLint scope:
 - `src/presenters/**/*.js`
 - `src/services/inventoryTransferService.js`
 - `tests/inventory-transfer-service.test.js`
+- `src/services/specialMaterialInventoryService.js`
+- `tests/special-material-inventory-service.test.js`
 - `scripts/**/*.mjs`
 
 Tooling boundary:
@@ -165,9 +178,11 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 5. Custom warehouse boundary specification and inventory — completed.
 6. Custom warehouse deletion UX contract regression and fix — completed.
 7. Special material inventory contract reconciliation — completed.
-8. Tests-first special-material pure contract — active.
+8. Tests-first special-material pure contract — completed.
+9. Special Material exact-file ESLint coverage — completed.
+10. Special material identity catalog review — active.
 
-Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory and deletion UX contract fix are complete. Special Material inventory contract reconciliation is complete: the selected future target is account-total `totalQty`, account-wide `globalAvgCost`, no location bucket, and no transfer. Formal Special Material inventory remains unimplemented; current Crafting still uses manual Artifact / Alchemy cost inputs. The active checkpoint is Tests-first special-material pure contract. It may define pure-domain tests and contract boundaries, but it does not authorize production source helpers, schema/storage roots, writer/backup/UI integration, Crafting integration, version metadata updates, release work, or a 0.4.5 implementation branch.
+Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory and deletion UX contract fix are complete. Special Material inventory contract reconciliation, pure service/test contract, and exact-file ESLint coverage are complete. Formal Special Material inventory remains unimplemented in production runtime; current Crafting still uses manual Artifact / Alchemy cost inputs. The active checkpoint is Special material identity catalog review. It may inventory candidate IDs from current recipe metadata, but it does not authorize a production catalog, resolver, storage/schema, writer/backup/UI integration, Crafting integration, version metadata updates, release work, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 

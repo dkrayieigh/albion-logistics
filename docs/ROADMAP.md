@@ -244,7 +244,7 @@
 - 移除 manual-cost compatibility。
 - version / release work。
 
-### Active Checkpoint：Tests-first special-material pure contract
+### Completed Checkpoint：Tests-first special-material pure contract
 
 目標：
 
@@ -263,6 +263,46 @@
 - Crafting integration。
 - Special Material transfer。
 - Version / release work。
+
+完成摘要：
+
+- `src/services/specialMaterialInventoryService.js` 已提供 pure service。
+- Public API 包含 `applySpecialMaterialPurchase()` 與 `applySpecialMaterialConsumption()`。
+- 已保護 account-total `totalQty` 與 account-wide `globalAvgCost`。
+- 已保護 zero-balance reset 與 dormant anchor。
+- 已拒絕 location-shaped identity / entry，例如 `qtyByLocation`、`qtyByCity`、`locationId`。
+- 已保護 input immutability、error priority 與 structured success/failure results。
+- 沒有 production integration。
+- 沒有 state、storage、cash、transactions、backup、UI 或 Crafting 寫入接線。
+
+### Completed Checkpoint：Special Material exact-file ESLint coverage
+
+完成摘要：
+
+- `src/services/specialMaterialInventoryService.js` 與 `tests/special-material-inventory-service.test.js` 已納入 exact-file ESLint scope。
+- 沒有新增 broad glob。
+- 沒有修改 lint rules、globals、dependencies 或 CI workflow。
+- 這不是 repo-wide lint，也不是 `checkJs`。
+
+### Active Checkpoint：Special material identity catalog review
+
+目標：
+
+- 盤點 current recipe metadata 中使用的 Artifact / Alchemy 名稱。
+- 建立 runtime → stable identity 的候選清單。
+- 找出雙語名稱、重複引用、命名衝突與 unresolved cases。
+- 交給 Spec Lead 決定 catalog source 與 resolver tests。
+
+不包含：
+
+- Production catalog。
+- Resolver。
+- 修改 recipe metadata。
+- 修改 Crafting。
+- 修改 storage/schema。
+- Writer、cash、transaction、backup、UI。
+- Stable Item ID migration。
+- Release/version work。
 
 ### Completed Baseline：v0.4.4 backup/reset/release stabilization
 
@@ -283,11 +323,11 @@ Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migrati
 
 目前 approved sequence：
 
-1. Tests-first special-material pure contract — active.
-2. Bounded pure helper implementation — blocked until tests contract review.
-3. Production integration — not approved.
+1. Special material identity catalog review — active.
+2. Tests-first pure catalog/resolver contract — blocked pending catalog review.
+3. Production Special Material integration — not approved.
 
-只有第一項是 active。第二項仍需 tests contract review；第三項未核准。此清單不代表 production schema/storage、writer/backup/UI、Crafting integration、0.4.5 implementation 或 release work 已開始。
+只有第一項是 active。第二項仍需 catalog review；第三項未核准。此清單不代表 production catalog、resolver、storage/schema、writer/backup/UI、Crafting integration、Stable Item ID migration、0.4.5 implementation 或 release work 已開始。
 
 ## Phase-1 Refactor Boundary
 

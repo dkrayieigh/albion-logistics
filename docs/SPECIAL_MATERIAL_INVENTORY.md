@@ -1,16 +1,16 @@
 # Albion Logistics ERP Special Material Inventory Specification
 
-Status: Target
+Status: Target with pure contract implemented
 Authority: Approved specification
-Current implementation: Not implemented
-Implementation status: Tests-first pure contract approved; production integration not approved
+Current implementation: Pure service only; production integration not implemented
+Implementation status: Pure inventory/WAC contract complete; identity catalog review active
 Last reviewed: 2026-07-01
 
 本文件記錄 Artifact / Alchemy 特殊材料庫存的 approved target specification。這不是 current implementation 宣告，也不代表 schema、storage、writer、backup、transaction payload 或 UI 已完成。
 
 本文件不得被解讀為要求立即修改 `src`、tests、storage key、`schemaVersion`、backup format、transaction payload、custom location implementation 或 release/version metadata。
 
-Tests-first pure contract approved means the next checkpoint may define executable pure-domain tests and minimum pure contract helpers when separately approved. This file does not authorize production helper wiring, writer/storage integration, UI, backup, Crafting integration, transaction payload changes, or release/version metadata work.
+Pure contract complete means `src/services/specialMaterialInventoryService.js` now provides an isolated pure inventory/WAC service with regression coverage. This file does not authorize production helper wiring, writer/storage integration, UI, backup, Crafting integration, transaction payload changes, or release/version metadata work.
 
 ## Decision Record
 
@@ -261,24 +261,26 @@ Rules:
 
 ## H. Implementation Gates
 
-Approved gate:
+Completed:
 
-**Tests-first pure Special Material inventory/WAC contract**.
+- Pure identity shape validation.
+- Account-total purchase helper.
+- WAC calculation.
+- Zero-balance reset.
+- Fixed-quantity consumption.
+- Dormant anchor.
+- Structured failure.
+- Input immutability.
+- Location-shaped input rejection.
+- Exact-file ESLint coverage.
 
-Expected pure coverage:
+Current active:
 
-- identity shape validation
-- purchase WAC calculation
-- account-total quantity increment
-- fixed-quantity consumption
-- insufficient quantity rejection
-- unknown cost rejection
-- zero-quantity dormant anchor
-- input immutability
-- structured result contract
+**Special material identity catalog review**.
 
-Not included in the approved gate:
+Still not approved:
 
+- production catalog source
 - catalog implementation
 - storage
 - cash
@@ -290,7 +292,7 @@ Not included in the approved gate:
 - production schema switch
 - legacy fallback removal
 
-Production writer/UI integration is not allowed until pure tests and the pure result contract are reviewed separately.
+Production writer/UI integration is not allowed until catalog review, resolver contract, storage design, and production integration plan are reviewed separately.
 
 ## I. Remaining Unresolved Decisions
 
@@ -311,28 +313,30 @@ Remaining unresolved decisions:
 
 - Final catalog contents.
 - Exact stable ID naming convention.
+- Exact stable ID assignments.
+- Source recipe conflicts.
 - Storage root encoding.
 - Legacy-compatible transaction payload for intake and consumption.
 - Future canonical event payload.
 - Backup envelope / version.
 - UI layout.
 
-All remaining unresolved decisions can be deferred to tests-first pure contract work.
+Pure helper/tests are completed and no longer the active checkpoint.
 
 ## J. Next Approved Step
 
-Next approved step: **Tests-first special-material pure contract**.
+Next approved step: **Special material identity catalog review**.
 
 Scope:
 
-- identity validation
-- account-total quantity helper
-- WAC purchase calculation
-- fixed-quantity consumption validation
-- structured no-mutation failure result
-- consumption validation
-- no `src` integration
+- review candidate stable IDs
+- review recipe metadata conflicts
+- decide catalog source boundary
+- decide whether/when resolver tests should be added
+- no production catalog
+- no production resolver
 - no storage writer
 - no UI
+- no Crafting integration
 
-This next step may add executable tests and pure helper contracts only when separately approved. This document itself does not start source, storage, writer, backup, UI, or Crafting integration.
+This next step is docs/catalog review only unless separately approved. This document itself does not start source, storage, writer, backup, UI, or Crafting integration.

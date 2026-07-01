@@ -445,7 +445,7 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 - Artifact and alchemy material identity is not yet modeled as Tier-only inventory.
 - Special material purchase unit-price / total-price entry is not yet a separate schema path.
 - Special materials currently remain part of crafting workflow behavior, not a dedicated persisted inventory module.
-- Formal special-material production implementation is not complete. Spec Lead selected account-total `totalQty`, account-wide `globalAvgCost`, no location bucket, and no transfer as the target.
+- Formal special-material production implementation is not complete. Spec Lead selected account-total `totalQty`, account-wide `globalAvgCost`, no location bucket, and no transfer as the target. Current master now includes a pure Special Material purchase / consumption service, but it is not production-integrated.
 - Current recipe / Planner / Crafting support is calculation/display-oriented and does not create special-material inventory, WAC storage, intake transactions, or backup/export fields.
 
 Selected target:
@@ -459,7 +459,7 @@ Selected target:
 Remaining gap:
 
 - identity catalog.
-- pure helper/tests.
+- pure catalog / resolver contract.
 - storage root.
 - writer.
 - cash.
@@ -487,7 +487,8 @@ Remaining gap:
 
 - English display mapping：Low–Medium implementation risk because it is presentation-only and currently test-covered, but it still affects Ledger filtering/grouping and user interpretation.
 - Product inventory transition：High risk because it changes inventory shape, crafting output, sale consumption, transport eligibility, dashboard valuation, runtime bridge, codec, and backup expectations.
-- Special material pure helper/tests：Low–Medium implementation risk because the selected target is pure account-total quantity/WAC, but correctness still affects future costing.
+- Special material pure helper/tests：Completed current-master pure boundary. `src/services/specialMaterialInventoryService.js` and `tests/special-material-inventory-service.test.js` cover purchase, consumption, WAC, dormant anchor, validation, location-shaped input rejection, input immutability, error priority, structured results, and public API isolation.
+- Special material catalog docs/tests/pure resolver：Low–Medium implementation risk because it is still non-production catalog/resolver work.
 - Special material production schema/writer/backup integration：High risk because it introduces new persisted inventory classes, purchase/costing rules, transactions, backup shape, and Crafting integration.
 - Cost adjustment canonical event：High risk because it affects cost basis, valuation, Ledger display, transaction semantics, and historical interpretation.
 
@@ -581,6 +582,14 @@ Current gaps:
 - No backup/export schema for special-material inventory。
 - No canonical transaction payload for special-material purchase or consumption。
 
+Current-master pure boundary:
+
+- `src/services/specialMaterialInventoryService.js` implements `applySpecialMaterialPurchase()` and `applySpecialMaterialConsumption()`。
+- `tests/special-material-inventory-service.test.js` protects account-total `totalQty`, account-wide `globalAvgCost`, purchase WAC, zero-balance reset, fixed-quantity consumption, insufficient quantity rejection, unknown cost rejection, dormant anchor, input immutability, structured result contract, error priority, metadata preservation, public API isolation, and plain Node execution。
+- The service rejects location-shaped identity / entry fields: `qtyByLocation`, `qtyByCity`, and `locationId`。
+- Exact-file ESLint coverage includes the service and test file。
+- This is not production wiring and does not touch state, storage, cash, transactions, save, backup, UI, or Crafting。
+
 Selected target:
 
 - `totalQty`。
@@ -597,7 +606,8 @@ Remaining implementation decisions / gates:
 
 - Production writer / UI / storage integration order。
 - Stable special-material ID format。
-- Pure helper/tests。
+- Identity catalog。
+- Pure catalog / resolver contract。
 - Storage root。
 - Cash / transaction / backup integration。
 - Formal Crafting integration。

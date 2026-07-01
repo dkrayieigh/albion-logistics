@@ -40,6 +40,11 @@ npm test
 - Confirmed empty deletion deactivates the registry entry, removes runtime custom location and `qtyByCity` bucket, preserves unrelated inventory, and shows a success toast.
 - Scope: Custom warehouse deletion UX contract. Current status: current master / legacy-compatible UI safety. Test protection status: Tested. Test source: `tests/core-cost-regression.test.js`.
 - This does not implement inactive-location UI, full component stable `locationId` adoption, `qtyByLocation` writer migration, automatic legacy migration, or legacy fallback removal.
+- 新增 covered scope: Special Material pure inventory/WAC contract.
+- Purchase coverage includes first Artifact / Alchemy purchase, positive-inventory WAC, `Math.round`, zero-balance reset, identity mismatch, unknown cost basis, invalid quantity / total cost / entry, structured failure, and error priority.
+- Consumption coverage includes fixed integer deduction, consumed cost, insufficient quantity, unknown cost basis, WAC preservation, and zero-balance dormant anchor.
+- Boundary coverage includes input immutability, success copy semantics, failure original-entry reference, presentation metadata preservation, location-shaped `qtyByLocation` / `qtyByCity` / `locationId` rejection for identity and entry, public API shape, plain Node execution, and no `window` / `document` / `localStorage` access.
+- Scope: Special Material pure inventory/WAC contract. Current status: current master pure service / not production-integrated. Test protection status: Tested. Test source: `tests/special-material-inventory-service.test.js`.
 - 新增 covered scope: crafting material planning aggregates expected consumption and safe-start stock by material key + city.
 - 新增 covered scope: crafting accounting uses user-entered actual material consumption; blank/invalid actual consumption blocks before mutation.
 - 新增 covered scope: purchase and crafting require explicit quality selection and no longer default to `4.0`.

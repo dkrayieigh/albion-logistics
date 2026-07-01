@@ -141,10 +141,32 @@ Current implementation note：
 
 ## Special Material Identity Boundary
 
-Artifact / Alchemy identity proposal is documented in `SPECIAL_MATERIAL_INVENTORY.md` and remains future target.
+Artifact / Alchemy identity proposal is documented in `SPECIAL_MATERIAL_INVENTORY.md` and the candidate inventory is tracked in `SPECIAL_MATERIAL_CATALOG.md`.
 
 - Artifact identity must not depend on display name parsing。
 - Alchemy identity must include concrete material kind and Tier；it must not collapse into a generic `alchemy` key。
 - Future metadata should distinguish stable id、Chinese name、English name、category and tier。
 - Temporary examples such as `artifact:<normalized-key>` or `alchemy:<tier>:<normalized-key>` are proposal only, not current implementation and not final ID format。
 - Current code may still use recipe metadata such as `artifactName`、`artifactQty` and `alchemyName`。
+- Pure service currently validates identity shape only；it does not provide a catalog implementation。
+- Current runtime has no production special-material catalog source。
+- Current runtime does not resolve recipe metadata into stable identity。
+- Display name is not identity。
+- Runtime slug is not identity。
+- Exact stable ID assignment remains under catalog review。
+
+Candidate stable ID pattern:
+
+```text
+ARTIFACT_<EXPLICIT_ASCII_KEY>
+ALCHEMY_<EXPLICIT_ASCII_KEY>
+```
+
+Rules:
+
+- IDs must be manually reviewed catalog constants.
+- Runtime must not derive IDs by slugifying recipe display names.
+- Tier is not part of `stableId`; Tier belongs to runtime identity `{ stableId, category, tier }`.
+- `category` remains a separate identity field.
+- Stable ID must not change because display text is renamed.
+- The current pattern is a catalog candidate, not an approved production assignment.
