@@ -1,5 +1,13 @@
 # Crafting Incident Recovery Plan
 
+Status: Archived historical incident plan
+Scope: v0.4.3 crafting-cost incident response and release recovery
+Current authority: docs/CURRENT_STATUS.md and docs/CURRENT_LIMITATIONS.md
+
+This archived document preserves incident evidence, the risk assessment at the time, and the release gate used for the v0.4.3 crafting-cost recovery work. The forward hotfix and related release recovery checkpoint have been completed. Test counts, commit boundaries, and "not release-ready" statements in the body reflect the historical state when this plan was written; they are not current project truth.
+
+Historical crafting data has not been automatically repaired. This document does not authorize a repair tool, transaction rewrite, `globalAvgCost` recalculation, or historical data mutation.
+
 ## 1. Incident Summary
 
 T5.3 審判者護甲實例暴露 crafting formula bug。

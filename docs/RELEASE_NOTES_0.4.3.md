@@ -176,7 +176,7 @@ No Stable ID, qtyByLocation, canonical transaction writer, payload migration, lo
 
 ## References
 
-- `docs/CRAFTING_INCIDENT_RECOVERY.md`
+- [Archived Crafting Incident Recovery Plan](../archive/CRAFTING_INCIDENT_RECOVERY.md)
 - `docs/CRAFTING_HOTFIX_SMOKE_CHECKLIST.md`
 - `docs/SALE_VALUATION_WORKFLOW.md`
 - `docs/PROJECT_HANDOFF.md`

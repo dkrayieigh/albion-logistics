@@ -119,7 +119,7 @@ Passing this checklist does not approve release by itself.
 Release still requires Spec Lead approval and must account for:
 
 - Historical crafting data contamination.
-- Recovery plan status in `docs/CRAFTING_INCIDENT_RECOVERY.md`.
+- Historical recovery-plan context in the [archived Crafting Incident Recovery Plan](../archive/CRAFTING_INCIDENT_RECOVERY.md).
 - Regression baseline status.
 - Manual T5.3 smoke result.
 - Release note wording for pre-E1 crafting cost risk.

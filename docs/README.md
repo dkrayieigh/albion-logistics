@@ -28,9 +28,12 @@ Core specifications describe approved rules and target boundaries. When they con
 - [Backup / Reset Contract](./BACKUP_RESET_CONTRACT.md)
 - [Special Material Inventory](./SPECIAL_MATERIAL_INVENTORY.md)
 - [Sale Valuation Workflow](./SALE_VALUATION_WORKFLOW.md)
-- [Crafting Incident Recovery](./CRAFTING_INCIDENT_RECOVERY.md)
 - [Crafting Hotfix Smoke Checklist](./CRAFTING_HOTFIX_SMOKE_CHECKLIST.md)
 - [AI Guide](./AI_GUIDE.md)
+
+## Historical / Archived Docs
+
+- [Crafting Incident Recovery Plan](../archive/CRAFTING_INCIDENT_RECOVERY.md) — archived v0.4.3 incident-response and release-recovery record; not current project status.
 
 ## Planning / Migration / Handoff
 
