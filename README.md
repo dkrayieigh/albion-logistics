@@ -5,6 +5,13 @@
 
 > 中文說明為主，English summary below.
 
+## Latest Release
+
+- Current release: [Albion Logistics v0.4.4](https://github.com/dkrayieigh/albion-logistics/releases/tag/v0.4.4), released on 2026-06-30.
+- Release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`.
+- Official installer asset: `albion-logistics_0.4.4_x64-setup.exe`.
+- The project remains in legacy-compatible stabilization. Stable ID, `qtyByLocation`, Location Registry, and canonical transaction payload migration are not current implementation.
+
 ## 中文
 
 ### 專案簡介
@@ -99,7 +106,7 @@ The current `src` implementation remains the reference for actual behavior, whil
 
 The internal package version follows the project's development history and should not be interpreted as product maturity.
 
-Prebuilt `.exe` releases, if available, should be treated as test builds during the stabilization phase.
+The current published release is [Albion Logistics v0.4.4](https://github.com/dkrayieigh/albion-logistics/releases/tag/v0.4.4). It remains a stabilization release, not a declaration that future migration targets are complete.
 
 ### Features
 

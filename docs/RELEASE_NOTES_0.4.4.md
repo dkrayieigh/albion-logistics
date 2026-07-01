@@ -2,11 +2,24 @@
 
 Release notes
 
-Prepared from commit: `4b618fd2456aca7021863d5d4c4dc0f202e458b7`
+Release: `v0.4.4`
+Release date: 2026-06-30
+Release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`
+GitHub Release: https://github.com/dkrayieigh/albion-logistics/releases/tag/v0.4.4
 
-Status: release candidate; production build and NSIS installer smoke are complete; tag, GitHub Release, and artifact upload are pending.
+Status: released. Production build, NSIS installer smoke, tag creation, GitHub Release publication, and installer artifact upload are complete.
 
-These notes summarize the current 0.4.4 release-candidate behavior. They do not claim that a release tag, GitHub Release, artifact upload, or MSI installation smoke has already been completed.
+These notes summarize the released 0.4.4 behavior. They do not claim that MSI installation smoke, Stable ID migration, `qtyByLocation` migration, canonical transaction migration, or special-material inventory implementation has been completed.
+
+Official published assets:
+
+- `albion-logistics_0.4.4_x64-setup.exe`
+
+Published installer SHA-256:
+
+- `c8334d11ae74a5395a942dd93c99931de89ffceb58f5119e0159343384d47b0c`
+
+SHA source: GitHub Release asset digest. `SHA256SUMS.txt` is not listed in the published GitHub Release asset list.
 
 ## 1. Highlights
 
@@ -86,7 +99,6 @@ Legacy backup policy:
 - Canonical transaction migration remains future work.
 - Progressive `checkJs`, Vite, CSP hardening, and SQLite remain future work.
 - MSI was built but is not yet documented as installation-smoke verified.
-- Release tag, GitHub Release, and artifact upload are still pending.
 - Selecting a legacy backup while running in v2 mode may not provide clear user-facing feedback.
 
 ## 8. Validation Completed
@@ -113,9 +125,6 @@ This document intentionally does not record a fixed automated test count because
 
 ## 9. Not Included In 0.4.4
 
-- Release tag creation.
-- GitHub Release publication.
-- Artifact upload.
 - Legacy-to-v2 backup migration.
 - Custom warehouse production implementation.
 - Special-material inventory implementation.

@@ -125,9 +125,10 @@ Current limitation:
 - Production Tauri build completed for 0.4.4.
 - NSIS installer smoke completed successfully.
 - MSI was built but is not documented as installation-smoke verified.
-- v0.4.4 tag is pending.
-- GitHub Release is pending.
-- Artifact upload is pending.
+- v0.4.4 tag and GitHub Release are published.
+- The official published installer asset is `albion-logistics_0.4.4_x64-setup.exe`.
+- `SHA256SUMS.txt` is not listed in the published GitHub Release asset list.
+- MSI is not part of the documented official installation-smoke verified artifact set.
 - Progressive `checkJs` is not enabled as a release gate.
 - Vite migration is not complete.
 - CSP hardening is not complete; CSP is still effectively not a packaged-artifact gate.

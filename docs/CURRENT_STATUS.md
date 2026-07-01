@@ -3,9 +3,9 @@
 Status: Current
 Authority: Current implementation summary
 Last reviewed: 2026-06-30
-Last verified against commit: `4b618fd2456aca7021863d5d4c4dc0f202e458b7`
+Last verified against commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`
 
-`Last verified against commit` is the remote `master` reference supplied for the 0.4.4 release closeout. This file documents current production behavior and release-readiness state; it does not imply that this docs-only update changed source, tests, package metadata, build output, tags, or release artifacts.
+`Last verified against commit` is the tagged 0.4.4 release commit. This file documents current production behavior and release state; it does not imply that this docs-only update changed source, tests, package metadata, build output, tags, or release artifacts.
 
 ## Production Runtime
 
@@ -71,12 +71,18 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 
 ## Release Readiness
 
-- The current codebase is a 0.4.4 release candidate.
+- Release: `v0.4.4`.
+- Release date: 2026-06-30.
+- Release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`.
+- GitHub Release: https://github.com/dkrayieigh/albion-logistics/releases/tag/v0.4.4
+- GitHub Release status: published, not draft, not prerelease.
 - User-confirmed Tauri dev app manual smoke for 0.4.4: PASS.
 - Export/import/reset/startup and numeric-input UX hotfix regressions are passing locally.
 - Version metadata is consistent at `0.4.4` across package, lockfile, Cargo, Tauri config, and built executable metadata.
 - Production Tauri build: PASS.
 - NSIS installer build: PASS.
+- NSIS installer published: `albion-logistics_0.4.4_x64-setup.exe`.
+- Published installer SHA-256 from GitHub Release asset digest: `c8334d11ae74a5395a942dd93c99931de89ffceb58f5119e0159343384d47b0c`.
 - User-confirmed installed-app smoke: PASS.
 - Installed executable ProductVersion / FileVersion: `0.4.4`.
 - Installed app launch: PASS.
@@ -84,13 +90,10 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - Numeric input UX: PASS.
 - Quotation queue immediate update: PASS.
 - Native save dialog / export: PASS.
-- v0.4.4 tag is pending.
-- GitHub Release is pending.
-- Artifact upload is pending.
-- Default release artifacts remain pending until tag / GitHub Release / upload are complete. The intended formal upload set is `albion-logistics_0.4.4_x64-setup.exe` and `SHA256SUMS.txt`.
-- MSI was built, but is not documented as installation-smoke verified.
+- `SHA256SUMS.txt` is not listed in the published GitHub Release asset list.
+- MSI was built, but is not documented as installation-smoke verified and is not the official published installer asset.
 
-This means 0.4.4 is release-candidate complete from the documented source and regression perspective, but it is not documented here as released.
+This means 0.4.4 is documented here as released. It does not mean migration targets such as Stable ID, `qtyByLocation`, Location Registry, or canonical transaction payloads are current production behavior.
 
 ## Active Limitations
 
@@ -110,10 +113,10 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 
 ## Active Workstreams
 
-1. 0.4.4 release closeout.
+1. Post-0.4.4 documentation and planning rebaseline.
 2. Docs consolidation closeout.
 
-New-schema data-safety stabilization is complete for the 0.4.4 release-candidate scope documented here. Remaining release work is build / tag / artifact closeout, not more source migration.
+New-schema data-safety stabilization is complete for the 0.4.4 release scope documented here. The next documentation workstream should not be read as permission to start source migration, writer changes, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 
