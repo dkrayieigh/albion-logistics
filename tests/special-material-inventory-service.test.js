@@ -62,6 +62,12 @@ function assertConsumptionFailure(result, originalEntry, errorCode) {
   });
 }
 
+const forbiddenLocationFieldCases = Object.freeze([
+  { field: 'qtyByLocation', value: {} },
+  { field: 'qtyByCity', value: {} },
+  { field: 'locationId', value: 'system:bridgewatch' }
+]);
+
 test('first artifact purchase creates an account-total entry with copied identity', () => {
   const identity = artifactIdentity();
   const beforeIdentity = JSON.stringify(identity);
@@ -120,6 +126,7 @@ test('purchase preserves presentation fields but does not mutate identity', () =
   assert.deepEqual(result.entry.identity, identity);
   assert.notEqual(result.entry.identity, identity);
   assert.equal(result.entry.identity.icon, identity.icon);
+  assert.equal(result.entry.identity.displayName, 'Adept Rune');
   assert.equal(JSON.stringify(identity), before);
 });
 
@@ -140,6 +147,7 @@ test('purchase applies WAC for existing positive quantity and preserves entry ex
   assert.equal(result.entry.totalQty, 15);
   assert.equal(result.entry.globalAvgCost, 1400);
   assert.equal(result.entry.note, originalEntry.note);
+  assert.equal(result.entry.identity.displayName, 'Adept Rune');
   assert.equal(JSON.stringify(originalEntry), before);
 });
 
@@ -256,6 +264,57 @@ test('purchase blocks malformed entry and preserves the original reference', () 
   assert.equal(JSON.stringify(originalEntry), before);
 });
 
+test('purchase rejects location-shaped input identity', () => {
+  for (const { field, value } of forbiddenLocationFieldCases) {
+    const identity = artifactIdentity({ [field]: value });
+    const beforeIdentity = JSON.stringify(identity);
+
+    const result = applySpecialMaterialPurchase({
+      entry: null,
+      identity,
+      quantity: 1,
+      totalCost: 100
+    });
+
+    assertPurchaseFailure(result, null, 'INVALID_IDENTITY');
+    assert.equal(JSON.stringify(identity), beforeIdentity);
+  }
+});
+
+test('purchase rejects existing entries with location inventory fields', () => {
+  for (const { field, value } of forbiddenLocationFieldCases) {
+    const originalEntry = entry({ [field]: value });
+    const beforeEntry = JSON.stringify(originalEntry);
+
+    const result = applySpecialMaterialPurchase({
+      entry: originalEntry,
+      identity: artifactIdentity(),
+      quantity: 1,
+      totalCost: 100
+    });
+
+    assertPurchaseFailure(result, originalEntry, 'INVALID_ENTRY');
+    assert.equal(JSON.stringify(originalEntry), beforeEntry);
+  }
+});
+
+test('purchase rejects an existing entry whose identity contains location fields', () => {
+  for (const { field, value } of forbiddenLocationFieldCases) {
+    const originalEntry = entry({ identity: artifactIdentity({ [field]: value }) });
+    const beforeEntry = JSON.stringify(originalEntry);
+
+    const result = applySpecialMaterialPurchase({
+      entry: originalEntry,
+      identity: artifactIdentity(),
+      quantity: 1,
+      totalCost: 100
+    });
+
+    assertPurchaseFailure(result, originalEntry, 'INVALID_ENTRY');
+    assert.equal(JSON.stringify(originalEntry), beforeEntry);
+  }
+});
+
 test('purchase error priority follows the contract', () => {
   const originalEntry = entry({ totalQty: -1 });
 
@@ -288,6 +347,27 @@ test('purchase error priority follows the contract', () => {
     }),
     originalEntry,
     'INVALID_TOTAL_COST'
+  );
+  assertPurchaseFailure(
+    applySpecialMaterialPurchase({
+      entry: originalEntry,
+      identity: artifactIdentity({ locationId: 'system:bridgewatch' }),
+      quantity: 0,
+      totalCost: 0
+    }),
+    originalEntry,
+    'INVALID_IDENTITY'
+  );
+  const locationShapedEntry = entry({ qtyByLocation: {} });
+  assertPurchaseFailure(
+    applySpecialMaterialPurchase({
+      entry: locationShapedEntry,
+      identity: artifactIdentity(),
+      quantity: 0,
+      totalCost: 100
+    }),
+    locationShapedEntry,
+    'INVALID_QUANTITY'
   );
 });
 
@@ -328,6 +408,23 @@ test('consumption to zero preserves dormant cost anchor', () => {
   assert.equal(result.entry.totalQty, 0);
   assert.equal(result.entry.globalAvgCost, 777);
   assert.equal(result.consumedCost, 3108);
+});
+
+test('consumption preserves general metadata', () => {
+  const originalEntry = entry({
+    identity: artifactIdentity({ icon: { id: 'rune' } }),
+    note: { keep: true }
+  });
+
+  const result = applySpecialMaterialConsumption({
+    entry: originalEntry,
+    quantity: 1
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.entry.note, originalEntry.note);
+  assert.equal(result.entry.identity.icon, originalEntry.identity.icon);
+  assert.equal(result.entry.identity.displayName, 'Adept Rune');
 });
 
 test('consumption blocks insufficient quantity', () => {
@@ -371,6 +468,36 @@ test('consumption blocks invalid quantity and invalid entry values', () => {
   );
 });
 
+test('consumption rejects entries with location inventory fields', () => {
+  for (const { field, value } of forbiddenLocationFieldCases) {
+    const originalEntry = entry({ [field]: value });
+    const beforeEntry = JSON.stringify(originalEntry);
+
+    const result = applySpecialMaterialConsumption({
+      entry: originalEntry,
+      quantity: 1
+    });
+
+    assertConsumptionFailure(result, originalEntry, 'INVALID_ENTRY');
+    assert.equal(JSON.stringify(originalEntry), beforeEntry);
+  }
+});
+
+test('consumption rejects entries whose identity contains location fields', () => {
+  for (const { field, value } of forbiddenLocationFieldCases) {
+    const originalEntry = entry({ identity: artifactIdentity({ [field]: value }) });
+    const beforeEntry = JSON.stringify(originalEntry);
+
+    const result = applySpecialMaterialConsumption({
+      entry: originalEntry,
+      quantity: 1
+    });
+
+    assertConsumptionFailure(result, originalEntry, 'INVALID_ENTRY');
+    assert.equal(JSON.stringify(originalEntry), beforeEntry);
+  }
+});
+
 test('consumption failure preserves input and returns original entry reference', () => {
   const originalEntry = entry({ totalQty: 1 });
   const before = JSON.stringify(originalEntry);
@@ -402,6 +529,12 @@ test('consumption error priority follows the contract', () => {
     applySpecialMaterialConsumption({ entry: unknownCostEntry, quantity: 2 }),
     unknownCostEntry,
     'UNKNOWN_COST_BASIS'
+  );
+  const locationShapedEntry = entry({ qtyByLocation: {} });
+  assertConsumptionFailure(
+    applySpecialMaterialConsumption({ entry: locationShapedEntry, quantity: 0 }),
+    locationShapedEntry,
+    'INVALID_ENTRY'
   );
 });
 

@@ -1,4 +1,5 @@
 const VALID_CATEGORIES = Object.freeze(['artifact', 'alchemy']);
+const FORBIDDEN_LOCATION_FIELDS = Object.freeze(['qtyByLocation', 'qtyByCity', 'locationId']);
 
 function purchaseFailure(entry, errorCode) {
   return {
@@ -27,10 +28,19 @@ function isNonnegativeInteger(value) {
   return Number.isInteger(value) && value >= 0;
 }
 
+function hasForbiddenLocationField(value) {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    FORBIDDEN_LOCATION_FIELDS.some(field => Object.hasOwn(value, field))
+  );
+}
+
 function isValidIdentity(identity) {
   return (
     identity !== null &&
     typeof identity === 'object' &&
+    !hasForbiddenLocationField(identity) &&
     typeof identity.stableId === 'string' &&
     identity.stableId.trim() !== '' &&
     VALID_CATEGORIES.includes(identity.category) &&
@@ -46,6 +56,7 @@ function isValidEntry(entry) {
   return (
     entry !== null &&
     typeof entry === 'object' &&
+    !hasForbiddenLocationField(entry) &&
     isValidIdentity(entry.identity) &&
     isNonnegativeInteger(entry.totalQty) &&
     isValidCostBasis(entry.globalAvgCost)
