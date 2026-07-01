@@ -5,7 +5,12 @@ const nodeGlobals = {
 
 export default [
   {
-    files: ['src/calculators/**/*.js', 'src/presenters/**/*.js'],
+    files: [
+      'src/calculators/**/*.js',
+      'src/presenters/**/*.js',
+      'src/services/inventoryTransferService.js',
+      'tests/inventory-transfer-service.test.js'
+    ],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module'
