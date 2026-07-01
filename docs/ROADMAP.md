@@ -6,7 +6,7 @@
 
 ## Active Roadmap
 
-### Active Checkpoint：Docs consolidation closeout
+### Completed Checkpoint：Docs consolidation closeout
 
 目標：
 
@@ -23,6 +23,35 @@
 - release/version metadata 修改。
 - service / adapter implementation。
 - storage schema、backup format 或 transaction payload 修改。
+
+完成摘要：
+
+- Current、legacy-compatible、future、migration boundary 已重新對齊。
+- Backup/import/reset/release 相關舊 planning 內容已改列 completed / historical。
+- Location persisted/runtime boundary 已修正。
+- Special Material approved target 已補正。
+- Active planning 文件不再把已完成 baseline 誤列為 current gap。
+
+### Active Checkpoint：Phase-1 refactor planning and inventory
+
+目標：
+
+- 盤點 current component / business mutation coupling。
+- 盤點既有 regression coverage。
+- 找出一個 bounded refactor candidate。
+- 定義候選範圍、風險、驗證方式與交接內容。
+- 交回 Codex / Core Engineer 任務包。
+
+不包含：
+
+- production source 修改。
+- service extraction。
+- tests 修改。
+- version metadata 修改。
+- storage schema、backup format 或 transaction payload 修改。
+- `qtyByLocation` runtime writer migration。
+- Stable Item ID migration。
+- Special Material production implementation。
 
 ### Completed Baseline：v0.4.4 backup/reset/release stabilization
 
@@ -41,14 +70,15 @@ Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migrati
 
 ## Approved Next Order
 
-Docs consolidation closeout 完成後，下一個已排序但尚未啟動的 checkpoint 順序：
+目前 approved sequence：
 
-1. Phase-1 refactor closeout.
-2. Incremental quality tooling.
-3. Custom warehouse boundary specification / completion.
-4. Tests-first special-material pure contract.
+1. Phase-1 refactor planning and inventory — active.
+2. Phase-1 bounded service extraction.
+3. Incremental quality tooling.
+4. Custom warehouse boundary specification / completion.
+5. Tests-first special-material pure contract.
 
-此清單是 approved sequence，不代表任何一項已是 active workstream。
+只有第一項是 active。其餘項目仍需獨立 approval、tests 與 implementation boundary；此清單不代表 0.4.5 implementation 已開始。
 
 ## Phase-1 Refactor Boundary
 

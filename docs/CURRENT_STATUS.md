@@ -113,10 +113,9 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 
 ## Active Workstreams
 
-1. Post-0.4.4 documentation and planning rebaseline.
-2. Docs consolidation closeout.
+1. Phase-1 refactor planning and inventory.
 
-New-schema data-safety stabilization is complete for the 0.4.4 release scope documented here. The next documentation workstream should not be read as permission to start source migration, writer changes, or a 0.4.5 implementation branch.
+Docs consolidation closeout is complete. The active checkpoint inventories current component/business coupling and regression coverage before selecting one bounded refactor. It does not authorize source changes, schema changes, migration, service extraction, tests, version metadata updates, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 

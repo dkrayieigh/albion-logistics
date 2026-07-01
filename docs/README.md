@@ -43,6 +43,14 @@ Core specifications describe approved rules and target boundaries. When they con
 
 Planning and migration documents are useful for future work. They should not be read as current production truth unless they are explicitly labeled current and match the latest source, regression tests, confirmed bug reports, and user-confirmed release facts.
 
+Current planning entry:
+
+- [Roadmap](./ROADMAP.md) is the active sequence authority.
+- Current active checkpoint: Phase-1 refactor planning and inventory.
+- [Implementation Gap](./IMPLEMENTATION_GAP.md) remains the current coupling / gap inventory source.
+- [Architecture](./ARCHITECTURE.md) records target boundaries and does not mean refactor work has started.
+- Phase-1 inventory does not authorize source refactor, service extraction, tests, storage schema, backup format, transaction payload, version metadata, or release changes.
+
 ## Reading Order For Production Work
 
 1. Current Status.
@@ -59,4 +67,5 @@ Planning and migration documents are useful for future work. They should not be 
 - Do not keep stale current-behavior claims after production integration has landed.
 - Keep legacy-compatible behavior, presentation-only mapping, migration boundaries, and future targets separate.
 - A docs-only release checkpoint must not imply source, tests, package metadata, Tauri config, tags, or artifacts changed.
-- Post-0.4.4 documentation and planning rebaseline is the next documentation workstream; it does not start 0.4.5 implementation, Phase-1 refactor, or migration.
+- Docs consolidation closeout is complete.
+- Phase-1 refactor planning and inventory is the current active planning checkpoint; it does not start Phase-1 source refactor, 0.4.5 implementation, migration, or service extraction.
