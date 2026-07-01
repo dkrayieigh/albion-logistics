@@ -93,7 +93,7 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - `SHA256SUMS.txt` is not listed in the published GitHub Release asset list.
 - MSI was built, but is not documented as installation-smoke verified and is not the official published installer asset.
 
-This means 0.4.4 is documented here as released. It does not mean migration targets such as Stable ID, `qtyByLocation`, Location Registry, or canonical transaction payloads are current production behavior.
+This means 0.4.4 is documented here as released. It does not mean Stable Item ID, `qtyByLocation` writer/storage migration, or canonical transaction payload migration are current production behavior. A v2 Location Registry and stable custom-location lifecycle are already present, while runtime inventory remains display-name keyed through legacy `qtyByCity` compatibility.
 
 ## Active Limitations
 
@@ -103,7 +103,7 @@ This means 0.4.4 is documented here as released. It does not mean migration targ
 - Explicit legacy mode can still read and write legacy data paths.
 - Formal special-material inventory is not implemented.
 - Artifact / alchemy queue fields are still per-queue unit-cost planning inputs.
-- Custom warehouse production UI is not complete.
+- Basic custom-warehouse management UI and stable custom-location lifecycle are implemented, but inactive-location management, canonical inventory identity, shared resolver coverage, and custom crafting profiles remain incomplete.
 - Stable Item ID migration remains future work.
 - Canonical transaction migration remains future work.
 - Progressive `checkJs`, Vite, stricter CSP, and SQLite remain future hardening work.

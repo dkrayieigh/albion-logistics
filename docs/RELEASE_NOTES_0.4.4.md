@@ -93,7 +93,7 @@ Legacy backup policy:
 
 - Legacy backup to v2 migration remains future work.
 - v2 mode does not auto-import or auto-convert legacy backups.
-- Custom warehouse production UI is not complete.
+- Basic custom-warehouse management UI and stable custom-location lifecycle are implemented, but inactive-location management, canonical inventory identity, shared resolver coverage, and custom crafting profiles remain incomplete.
 - Formal special-material inventory is not implemented.
 - Stable Item ID migration remains future work.
 - Canonical transaction migration remains future work.
@@ -126,7 +126,7 @@ This document intentionally does not record a fixed automated test count because
 ## 9. Not Included In 0.4.4
 
 - Legacy-to-v2 backup migration.
-- Custom warehouse production implementation.
+- Canonical custom-warehouse inventory identity, inactive-location management UI, shared location-resolver completion, and custom crafting profiles.
 - Special-material inventory implementation.
 - Stable Item ID migration.
 - Canonical transaction payload migration.

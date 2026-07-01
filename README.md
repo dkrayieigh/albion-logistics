@@ -10,7 +10,7 @@
 - Current release: [Albion Logistics v0.4.4](https://github.com/dkrayieigh/albion-logistics/releases/tag/v0.4.4), released on 2026-06-30.
 - Release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`.
 - Official installer asset: `albion-logistics_0.4.4_x64-setup.exe`.
-- The project remains in legacy-compatible stabilization. Stable ID, `qtyByLocation`, Location Registry, and canonical transaction payload migration are not current implementation.
+- The project remains in legacy-compatible stabilization. Stable Item ID, `qtyByLocation` writer/storage migration, and canonical transaction payload migration are not current implementation. A v2 Location Registry and stable custom-location lifecycle already exist, while runtime inventory remains display-name keyed through legacy `qtyByCity` compatibility.
 
 ## 中文
 
@@ -61,7 +61,7 @@ Albion Logistics 是一款以 ERP 工作流為目標的《阿爾比恩 Online》
 - 目前庫存仍使用 legacy `qtyByCity`。
 - 目前 item key 仍可能使用中文顯示名稱。
 - 目前 ledger records 仍使用 legacy transaction 欄位。
-- Stable ID、`qtyByLocation`、Location Registry 與新版 event payload 屬於 future migration target。
+- Stable Item ID、`qtyByLocation` writer/storage 與新版 event payload 屬於 future migration target；v2 Location Registry 與 stable custom-location lifecycle 已存在於 current production，但 runtime inventory 仍透過 legacy `qtyByCity` 相容層以 display-name 作為 key。
 - 不應把 future spec 視為 current implementation。
 
 ### 文件
