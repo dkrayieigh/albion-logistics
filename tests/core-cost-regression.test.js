@@ -129,6 +129,14 @@ function formatForRegex(value) {
   return value.toLocaleString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function transportStateSnapshot() {
+  return JSON.stringify({
+    assets: state.assets,
+    inventory: state.inventory,
+    transactions: state.transactions
+  });
+}
+
 function flattenQualityMatrix(container) {
   const matrix = container.children.find(child => child.className === 'quality-matrix');
   const rows = matrix?.children || [];
@@ -2785,6 +2793,182 @@ test('legacy Chinese item key and qtyByCity remain usable for transport without 
   assert.equal(state.assets.cash, 777);
   assert.equal(state.transactions.length, 1);
   assert.equal(state.transactions[0].type, '買材料');
+});
+
+test('transport success preserves total quantity cost wallet ledger and legacy save path', { concurrency: false }, () => {
+  resetState();
+  const key = 'TransferMaterial_6.1';
+  state.assets.cash = 5000;
+  state.assets.debt = 200;
+  state.inventory[key] = {
+    qtyByCity: {
+      Thetford: 10,
+      Bridgewatch: 3
+    },
+    globalAvgCost: 12000
+  };
+  state.transactions = [
+    {
+      date: '2026-06-30',
+      type: '買材料',
+      item: 'TransferMaterial',
+      quality: '6.1',
+      qty: 10,
+      total: 120000,
+      unitPrice: 12000,
+      location: LOCATION
+    }
+  ];
+  const originalTransaction = state.transactions[0];
+  getElement('trans-item').value = key;
+  getElement('trans-qty').value = '4';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = 'Bridgewatch';
+
+  Inventory.submitTransport();
+
+  assert.equal(state.inventory[key].qtyByCity.Thetford, 6);
+  assert.equal(state.inventory[key].qtyByCity.Bridgewatch, 7);
+  assert.equal(state.inventory[key].qtyByCity.Thetford + state.inventory[key].qtyByCity.Bridgewatch, 13);
+  assert.equal(state.inventory[key].globalAvgCost, 12000);
+  assert.equal(state.assets.cash, 5000);
+  assert.equal(state.assets.debt, 200);
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions[0], originalTransaction);
+  assert.equal(toasts.at(-1)?.type, 'success');
+  const savedInventory = JSON.parse(localStorage.getItem('albion_crafting_stocks'));
+  assert.deepEqual(savedInventory[key], state.inventory[key]);
+});
+
+test('transport supports legacy custom display-name qtyByCity bucket without registry or qtyByLocation writes', { concurrency: false }, () => {
+  resetState();
+  const key = 'TransferMaterial_6.1';
+  const customLocation = 'Guild T8 Hideout';
+  state.customLocations = [customLocation];
+  state.inventory[key] = {
+    qtyByCity: {
+      Thetford: 10,
+      [customLocation]: 2
+    },
+    globalAvgCost: 12000
+  };
+  getElement('trans-item').value = key;
+  getElement('trans-qty').value = '4';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = customLocation;
+
+  Inventory.submitTransport();
+
+  assert.equal(state.inventory[key].qtyByCity.Thetford, 6);
+  assert.equal(state.inventory[key].qtyByCity[customLocation], 6);
+  assert.equal(Object.hasOwn(state.inventory[key], 'qtyByLocation'), false);
+  assert.equal(Object.hasOwn(state, 'locationRegistry'), false);
+  assert.equal(toasts.at(-1)?.type, 'success');
+});
+
+test('transport with zero quantity is blocked without mutating state or writing a transaction', { concurrency: false }, () => {
+  resetState();
+  const key = 'TransferMaterial_6.1';
+  state.assets.cash = 5000;
+  state.assets.debt = 200;
+  state.inventory[key] = {
+    qtyByCity: {
+      Thetford: 10,
+      Bridgewatch: 3
+    },
+    globalAvgCost: 12000
+  };
+  state.transactions = [{ type: '買材料', item: 'TransferMaterial' }];
+  getElement('trans-item').value = key;
+  getElement('trans-qty').value = '0';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = 'Bridgewatch';
+  const before = transportStateSnapshot();
+
+  Inventory.submitTransport();
+
+  assert.equal(transportStateSnapshot(), before);
+  assert.equal(toasts.at(-1)?.type, 'error');
+  assert.equal(state.transactions.length, 1);
+  assert.equal(state.transactions.some(transaction => transaction.type === 'TRANSFER_ITEM'), false);
+});
+
+test('transport with the same source and destination is blocked without mutating state', { concurrency: false }, () => {
+  resetState();
+  const key = 'TransferMaterial_6.1';
+  state.inventory[key] = {
+    qtyByCity: {
+      Thetford: 10,
+      Bridgewatch: 3
+    },
+    globalAvgCost: 12000
+  };
+  state.transactions = [{ type: '買材料', item: 'TransferMaterial' }];
+  getElement('trans-item').value = key;
+  getElement('trans-qty').value = '4';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = LOCATION;
+  const before = transportStateSnapshot();
+
+  Inventory.submitTransport();
+
+  assert.equal(transportStateSnapshot(), before);
+  assert.equal(state.inventory[key].globalAvgCost, 12000);
+  assert.equal(toasts.at(-1)?.type, 'error');
+  assert.equal(state.transactions.length, 1);
+});
+
+test('transport with insufficient selected source inventory ignores other city stock and stays atomic', { concurrency: false }, () => {
+  resetState();
+  const key = 'TransferMaterial_6.1';
+  state.assets.cash = 5000;
+  state.assets.debt = 200;
+  state.inventory[key] = {
+    qtyByCity: {
+      Thetford: 2,
+      Bridgewatch: 20
+    },
+    globalAvgCost: 12000
+  };
+  state.transactions = [{ type: '買材料', item: 'TransferMaterial' }];
+  getElement('trans-item').value = key;
+  getElement('trans-qty').value = '4';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = 'Bridgewatch';
+  const before = transportStateSnapshot();
+
+  Inventory.submitTransport();
+
+  assert.equal(transportStateSnapshot(), before);
+  assert.equal(state.inventory[key].qtyByCity.Thetford, 2);
+  assert.equal(state.inventory[key].qtyByCity.Bridgewatch, 20);
+  assert.equal(state.assets.cash, 5000);
+  assert.equal(state.assets.debt, 200);
+  assert.equal(state.inventory[key].globalAvgCost, 12000);
+  assert.equal(toasts.at(-1)?.type, 'error');
+});
+
+test('transport with a missing item key is blocked without creating inventory entries', { concurrency: false }, () => {
+  resetState();
+  const missingKey = 'MissingTransferMaterial_6.1';
+  state.inventory['ExistingTransferMaterial_6.1'] = {
+    qtyByCity: {
+      Thetford: 10,
+      Bridgewatch: 3
+    },
+    globalAvgCost: 12000
+  };
+  getElement('trans-item').value = missingKey;
+  getElement('trans-qty').value = '4';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = 'Bridgewatch';
+  const before = transportStateSnapshot();
+
+  Inventory.submitTransport();
+
+  assert.equal(transportStateSnapshot(), before);
+  assert.equal(Object.hasOwn(state.inventory, missingKey), false);
+  assert.equal(toasts.at(-1)?.type, 'error');
 });
 
 test('adapter/integration red test: inventory render display path preserves legacy qtyByCity quantities without mutating state or legacy action dataset', { concurrency: false }, () => {
