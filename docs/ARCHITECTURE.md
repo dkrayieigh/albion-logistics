@@ -143,6 +143,16 @@
 - Restart round-trip 與 save failure rollback 屬於目前 test-covered safety boundary。
 - Backup/reset/migration 與 per-location hideout crafting profile 不在本 checkpoint 範圍。
 
+### Inventory Transfer Service Boundary
+
+- Current master has extracted existing inventory transfer behavior into `src/services/inventoryTransferService.js`.
+- `applyInventoryTransfer({ item, quantity, fromLocation, toLocation })` is a pure service boundary. It validates quantity, same-location input, item existence, selected-source sufficiency, and returns a structured transfer result.
+- On success, the service returns a copied item with copied `qtyByCity`, subtracts from `fromLocation`, and adds to `toLocation`.
+- The service does not mutate global state, touch DOM, show toast, call `saveState()`, access storage, write transactions, change cash/debt, or modify `globalAvgCost`.
+- `src/components/inventory.js` remains the component adapter for DOM input, toast messaging, `state.inventory[key]` assignment, `saveState()`, and UI refresh.
+- Runtime transfer compatibility still uses legacy `qtyByCity` display-name keys. This extraction does not start Location migration, does not write `qtyByLocation`, and does not implement canonical `TRANSFER_ITEM`.
+- This is current master post-release behavior, not a published v0.4.4 release artifact.
+
 ## Special Material Inventory Architecture Boundary
 
 特殊材料正式庫存規格見 `SPECIAL_MATERIAL_INVENTORY.md`。該文件是 future architecture target，不代表目前已新增 Artifact / Alchemy inventory root、purchase writer、crafting deduction writer、backup schema 或 transaction payload。

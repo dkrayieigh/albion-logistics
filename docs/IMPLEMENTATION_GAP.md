@@ -76,10 +76,12 @@ Completed clean-cutover safety layers:
 ### 1.4 自訂倉庫更名、刪除與庫存轉移
 
 - **目前行為：** 可新增、更名與刪除自訂倉庫。封版前已加入資料安全限制：非空自訂倉庫不得刪除，使用者必須先轉移或清空庫存；空自訂倉庫仍可刪除。
-- **目前狀態：** 資料遺失風險已修復並補 regression test。不進行 Location ID migration。
-- **主要實作位置：** `src/components/inventory.js`。
-- **測試來源：** `tests/core-cost-regression.test.js`。
+- **目前狀態：** 資料遺失風險已修復並補 regression test。不進行 Location ID migration。Inventory transfer 行為已完成 bounded pure service extraction，component direct mutation coupling 已在 transfer path 降低。
+- **主要實作位置：** `src/services/inventoryTransferService.js`、`src/components/inventory.js`。
+- **測試來源：** `tests/inventory-transfer-service.test.js`、`tests/core-cost-regression.test.js`。
 - **文件狀態：** `LOCATION_MODEL.md` 與 `TEST_CASES.md` 已同步 current implementation 限制。
+- **已完成邊界：** `applyInventoryTransfer()` 已覆蓋 quantity validation、same-location validation、item existence、selected-source sufficiency、`qtyByCity` physical move、immutability 與 total quantity preservation。Transfer service 不再列為 implementation gap。
+- **仍保留 gap：** full component stable `locationId` adoption、`qtyByLocation` component writer、shared resolver completion、historical transaction migration、fallback removal gates、transfer transaction / canonical `TRANSFER_ITEM`、save failure rollback 的更完整 service-level boundary。
 - **風險：** Medium → Low / Known limitation。
 - **封版狀態：** 非阻斷。
 
@@ -259,6 +261,7 @@ Migration boundary 參考文件：`ITEM_ID_MODEL.md`、`TRANSACTION_EVENT_MODEL.
 | purchase and crafting explicit quality guard | current implementation / no implicit default | Tested | `tests/core-cost-regression.test.js` | Purchase and crafting block when quality is not explicitly selected; no implicit/default `4.0` is used on blocked paths. |
 | 物流轉移不改成本、不改 cash、不新增 ledger | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流只做物理庫存平移。 |
 | 來源庫存不足時阻擋物流轉移 | current implementation | Tested | `tests/core-cost-regression.test.js` | 驗證物流轉移預檢不造成狀態變更。 |
+| inventory transfer pure service extraction | current master / bounded service extraction | Tested | `tests/inventory-transfer-service.test.js` | `src/services/inventoryTransferService.js` covers success, input immutability, total quantity preservation, custom display-name locations, zero/negative quantity rejection, same-location rejection, missing item rejection, selected-source insufficiency, and validation priority. This is not Location migration, `qtyByLocation` writer migration, canonical `TRANSFER_ITEM`, transaction writer, storage change, backup change, cash/debt change, or `globalAvgCost` change. |
 | legacy 中文 item key + `qtyByCity` 仍可用 | current compatibility behavior | Tested | `tests/core-cost-regression.test.js` | 保護目前舊資料相容，不代表 Stable ID 遷移完成。 |
 | missing legacy item mapping explicit failure | minimal read-only item identity adapter exists | Tested | `tests/core-cost-regression.test.js` | `src/adapters/itemIdentity.js` 可在缺少 mapping 時明確失敗且不 mutate input；不代表 Stable ID migration、Stable ID catalog、storage key migration 或 legacy item key replacement 已完成。 |
 | legacy `qtyByCity` multi-location normalization tolerance | minimal read-only location adapter exists | Tested | `tests/backup-regression.test.js` | `src/adapters/locationAdapter.js` 可保留 legacy 多地點數量且不 mutate input；不代表 `qtyByLocation` migration、Location Registry migration 或 backup import/export migration 已完成。 |

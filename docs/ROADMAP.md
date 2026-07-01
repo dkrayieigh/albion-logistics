@@ -32,7 +32,7 @@
 - Special Material approved target 已補正。
 - Active planning 文件不再把已完成 baseline 誤列為 current gap。
 
-### Active Checkpoint：Phase-1 refactor planning and inventory
+### Completed Checkpoint：Phase-1 refactor planning and inventory
 
 目標：
 
@@ -53,6 +53,59 @@
 - Stable Item ID migration。
 - Special Material production implementation。
 
+完成摘要：
+
+- 已盤點 Purchase / WAC、Inventory Transfer、Crafting Completion 等候選範圍。
+- 已選定 Inventory Transfer 作為第一個 bounded extraction。
+- 已確認 transfer 既有 regression baseline。
+- 已建立 pure service contract 與 component adapter boundary 的交付範圍。
+
+### Completed Checkpoint：Inventory Transfer bounded service extraction
+
+目標：
+
+- 將既有 inventory transfer 行為抽成可測、可回滾的 bounded pure service。
+- 保留使用者可見 transport / transfer 行為；這只是既有行為的 bounded extraction。
+- 不改 storage schema、backup format、transaction payload、Location migration 或 release metadata。
+
+完成摘要：
+
+- `src/services/inventoryTransferService.js` 已提供 `applyInventoryTransfer()`。
+- Pure service 處理 quantity validation、same-location validation、item existence、selected-source sufficiency 與 `qtyByCity` physical move。
+- `src/components/inventory.js` 仍是 DOM input、toast、`state.inventory[key]` assignment、`saveState()` 與 UI refresh adapter。
+- Service-level regression tests 已覆蓋 success、immutability、total quantity preservation、custom display-name locations、zero/negative quantity rejection、same-location rejection、missing item rejection、selected-source insufficiency 與 validation priority。
+- Existing integration regressions 仍保護 legacy save path、WAC preservation、cash/debt preservation、transaction preservation、custom display-name compatibility 與 no `qtyByLocation` / Location Registry side effect。
+
+不包含：
+
+- 新增 transport feature。
+- `qtyByLocation` writer/storage migration。
+- Location identity migration。
+- canonical `TRANSFER_ITEM` event。
+- transfer transaction writer。
+- cash/debt、transaction、backup、storage 或 `globalAvgCost` 行為變更。
+- v0.4.4 release artifact 變更。
+
+### Active Checkpoint：Incremental quality tooling planning and boundary
+
+目標：
+
+- 盤點目前 ESLint / Prettier / test runner 狀態。
+- 找出尚未 lint-safe 或 type-check-safe 的檔案與風險。
+- 規劃 progressive `checkJs` boundary。
+- 選定一個 low-risk tooling task，且不得改 runtime behavior、dependency behavior 或 production flow。
+- 交回下一個明確任務。
+
+不包含：
+
+- 修改 `package.json`。
+- 修改 ESLint config。
+- 啟用 repo-wide `checkJs`。
+- Vite、CSP、SQLite。
+- source refactor。
+- dependency/runtime behavior change。
+- version bump、release、tag 或 artifact work。
+
 ### Completed Baseline：v0.4.4 backup/reset/release stabilization
 
 以下 phase 已屬 completed baseline，不再是 active execution phase：
@@ -72,11 +125,10 @@ Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migrati
 
 目前 approved sequence：
 
-1. Phase-1 refactor planning and inventory — active.
-2. Phase-1 bounded service extraction.
-3. Incremental quality tooling.
-4. Custom warehouse boundary specification / completion.
-5. Tests-first special-material pure contract.
+1. Incremental quality tooling planning and boundary — active.
+2. Incremental quality tooling bounded implementation.
+3. Custom warehouse boundary specification / completion.
+4. Tests-first special-material pure contract.
 
 只有第一項是 active。其餘項目仍需獨立 approval、tests 與 implementation boundary；此清單不代表 0.4.5 implementation 已開始。
 

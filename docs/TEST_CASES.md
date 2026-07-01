@@ -21,6 +21,12 @@ npm test
 - 新增 covered scope: Location read-only adapter invalid/non-finite unresolved reporting, zero/negative finite preservation, literal/custom key preservation, input immutability, and output copy behavior.
 - 新增 covered scope: legacy backup location preservation through import, `loadState`, and adapter read, including multi-item/multi-location `qtyByCity`, custom location string arrays, `globalAvgCost`, and zero quantity preservation.
 - This does not implement `qtyByLocation` storage, Location Registry, backup migration, purchase/transport writer migration, or legacy fallback removal.
+- 新增 covered scope: pure inventory transfer service success through `applyInventoryTransfer()`.
+- 新增 covered scope: inventory transfer service input item / `qtyByCity` immutability and total quantity preservation.
+- 新增 covered scope: inventory transfer service custom display-name location compatibility.
+- 新增 covered scope: inventory transfer service zero/negative quantity rejection, same-location rejection, missing item rejection, selected-source insufficiency rejection, and validation priority.
+- Existing inventory transfer integration regressions still cover legacy save path, WAC preservation, cash/debt preservation, transaction preservation, no `qtyByLocation` writer, and no Location Registry creation.
+- This does not implement canonical `TRANSFER_ITEM`, transfer transaction writing, `qtyByLocation` writer migration, Location ID migration, save failure rollback for transfer, or storage schema changes.
 - 新增 covered scope: Location identity resolver exact system city mapping, `LaborerIsland` to `laborer_island`, residual `Hideout` unresolved with `deprecatedLegacyKey`, explicit custom mapping, unknown/fuzzy unresolved, malformed mapping unresolved, normalized-name conflict detection, immutability, and system mapping precedence.
 - This future identity output does not implement Location Registry persistence, does not make `qtyByLocation` current storage, does not migrate `customLocations` from `string[]`, and does not connect resolver output to writers, storage, backup import/export, or migration.
 - 新增 covered scope: Location migration validator read-only research / verification utility.

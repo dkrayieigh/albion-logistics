@@ -7,6 +7,13 @@ Last verified against commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`
 
 `Last verified against commit` is the tagged 0.4.4 release commit. This file documents current production behavior and release state; it does not imply that this docs-only update changed source, tests, package metadata, build output, tags, or release artifacts.
 
+## Current Master Review
+
+- Current master implementation reviewed against commit: `f9106743617a72a7f19499868a366ffaab9634ae`.
+- Release baseline remains the tagged 0.4.4 release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`.
+- Post-release master includes the Inventory Transfer bounded service extraction. This is current master behavior, not a v0.4.4 release artifact.
+- This docs sync does not change source, tests, package metadata, build output, tags, release assets, storage schema, backup format, or transaction payload.
+
 ## Production Runtime
 
 - Package/app version: `0.4.4`.
@@ -51,6 +58,9 @@ The current automated regression suite covers:
 - crafting material consumption and actual-consumption safety;
 - purchase / sale safety;
 - inventory transfer;
+- pure inventory transfer service contract;
+- inventory transfer service-level validation, immutability, and selected-source sufficiency;
+- inventory transfer integration behavior around legacy save path, WAC preservation, cash/debt preservation, transaction preservation, custom display-name compatibility, and no `qtyByLocation` / Location Registry side effect;
 - ledger data safety;
 - custom location stable-ID add / rename / remove behavior;
 - new-schema codec, repository, runtime projection, and startup decision boundary;
@@ -68,6 +78,10 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - Backup import/export is now v2-aware in production, while explicit legacy mode remains available for legacy data.
 - Factory Reset uses a scoped owned-key reset path instead of broad `localStorage.clear()`.
 - Artifact and alchemy queue rows remain cost-input planning behavior, not formal special-material inventory.
+- `src/services/inventoryTransferService.js` provides the current master pure `applyInventoryTransfer()` service.
+- `src/components/inventory.js` remains the DOM input, toast, `state.inventory[key]` assignment, `saveState()`, and UI refresh adapter for transfer.
+- Inventory transfer extraction refactors existing behavior; it does not add transport capability.
+- Runtime inventory transfer remains legacy-compatible through `qtyByCity` display-name keys and does not start Location migration.
 
 ## Release Readiness
 
@@ -113,9 +127,11 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 
 ## Active Workstreams
 
-1. Phase-1 refactor planning and inventory.
+1. Phase-1 refactor planning and inventory — completed.
+2. Inventory Transfer bounded service extraction — completed.
+3. Incremental quality tooling planning and boundary — active.
 
-Docs consolidation closeout is complete. The active checkpoint inventories current component/business coupling and regression coverage before selecting one bounded refactor. It does not authorize source changes, schema changes, migration, service extraction, tests, version metadata updates, or a 0.4.5 implementation branch.
+Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction. The active checkpoint is read-only tooling inventory and task definition: it may inspect ESLint / Prettier / test runner boundaries, but it does not authorize tooling config changes, source refactor, schema changes, migration, dependency/runtime behavior changes, version metadata updates, release work, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 
