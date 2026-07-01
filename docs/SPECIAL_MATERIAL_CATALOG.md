@@ -1,14 +1,23 @@
-# Special Material Identity Catalog Candidate
+# Special Material Identity Catalog Review Archive
 
-Status: Candidate
-Authority: Review input only
-Current implementation: No production catalog
-Active checkpoint: Special material identity catalog review
+Status: Completed historical review evidence
+Authority: Historical catalog review input
+Current implementation: Pure-domain source catalog and resolver exist; production inventory integration is not implemented
+Active checkpoint: None
+Superseded by: src/data/specialMaterialCatalog.js
 Last reviewed: 2026-07-01
 
-This document is complete candidate inventory extracted from current recipe metadata for Spec Lead review.
+This document preserves the extraction and review evidence that led to the approved pure-domain catalog.
 
-This document does not create a production source catalog, runtime resolver, storage schema, writer, Crafting integration, backup support, UI, migration, or Stable Item ID migration. Candidate stable IDs are review evidence only and are not production assignments.
+Current pure-domain authority:
+
+- `src/data/specialMaterialCatalog.js`
+- `src/services/specialMaterialIdentityResolver.js`
+- corresponding catalog and resolver regression tests
+
+The Markdown tables are historical review evidence. Runtime code must not parse this document or generate stable IDs from it.
+
+Approved IDs now live in the pure source catalog. Production inventory, storage, writer, Crafting integration, backup, UI, migration, and Stable Item ID migration are still not implemented by this document.
 
 ## Catalog Evidence Source
 
@@ -46,7 +55,7 @@ node --input-type=module -e "import('./src/data/albion_db.js').then(({ALBION_DB}
 - Different quantities observed for the same Artifact material: 1
 - Chinese-only / English-only / ambiguous rows: 0
 
-Spec Lead still needs to approve candidate stable IDs before any production catalog or resolver work.
+Spec Lead review has been completed for the pure-domain catalog/resolver checkpoint. Production integration still requires separate approval.
 
 ## Candidate Inventory Summary
 

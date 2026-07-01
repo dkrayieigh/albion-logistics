@@ -79,6 +79,49 @@ Rules:
 - Do not derive `region` or `regionQuality` from display name.
 - Do not store profile fields directly inside the Location Registry entry.
 
+#### Production Profile Validation Matrix
+
+`locationId` validation:
+
+- Must be a non-empty trimmed string.
+- Pure profile validation checks only shape and value rules.
+- Pure profile validation does not check whether `locationId` exists in Location Registry.
+- Pure profile validation does not check whether a custom location is active.
+- Registry existence and active checks belong to a future integration adapter.
+
+`facilityType` must be one of:
+
+```text
+royal-city
+hideout
+```
+
+`region` must be an exact enum value:
+
+```text
+SWAMP
+FOREST
+MOUNTAIN
+HIGHLAND
+STEPPE
+CENTER
+MISTS
+```
+
+Lowercase region values are invalid.
+
+| `facilityType` | `region`                   | `regionQuality`         |
+| -------------- | -------------------------- | ----------------------- |
+| `royal-city`   | Required exact region enum | Must be exactly `null`  |
+| `hideout`      | Required exact region enum | Required integer `1..6` |
+
+Rules:
+
+- Royal city `regionQuality` omitted, `undefined`, or numeric values are invalid.
+- Hideout `regionQuality` `null`, omitted, string, decimal, or out of range is invalid.
+- Production Profile must not store LPB, RRR, Focus, Daily, or Power values.
+- Whether `thetford` is always `SWAMP`, whether a `locationId` is system/custom, and whether registry entry is active are profile catalog / integration responsibilities.
+
 ### Decision 0.5.0-003: Event-only Crafting Parameters
 
 Craft completion receives dynamic event-only parameters:
@@ -105,6 +148,49 @@ Rules:
 - Do not store LPB or RRR inside Location Registry or Production Profile.
 
 Legacy-compatible naming such as `hideoutPower` and `dailyBonus` remains current implementation context only. Future target naming is `hideoutPowerLevel` and `dailyBonusPercent`.
+
+#### Crafting Event Validation Matrix
+
+`locationId` validation:
+
+- Must be a non-empty trimmed string.
+- Must exactly match the selected Production Profile `locationId`.
+
+`focusEnabled` validation:
+
+- Must be boolean.
+
+`dailyBonusPercent` validation:
+
+- Must be exactly one of:
+- Must be exactly `0`, `10`, or `20`.
+
+```text
+0
+10
+20
+```
+
+Do not describe this as "normally", "usually", or "for example" in executable contract text.
+
+| `facilityType` | `hideoutPowerLevel`     |
+| -------------- | ----------------------- |
+| `royal-city`   | Must be exactly `null`  |
+| `hideout`      | Required integer `1..9` |
+
+Royal city rules:
+
+- Omitted or `undefined` power is invalid.
+- `0` is invalid.
+- Any integer `1..9` is invalid.
+- Calculator must not silently ignore power-like values.
+
+Hideout rules:
+
+- `null` is invalid.
+- Omitted power is invalid.
+- `0`, `10`, decimal, or string values are invalid.
+- Only integer `1..9` is valid.
 
 ### Decision 0.5.0-004: Product Inventory Remains Location-Based
 
@@ -320,6 +406,28 @@ MISTS
 
 Region category mapping is a 0.5.0 target. Current `BONUSES` / `constants.js` behavior is not sufficient as a final production profile model. Pure calculator tests must cover matching and non-matching region categories.
 
+Canonical region specialization mapping:
+
+| Region     | Exact recipe categories                                               |
+| ---------- | --------------------------------------------------------------------- |
+| `SWAMP`    | `MACE`, `NATURE_STAFF`, `FIRE_STAFF`, `LEATHER_ARMOR`, `CLOTH_HELMET` |
+| `FOREST`   | `SWORD`, `BOW`, `ARCANE_STAFF`, `LEATHER_HELMET`, `LEATHER_SHOES`     |
+| `MOUNTAIN` | `HAMMER`, `SPEAR`, `HOLY_STAFF`, `PLATE_HELMET`, `CLOTH_ARMOR`        |
+| `HIGHLAND` | `AXE`, `QUARTERSTAFF`, `FROST_STAFF`, `PLATE_SHOES`, `OFF_HAND`       |
+| `STEPPE`   | `CROSSBOW`, `DAGGER`, `CURSED_STAFF`, `PLATE_ARMOR`, `CLOTH_SHOES`    |
+| `CENTER`   | `WAR_GLOVES`, `SHAPESHIFTER_STAFF`                                    |
+| `MISTS`    | `CAPE`                                                                |
+
+Rules:
+
+- Category comparison is exact match.
+- Do not use case folding.
+- Do not use alias or fuzzy matching.
+- Do not infer recipe category from UI display name.
+- Do not rely on current `constants.js` as the canonical mapping.
+- Missing region mapping or missing category is invalid input, not "non-specialized".
+- Non-specialized means profile region exists and recipe category is valid, but the category is not listed for that region.
+
 ## Material Consumption And Manual Override
 
 Regional material consumption is batch-level:
@@ -328,6 +436,8 @@ Regional material consumption is batch-level:
 grossQuantity = baseQuantity * craftQuantity
 calculatedReturnedQuantity = Math.floor(grossQuantity * rrr)
 calculatedConsumedQuantity = grossQuantity - calculatedReturnedQuantity
+returnedQuantity = Math.floor(grossQuantity * rrr)
+consumedQuantity = grossQuantity - returnedQuantity
 ```
 
 Do not use:
@@ -491,6 +601,107 @@ Component integration remains separate:
 - UI refresh
 
 Do not hide these side effects inside pure modules.
+
+## Pure API Validation / Result Contract
+
+The following result contracts are target-only for the next tests-first checkpoint. They do not mean implementation exists.
+
+### `calculateProductionBonus`
+
+Success:
+
+```js
+{
+  ok: true,
+  status: 'calculated',
+  components: {
+    locationBaseLpb,
+    specializationProfileLpb,
+    focusLpb,
+    dailyLpb
+  },
+  totalLpbPercent,
+  rrr,
+  errors: []
+}
+```
+
+Failure:
+
+```js
+{
+  ok: false,
+  status: 'invalid-production-bonus',
+  components: null,
+  totalLpbPercent: null,
+  rrr: null,
+  errors: [errorCode]
+}
+```
+
+Error priority:
+
+```text
+INVALID_PROFILE
+INVALID_RECIPE_CATEGORY
+INVALID_EVENT_PARAMETERS
+LOCATION_MISMATCH
+```
+
+Return one primary error per validation failure.
+
+### `calculateRegionalMaterialConsumption`
+
+Success:
+
+```js
+{
+  ok: true,
+  status: 'calculated',
+  grossQuantity,
+  calculatedReturnedQuantity,
+  calculatedConsumedQuantity,
+  appliedConsumedQuantity,
+  consumptionSource: 'calculated' | 'manual-override',
+  errors: []
+}
+```
+
+Failure:
+
+```js
+{
+  ok: false,
+  status: 'invalid-consumption',
+  grossQuantity: null,
+  calculatedReturnedQuantity: null,
+  calculatedConsumedQuantity: null,
+  appliedConsumedQuantity: null,
+  consumptionSource: null,
+  errors: [errorCode]
+}
+```
+
+Error priority:
+
+```text
+INVALID_BASE_QUANTITY
+INVALID_CRAFT_QUANTITY
+INVALID_RRR
+INVALID_OVERRIDE
+```
+
+Return one primary error per validation failure.
+
+Input validation:
+
+- `baseQuantity`: positive integer.
+- `craftQuantity`: positive integer.
+- `rrr`: finite number where `0 <= rrr < 1`.
+- `override` may be missing or `overrideEnabled: false`.
+- When `overrideEnabled: false`, ignore override quantity.
+- When `overrideEnabled: true`, quantity must be a non-negative integer.
+- If override object is provided, `overrideEnabled` must be boolean.
 
 ## Special Material Closeout
 

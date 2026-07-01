@@ -636,7 +636,9 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 * ✅ 游標維持在對應輸入位置，不會固定跳到欄位尾端。
 * ✅ 此 UI 格式化不改變底層資料格式。
 
-#### TEST-C04：專注點參數命名與 RRR 計算
+#### TEST-C04：0.5.0 production bonus and batch RRR contract
+
+Status: Planned / not yet test-covered.
 
 **📥 [前置狀態]**
 * 選擇任一可製作配方。
@@ -650,7 +652,15 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 **📤 [預期結果]**
 * ✅ 系統只讀取 `focusEnabled` 作為專注點判斷欄位。
 * ✅ `focusEnabled = true` 時，RRR 高於 `focusEnabled = false`。
-* ✅ 材料預估消耗量不得出現小數，必須符合 `Math.ceil(baseConsume * (1 - RRR))`。
+* ✅ Domain batch calculation uses unrounded RRR:
+  ```js
+  grossQuantity = baseQuantity * craftQuantity
+  returnedQuantity = Math.floor(grossQuantity * unroundedRrr)
+  consumedQuantity = grossQuantity - returnedQuantity
+  ```
+* ✅ One queue row is one batch; do not sum per-craft `ceil` results for a batch.
+* ✅ UI may round display only.
+* ✅ This is a 0.5.0 planned pure-domain contract, not current production implementation.
 * ❌ 系統不得依賴或讀取 `focusMode`。
 
 ---
