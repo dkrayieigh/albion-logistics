@@ -144,7 +144,7 @@
 - runtime / business behavior change。
 - version / release work。
 
-### Active Checkpoint：Custom warehouse boundary specification and inventory
+### Completed Checkpoint：Custom warehouse boundary specification and inventory
 
 目標：
 
@@ -170,6 +170,35 @@
 - Special Material production implementation。
 - version / release work。
 
+完成摘要：
+
+- 已盤點 persisted、runtime、component 與 state API 邊界。
+- 已確認 stable custom ID lifecycle、inactive registry、non-empty deletion guard 與 rollback 已有 coverage。
+- 已確認 full runtime Location migration 尚未完成。
+- 已確認刪除 confirmation copy 與 current safety rule 存在低風險 UX contract mismatch。
+- 已選定一個 bounded candidate。
+
+### Active Checkpoint：Custom warehouse deletion UX contract regression and fix
+
+目標：
+
+- 只處理自訂倉庫刪除 confirmation wording 與目前安全規則不一致的 UI contract。
+- 採 tests-first UI contract fix。
+- 不改 state、schema、migration、registry lifecycle、backup 或 storage。
+
+不包含：
+
+- 修改 `src/core/state.js`。
+- 修改 registry lifecycle。
+- 修改 runtime bridge。
+- 修改 storage / backup。
+- 新增 inactive-location UI。
+- 新增 custom crafting profile。
+- full component `locationId` adoption。
+- legacy fallback removal。
+- automatic legacy migration。
+- version / release work。
+
 ### Completed Baseline：v0.4.4 backup/reset/release stabilization
 
 以下 phase 已屬 completed baseline，不再是 active execution phase：
@@ -189,8 +218,8 @@ Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migrati
 
 目前 approved sequence：
 
-1. Custom warehouse boundary specification and inventory — active.
-2. Custom warehouse bounded implementation.
+1. Custom warehouse deletion UX contract regression and fix — active.
+2. Custom warehouse checkpoint closeout.
 3. Tests-first special-material pure contract.
 
 只有第一項是 active。其餘項目仍需獨立 approval、tests 與 implementation boundary；此清單不代表 0.4.5 implementation 已開始。

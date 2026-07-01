@@ -83,6 +83,10 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - `src/components/inventory.js` remains the DOM input, toast, `state.inventory[key]` assignment, `saveState()`, and UI refresh adapter for transfer.
 - Inventory transfer extraction refactors existing behavior; it does not add transport capability.
 - Runtime inventory transfer remains legacy-compatible through `qtyByCity` display-name keys and does not start Location migration.
+- Custom warehouse current boundary: persisted v2 keeps `locationRegistry` and canonical `qtyByLocation`, while runtime components still use `customLocations` and display-name `qtyByCity` compatibility.
+- Custom warehouse add / rename / remove uses stable custom IDs where `locationRegistry` is present.
+- Custom warehouse removal blocks non-empty locations, deactivates empty registry entries, preserves inactive registry evidence, and has save rollback coverage.
+- Current delete confirmation wording still implies inventory loss even though non-empty deletion is blocked; this is a low-risk UI contract mismatch, not a schema or state lifecycle issue.
 
 ## Current Tooling Boundary
 
@@ -152,9 +156,10 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 2. Inventory Transfer bounded service extraction — completed.
 3. Incremental quality tooling planning and boundary — completed.
 4. Inventory Transfer exact-file ESLint coverage — completed.
-5. Custom warehouse boundary specification and inventory — active.
+5. Custom warehouse boundary specification and inventory — completed.
+6. Custom warehouse deletion UX contract regression and fix — active.
 
-Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The active checkpoint is custom warehouse boundary specification and inventory: it may inspect current custom warehouse behavior and define one bounded next task, but it does not authorize custom warehouse implementation, source changes, tests, schema changes, migration, dependency/runtime behavior changes, version metadata updates, release work, or a 0.4.5 implementation branch.
+Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory is complete. The active checkpoint is a tests-first UI contract regression and wording fix for custom warehouse deletion confirmation; it does not authorize broader custom warehouse implementation, state API changes, schema changes, migration, registry lifecycle changes, backup/storage work, version metadata updates, release work, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 

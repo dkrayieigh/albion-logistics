@@ -85,6 +85,40 @@ Completed clean-cutover safety layers:
 - **風險：** Medium → Low / Known limitation。
 - **封版狀態：** 非阻斷。
 
+### Custom warehouse boundary inventory checkpoint
+
+Current implemented:
+
+- Persisted v2 has `locationRegistry` and canonical `qtyByLocation`.
+- Runtime exposes active custom warehouses through `state.customLocations`.
+- Runtime inventory still uses display-name `qtyByCity` compatibility.
+- Stable custom location add / rename / remove lifecycle is implemented where `locationRegistry` is present.
+- Non-empty custom warehouse deletion is blocked with `CUSTOM_LOCATION_HAS_INVENTORY`.
+- Empty custom warehouse deletion deactivates the registry entry and preserves inactive registry evidence.
+- Save failure rollback is covered.
+
+Current UI mismatch:
+
+- Delete confirmation wording still warns that inventory may be permanently lost.
+- Current safety rule blocks non-empty deletion before mutation, so the confirmation copy overstates the current deletion risk.
+
+Selected bounded candidate:
+
+- `Custom warehouse deletion UX contract regression and fix`.
+- Low risk.
+- Tests-first scope should be limited to confirmation wording and observable component behavior.
+
+Deferred gaps:
+
+- Inactive-location management UI.
+- Full component stable `locationId` adoption.
+- `qtyByLocation` component writer.
+- Shared resolver completion.
+- Custom crafting profile.
+- Historical transaction migration.
+- Automatic legacy backup migration.
+- Legacy fallback removal.
+
 ### 1.5 現金餘額校正、注資與提領函式
 
 - **目前行為：**
