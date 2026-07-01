@@ -14,7 +14,7 @@ Current production v2 persisted state includes `locationRegistry` and canonical 
 
 Current components still display and edit location through display names and runtime `qtyByCity` compatibility. This is why `qtyByLocation` persisted storage does not mean all UI, writer, transaction, backup, or legacy fallback paths have completed canonical Location ID migration.
 
-目前已存在 read-only Location Adapter normalization checkpoint：adapter 可讀取 legacy direct map、legacy `qtyByCity` wrapper 與 future `qtyByLocation` sample wrapper，並輸出 `sourceFormat`、`quantities`、`unresolvedLocations`。此能力只代表 reader/normalizer compatibility，不代表 writer、storage、backup schema 或 migration 已開始。
+目前已存在 read-only Location Adapter normalization checkpoint：adapter 可讀取 legacy direct map、legacy `qtyByCity` wrapper 與 `qtyByLocation` wrapper，並輸出 `sourceFormat`、`quantities`、`unresolvedLocations`。此能力只代表 reader/normalizer compatibility，不代表 full component writer migration、historical payload migration、fallback removal、shared resolver completion 或 inactive-location UI 已完成。
 
 Future full-runtime target remains stable `locationId` adoption across components, writers, historical transaction interpretation, backup upgrade, resolver completion, inactive-location UI, custom crafting profile, rollback, and fallback removal gates.
 
@@ -26,7 +26,7 @@ Selected Location strategy is single-user clean cutover, not full automatic lega
 
 此修復不代表 Location ID migration 已完成。
 
-## 🟢 第一層：庫存儲存鍵值 (Location ID) — Future Target
+## 🟢 第一層：庫存儲存鍵值 (Location ID) — Current persisted v2 contract / future full-runtime target
 庫存系統 (`state.inventory.qtyByLocation`) 僅記錄物品的實體存放點。
 所有事件 payload 與 state 寫入必須使用 Location ID，不得使用 UI 顯示名稱。
 
@@ -56,7 +56,7 @@ Selected Location strategy is single-user clean cutover, not full automatic lega
 - **⛔ 絕對禁止：** 使用顯示名稱（如 `"紫城"`, `"公會T8地堡"`）或夾帶加成屬性作為 Key。
 
 ## 🟡 第二層：地點實體註冊表 (Location Registry) — Current persisted v2 contract / future full-runtime target
-記錄地點的「靜態物理屬性」。皇家城市固定不可變；future custom locations 記錄於 `locationRegistry` object。Current legacy custom locations 仍是 `state.customLocations` string array。
+記錄地點的「靜態物理屬性」。皇家城市固定不可變；production v2 persisted registry 已使用 `locationRegistry` object。Runtime/component compatibility 仍可保留 `state.customLocations` 與 display-name based flows。
 
 > Boundary：production v2 persisted state includes `locationRegistry`, but runtime components still use literal city/custom location display names through `qtyByCity` compatibility. Full writer/component Location ID adoption, historical transaction canonicalization, shared resolver completion, inactive-location management UI, custom crafting profile, and legacy fallback removal remain future work.
 

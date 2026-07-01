@@ -61,7 +61,8 @@ Completed clean-cutover safety layers:
 - **Remaining gaps:** legacy backup auto-migration is not implemented, legacy-backup user-facing feedback may be unclear, custom location crafting profile is not defined, future schema / backup compatibility upgrade design remains open, and MSI installation smoke is not documented.
 
 - **Risk：** High。涉及 storage schema、inventory、cash、backup 與 rollback 行為。
-- **Dependencies：** new schema docs/tests, writer tests, backup export/import tests, manual initialization contract, old backup archive, and explicit confirmation before ignoring legacy local data.
+- **Completed prerequisites：** new schema definition, clean initializer, writer / codec / repository regression tests, backup export / validated import tests, manual initialization / first-launch confirmation behavior, v0.4.4 release checklist, and build / installed-app smoke.
+- **Remaining dependencies：** full component `locationId` adoption tests, resolver / UI coverage, future schema upgrade compatibility design, historical transaction strategy, fallback removal gates, old backup archive policy, and explicit confirmation before deleting or ignoring legacy local data in any future migration step.
 
 ### 1.3 銷售估價工具
 
