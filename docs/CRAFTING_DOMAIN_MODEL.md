@@ -140,7 +140,7 @@ Rules:
 - `hideoutPowerLevel` is an integer enum `1..9`.
 - Do not pass raw bonus ratios such as `0.13` or `0.26` from UI/domain input.
 - `focusEnabled` is boolean.
-- `dailyBonusPercent` is normally `0`, `10`, or `20`.
+- `dailyBonusPercent` must be exactly `0`, `10`, or `20`.
 - Royal city crafting ignores hideout power.
 - Event parameters are recorded as craft event metadata.
 - Event parameters do not mutate Location Registry.
@@ -700,7 +700,8 @@ Input validation:
 - `rrr`: finite number where `0 <= rrr < 1`.
 - `override` may be missing or `overrideEnabled: false`.
 - When `overrideEnabled: false`, ignore override quantity.
-- When `overrideEnabled: true`, quantity must be a non-negative integer.
+- When `overrideEnabled: true`, quantity must be a non-negative integer and must not exceed grossQuantity.
+- An enabled override greater than the gross regional-material requirement returns `INVALID_OVERRIDE`.
 - If override object is provided, `overrideEnabled` must be boolean.
 
 ## Special Material Closeout

@@ -15,6 +15,7 @@ export default [
       'tests/special-material-catalog.test.js',
       'tests/special-material-identity-resolver.test.js',
       'tests/inventory-transfer-service.test.js',
+      'tests/production-domain-math.test.js',
       'tests/special-material-inventory-service.test.js'
     ],
     languageOptions: {

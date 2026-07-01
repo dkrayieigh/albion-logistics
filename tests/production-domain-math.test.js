@@ -712,6 +712,26 @@ test('regional material consumption manual override is opt-in and ignores stale 
     }
   );
 
+  assert.deepEqual(
+    calculateRegionalMaterialConsumption({
+      ...calculatedInput,
+      override: {
+        overrideEnabled: true,
+        overrideConsumedQuantity: 24
+      }
+    }),
+    {
+      ok: true,
+      status: 'calculated',
+      grossQuantity: 24,
+      calculatedReturnedQuantity: 8,
+      calculatedConsumedQuantity: 16,
+      appliedConsumedQuantity: 24,
+      consumptionSource: 'manual-override',
+      errors: []
+    }
+  );
+
   assert.equal(
     calculateRegionalMaterialConsumption({
       ...calculatedInput,
@@ -721,6 +741,26 @@ test('regional material consumption manual override is opt-in and ignores stale 
       }
     }).appliedConsumedQuantity,
     0
+  );
+
+  assert.deepEqual(
+    calculateRegionalMaterialConsumption({
+      ...calculatedInput,
+      override: {
+        overrideEnabled: true,
+        overrideConsumedQuantity: 25
+      }
+    }),
+    {
+      ok: false,
+      status: 'invalid-consumption',
+      grossQuantity: null,
+      calculatedReturnedQuantity: null,
+      calculatedConsumedQuantity: null,
+      appliedConsumedQuantity: null,
+      consumptionSource: null,
+      errors: ['INVALID_OVERRIDE']
+    }
   );
 });
 
