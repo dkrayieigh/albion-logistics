@@ -198,7 +198,7 @@ export function renameLocation(oldName) {
   });
 }
 export function deleteLocation(name) {
-  if (!confirm(`確定要刪除自訂倉庫「${name}」嗎？\n只有空的自訂倉庫會被刪除；如果仍有庫存，系統會阻擋刪除。`)) return;
+  if (!confirm(`確定要刪除自訂倉庫「${name}」嗎？\n只有空的自訂倉庫會被刪除；如果仍有庫存，請先轉移或清空後再刪除。`)) return;
   const result = state.locationRegistry ? removeCustomLocation(name) : deleteLegacyLocation(name);
   if (!result.ok) return window.showToast(formatLocationApiError(result), 'error');
   refreshCustomLocationUI(); window.showToast('已刪除自訂倉庫', 'success');

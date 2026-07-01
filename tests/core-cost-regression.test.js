@@ -530,8 +530,8 @@ test('custom warehouse delete confirmation describes the non-empty deletion guar
   const message = confirmMessages[0];
   assert.match(message, new RegExp(location));
   assert.match(message, /空的自訂倉庫.*刪除|自訂倉庫.*空.*刪除/s);
-  assert.match(message, /仍有庫存.*阻擋刪除|庫存.*阻擋刪除/s);
-  assert.doesNotMatch(message, /庫存.*(永久|一併|一起|同時).*(移除|刪除|清除)|庫存.*清空|庫存.*遺失/s);
+  assert.match(message, /仍有庫存.*轉移或清空|庫存.*轉移或清空/s);
+  assert.doesNotMatch(message, /庫存.*(永久|一併|一起|同時).*(移除|刪除|清除)|庫存.*遺失/s);
   assert.equal(customLocationDeletionSnapshot(), before);
   assert.equal(toasts.length, 0);
 });
