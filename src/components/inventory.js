@@ -1,5 +1,6 @@
 import { SYSTEM_CITIES } from '../data/constants.js';
 import { escapeHTML, parseNum, formatSilver } from '../utils/formatters.js';
+import { applyInventoryTransfer } from '../services/inventoryTransferService.js';
 import {
   state,
   saveState,
@@ -74,9 +75,14 @@ export function setTransQtyMax() { const sl = document.getElementById('trans-qty
 export function submitTransport() {
   const key = document.getElementById('trans-item').value; if(!key) return window.showToast('請選擇物品！', 'error');
   const qty = parseNum(document.getElementById('trans-qty').value); const fc = document.getElementById('trans-from').value; const tc = document.getElementById('trans-to').value;
-  if(qty<=0) return window.showToast('請輸入數量', 'error'); if(fc===tc) return window.showToast('起終點相同', 'error');
-  if(!state.inventory[key] || state.inventory[key].qtyByCity[fc] < qty) return window.showToast('庫存不足', 'error');
-  state.inventory[key].qtyByCity[fc] -= qty; state.inventory[key].qtyByCity[tc] += qty;
+  const result = applyInventoryTransfer({ item: state.inventory[key], quantity: qty, fromLocation: fc, toLocation: tc });
+  if(!result.ok) {
+    const error = result.errors[0];
+    if(error === 'INVALID_QUANTITY') return window.showToast('請輸入數量', 'error');
+    if(error === 'SAME_LOCATION') return window.showToast('起終點相同', 'error');
+    return window.showToast('庫存不足', 'error');
+  }
+  state.inventory[key] = result.item;
   saveState(); window.showToast(`貨運成功`, 'success'); updateTransItemOptions();
 }
 
