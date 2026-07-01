@@ -638,7 +638,8 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 
 #### TEST-C04：0.5.0 production bonus and batch RRR contract
 
-Status: Planned / not yet test-covered.
+Automation: Covered
+- `tests/production-domain-math.test.js`
 
 **📥 [前置狀態]**
 * 選擇任一可製作配方。
@@ -800,34 +801,36 @@ Status: Planned / not yet test-covered.
 - Special materials do not create regional inventory and cannot be transported。
 - Special Material scope is selected as account-total `totalQty`; executable production-integration tests still require separate approval。
 
-## Future Test Plan：0.5.0 Production Bonus / Profile / Consumption Pure Contract
+## Covered Test Plan：0.5.0 Production Bonus / Profile / Consumption Pure Contract
 
-Status: Planned / not yet test-covered.
+Automation: Covered
+- `tests/production-domain-math.test.js`
 
 Canonical decision source: [0.5.0 Crafting Domain Model](./CRAFTING_DOMAIN_MODEL.md).
 
-The next active checkpoint should add pure tests only. These tests must not touch DOM, runtime state, storage, backup, UI, cash, transactions, or production Crafting integration.
+Pure-domain covered.
+Production Crafting integration not covered.
 
-Planned coverage:
+These tests do not touch DOM, runtime state, storage, backup, UI, cash, transactions, or production Crafting integration.
 
-- Royal city general recipe LPB.
-- Royal city specialized recipe LPB.
-- Hideout general power-level table parity.
-- Hideout specialized `regionQuality` / power-level matrix parity.
-- Focus adds `59` LPB percent points.
-- Daily bonus accepts `0`, `10`, and `20` percent points.
-- Matching vs non-matching region specialization.
-- Invalid Production Profile rejected.
-- Invalid event parameters rejected.
+Covered scope:
+
+- Royal city general / specialized.
+- Focus and daily.
+- Hideout general table.
+- Hideout 6×9 specialized matrix.
+- Seven-region mapping.
+- Profile validation matrix.
+- Event validation matrix.
+- Error priority.
+- Batch rounding.
+- Disabled stale override.
+- Manual override lower / upper bound.
+- Public export isolation.
+- Input immutability.
 - RRR formula uses `1 - 1 / (1 + totalLpbPercent / 100)`.
-- RRR is not rounded in the domain layer.
 - Batch regional material consumption uses `gross - floor(gross * rrr)`.
-- Manual override validates non-negative integer input.
-- Manual override returns calculated and applied consumption.
-- Manual override result shape includes `overrideEnabled`, `calculatedConsumedQuantity`, `appliedConsumedQuantity`, and `consumptionSource: 'manual-override'`.
-- Stale override values must not be silently copied to another queue row.
 - Special Material receives no RRR and no manual override.
-- Input objects remain immutable.
 - Results are structured success/failure objects.
 - Pure functions do not access DOM, state, storage, backup, UI, cash, transactions, or `saveState()`.
 

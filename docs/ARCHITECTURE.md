@@ -171,8 +171,18 @@ Canonical decision source: [0.5.0 Crafting Domain Model](./CRAFTING_DOMAIN_MODEL
 5. Operation Composer: `prepareCraftCompletionOperation({ calculation, inventories, cash, targetLocationId })`
 6. Component Adapter: DOM input, toast, state assignment, queue removal, `saveState()`, and UI refresh.
 
+Currently implemented pure modules:
+
+- Production Bonus Calculator
+- Regional Material Consumption Calculator
+
 Boundary:
 
 - Pure modules must not read DOM, mutate state, write storage, call `saveState()`, show toast, or remove queue rows.
+- Calculators accept plain data and return structured results.
+- Calculators do not read DOM, state, storage, cash, transaction, or queue.
 - Component adapters remain responsible for UI and side effects.
+- Component adapter wiring is not implemented.
+- Requirement Resolver, Craft Completion Calculator, and Operation Composer are not implemented.
+- Production Profile remains a target contract only; there is no persisted root or UI.
 - Current master has Special Material pure foundations, but production Crafting integration is not implemented.

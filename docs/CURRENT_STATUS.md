@@ -9,10 +9,12 @@ Last verified against commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`
 
 ## Current Master Review
 
-- Current master implementation reviewed against commit: `f9853bd1ac59f8dd2350babcfb4d84ab56994439`.
+- Current master implementation reviewed against commit: `bdd4e6ac0556fdd04d48a82c79d46faee4d3bf25`.
 - Release baseline remains the tagged 0.4.4 release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`.
 - Post-release master includes the Inventory Transfer bounded service extraction. This is current master behavior, not a v0.4.4 release artifact.
 - Post-release master includes Inventory Transfer exact-file ESLint coverage. This is a tooling gate update, not a runtime feature.
+- Current master pure implementation includes `src/calculators/productionBonusCalculator.js`.
+- Current master pure implementation includes `src/calculators/regionalMaterialConsumptionCalculator.js`.
 - This docs sync does not change source, tests, dependencies, lockfile, CI workflow, version metadata, build output, tags, release assets, storage schema, backup format, or transaction payload.
 
 ## Production Runtime
@@ -104,12 +106,22 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - Confirmed non-empty custom warehouse deletion remains blocked without mutation and shows an error toast.
 - Confirmed empty custom warehouse deletion preserves the successful behavior: the registry entry is deactivated, runtime custom location / `qtyByCity` bucket are removed, unrelated inventory is preserved, and a success toast is shown.
 - This checkpoint changed only component confirmation copy and tests; it did not change schema, state lifecycle, registry lifecycle, storage, backup, runtime bridge, transaction payload, or legacy fallback.
+- Production Bonus calculator is current pure implementation.
+- Regional Material Consumption calculator is current pure implementation.
+- Both calculators have regression coverage in `tests/production-domain-math.test.js`.
+- Manual override cannot exceed gross quantity.
+- These calculators are not wired into `src/components/crafting.js`.
+- Current Crafting still uses legacy actual quantity and the existing hard-coded / legacy flow.
+- Production Profile storage does not exist.
+- Crafting UI does not yet provide formal event parameters.
+- The pure calculators do not create cash, inventory, transaction, or save side effects.
 
 ## Current Tooling Boundary
 
 Current partial ESLint scope:
 
 - `src/calculators/**/*.js`
+- `tests/production-domain-math.test.js`
 - `src/presenters/**/*.js`
 - `src/services/inventoryTransferService.js`
 - `tests/inventory-transfer-service.test.js`
@@ -186,9 +198,10 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 10. Special material identity catalog review — completed.
 11. Tests-first pure catalog/resolver contract — completed.
 12. 0.5.0 crafting domain contract reconciliation — completed.
-13. Tests-first production bonus, profile validation, and material consumption contract — active.
+13. Tests-first production bonus, profile validation, and material consumption contract — completed.
+14. General material purchase/WAC service extraction — active.
 
-Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory and deletion UX contract fix are complete. Special Material inventory contract reconciliation, pure service/test contract, exact-file ESLint coverage, identity catalog review, pure catalog/resolver contract, and 0.5.0 crafting domain contract reconciliation are complete. Formal Special Material inventory remains unimplemented in production runtime; current Crafting still uses manual Artifact / Alchemy cost inputs. The active checkpoint is Tests-first production bonus, profile validation, and material consumption contract. It may add pure tests and pure domain modules only when separately approved; it does not authorize state/storage integration, Crafting integration, version metadata updates, release work, or a 0.4.5 implementation branch.
+Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory and deletion UX contract fix are complete. Special Material inventory contract reconciliation, pure service/test contract, exact-file ESLint coverage, identity catalog review, pure catalog/resolver contract, 0.5.0 crafting domain contract reconciliation, and Production Domain Math pure boundary are complete. Formal Special Material inventory remains unimplemented in production runtime; current Crafting still uses manual Artifact / Alchemy cost inputs. The active checkpoint is General material purchase/WAC service extraction. Its scope is limited to extracting current general material purchase quantity / cash / WAC calculation while preserving current data format and transaction payload. It does not authorize storage schema changes, Location migration, Special Material connection, Crafting changes, version metadata updates, release work, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 

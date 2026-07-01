@@ -343,23 +343,39 @@ Scope:
 - Special Material pure catalog/resolver/inventory boundaries are complete, but production integration is not.
 - Development build identifier target: `0.4.4-dev+<short-sha>`, `Development master`, and `Not a released build`.
 
-### Active Checkpoint：Tests-first production bonus, profile validation, and material consumption contract
+### Completed Checkpoint：Tests-first production bonus, profile validation, and material consumption contract
 
 Scope:
 
-- pure tests first
-- production bonus/profile validation
-- LPB/RRR math
-- batch regional material consumption
-- manual override validation
-- no DOM/state/storage/backup/UI integration
+- `calculateProductionBonus()` is implemented.
+- Production Profile and event parameter validation are implemented.
+- Royal city / hideout LPB and RRR are implemented.
+- Region specialization exact mapping is implemented.
+- `calculateRegionalMaterialConsumption()` is implemented.
+- Batch rounding is implemented.
+- Explicit manual override and gross upper bound validation are implemented.
+- Pure APIs have no DOM, state, storage, backup, UI, cash, transaction, or save side effects.
+- Focused and full regression passed in the local closeout report.
+- Exact lint coverage is included.
+- This does not mean Crafting production integration is complete.
+
+### Active Checkpoint：General material purchase/WAC service extraction
+
+Scope:
+
+- Extract current general material purchase quantity / cash / WAC calculation.
+- Preserve current data format and transaction payload.
+- Do not modify storage schema.
+- Do not advance Location migration.
+- Do not connect Special Material.
+- Do not modify Crafting.
 
 ## Approved Next Order
 
 Current approved sequence:
 
-1. Tests-first production bonus/profile/consumption pure contract — active.
-2. General material purchase/WAC service extraction.
+1. Tests-first production bonus/profile/consumption pure contract — completed.
+2. General material purchase/WAC service extraction — active.
 3. Craft requirement resolver.
 4. Craft completion calculation modules.
 5. Craft operation composer.
@@ -369,7 +385,7 @@ Current approved sequence:
 9. Production integration.
 10. 0.5.0 release preparation.
 
-Only the first item is active. This order does not authorize source changes outside the active checkpoint, production integration, Stable Item ID migration, canonical transaction migration, legacy fallback removal, 0.4.5 release work, or 0.5.0 release preparation.
+Only the second item is active. This order does not authorize source changes outside the active checkpoint, production integration, Stable Item ID migration, canonical transaction migration, legacy fallback removal, 0.4.5 release work, or 0.5.0 release preparation.
 
 ## Phase-1 Refactor Boundary
 

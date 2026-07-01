@@ -506,23 +506,42 @@ Completed pure boundaries:
 - Pure Special Material identity resolver.
 - Pure Special Material inventory service.
 
+### Production Domain Math pure boundary — completed
+
+- Production Profile shape validation.
+- Crafting event parameter validation.
+- Region/category validation.
+- Royal city LPB.
+- Hideout general LPB.
+- Hideout specialized matrix.
+- Focus and daily LPB.
+- RRR formula.
+- Batch material consumption.
+- Manual override and gross upper bound.
+- Structured success/failure result.
+- Input immutability.
+- Exact public API surface.
+- Regression and lint coverage.
+
 Remaining gaps:
 
-- Production Bonus calculator.
-- Production Profile validator.
-- Event parameter validator for `hideoutPowerLevel`, `focusEnabled`, and `dailyBonusPercent`.
-- Batch regional material consumption calculator.
-- Manual override model.
 - General material purchase / WAC service extraction.
-- Craft requirement resolver.
-- Craft completion calculator.
-- Craft operation composer.
 - Development build identifier.
-- Production profile storage.
+- Production Profile persisted storage.
+- System / custom profile catalog.
+- Production Profile UI.
+- Crafting component adapter.
+- Requirement resolver.
+- Craft Completion calculator.
+- Operation composer.
+- Formal general material deduction wiring.
+- Formal Special Material deduction wiring.
+- Product location intake.
 - Special Material production storage.
-- Backup integration.
-- Cash / transaction integration.
-- UI integration.
+- Backup / schema.
+- Cash / transaction writer.
+- Atomic save / rollback.
+- Manual override UI and craft record persistence.
 
 These gaps are target-only. They do not authorize source, storage, writer, backup, transaction, UI, version, or release changes.
 
