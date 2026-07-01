@@ -167,9 +167,26 @@ function assertConsumptionFailure(result, errorCode) {
   });
 }
 
+function assertInvalidProductionInput(input, errorCode) {
+  assertProductionFailure(calculateProductionBonus(input), errorCode);
+}
+
+function assertInvalidConsumptionInput(input, errorCode) {
+  assertConsumptionFailure(calculateRegionalMaterialConsumption(input), errorCode);
+}
+
 test('production domain math calculators export their public APIs', () => {
+  assert.deepEqual(
+    Object.keys(productionBonusCalculator).sort(),
+    ['calculateProductionBonus']
+  );
   assert.equal(productionBonusCalculator.calculateProductionBonus, calculateProductionBonus);
   assert.equal(typeof calculateProductionBonus, 'function');
+
+  assert.deepEqual(
+    Object.keys(regionalMaterialConsumptionCalculator).sort(),
+    ['calculateRegionalMaterialConsumption']
+  );
   assert.equal(
     regionalMaterialConsumptionCalculator.calculateRegionalMaterialConsumption,
     calculateRegionalMaterialConsumption
@@ -315,6 +332,220 @@ test('production bonus region mapping accepts exact matching categories and reje
   for (const [region, categories] of Object.entries(REGION_CATEGORIES)) {
     assert.ok(categories.length > 0, `${region} should define at least one category`);
   }
+});
+
+test('production bonus profile validation matrix rejects malformed royal city and hideout profiles', () => {
+  const invalidProfiles = [
+    null,
+    {},
+    { ...ROYAL_PROFILE, locationId: '' },
+    { ...ROYAL_PROFILE, locationId: '   ' },
+    { ...ROYAL_PROFILE, locationId: 123 },
+    { ...ROYAL_PROFILE, facilityType: 'ROYAL-CITY' },
+    { ...ROYAL_PROFILE, facilityType: 'unknown' },
+    { ...ROYAL_PROFILE, region: 'swamp' },
+    { ...ROYAL_PROFILE, region: 'UNKNOWN' }
+  ];
+
+  for (const profile of invalidProfiles) {
+    assertInvalidProductionInput({
+      profile,
+      recipeCategory: 'MACE',
+      eventParameters: clone(ROYAL_EVENT)
+    }, 'INVALID_PROFILE');
+  }
+
+  for (const regionQuality of [undefined, 0, 1, 6, 'null']) {
+    const profile = { ...ROYAL_PROFILE };
+    if (regionQuality === undefined) {
+      delete profile.regionQuality;
+    } else {
+      profile.regionQuality = regionQuality;
+    }
+
+    assertInvalidProductionInput({
+      profile,
+      recipeCategory: 'MACE',
+      eventParameters: clone(ROYAL_EVENT)
+    }, 'INVALID_PROFILE');
+  }
+
+  for (const regionQuality of [1, 2, 3, 4, 5, 6]) {
+    assert.equal(
+      calculateProductionBonus({
+        profile: {
+          ...clone(HIDEOUT_PROFILE),
+          regionQuality
+        },
+        recipeCategory: 'MACE',
+        eventParameters: clone(HIDEOUT_EVENT)
+      }).ok,
+      true
+    );
+  }
+
+  for (const regionQuality of [undefined, null, 0, 7, 1.5, '1', NaN, Infinity]) {
+    const profile = { ...HIDEOUT_PROFILE };
+    if (regionQuality === undefined) {
+      delete profile.regionQuality;
+    } else {
+      profile.regionQuality = regionQuality;
+    }
+
+    assertInvalidProductionInput({
+      profile,
+      recipeCategory: 'MACE',
+      eventParameters: clone(HIDEOUT_EVENT)
+    }, 'INVALID_PROFILE');
+  }
+});
+
+test('production bonus event validation matrix rejects malformed royal city and hideout events', () => {
+  const invalidEvents = [
+    null,
+    {},
+    { ...ROYAL_EVENT, locationId: '' },
+    { ...ROYAL_EVENT, locationId: '   ' },
+    { ...ROYAL_EVENT, locationId: 123 },
+    { ...ROYAL_EVENT, focusEnabled: 0 },
+    { ...ROYAL_EVENT, focusEnabled: 1 },
+    { ...ROYAL_EVENT, focusEnabled: 'true' }
+  ];
+
+  for (const eventParameters of invalidEvents) {
+    assertInvalidProductionInput({
+      profile: clone(ROYAL_PROFILE),
+      recipeCategory: 'MACE',
+      eventParameters
+    }, 'INVALID_EVENT_PARAMETERS');
+  }
+
+  for (const dailyBonusPercent of [0, 10, 20]) {
+    assert.equal(
+      calculateProductionBonus({
+        profile: clone(ROYAL_PROFILE),
+        recipeCategory: 'MACE',
+        eventParameters: {
+          ...clone(ROYAL_EVENT),
+          dailyBonusPercent
+        }
+      }).ok,
+      true
+    );
+  }
+
+  for (const dailyBonusPercent of [-10, 5, 15, 0.1, '10', NaN, Infinity]) {
+    assertInvalidProductionInput({
+      profile: clone(ROYAL_PROFILE),
+      recipeCategory: 'MACE',
+      eventParameters: {
+        ...ROYAL_EVENT,
+        dailyBonusPercent
+      }
+    }, 'INVALID_EVENT_PARAMETERS');
+  }
+
+  for (const hideoutPowerLevel of [undefined, 0, 1, 9, 'null']) {
+    const eventParameters = { ...ROYAL_EVENT };
+    if (hideoutPowerLevel === undefined) {
+      delete eventParameters.hideoutPowerLevel;
+    } else {
+      eventParameters.hideoutPowerLevel = hideoutPowerLevel;
+    }
+
+    assertInvalidProductionInput({
+      profile: clone(ROYAL_PROFILE),
+      recipeCategory: 'MACE',
+      eventParameters
+    }, 'INVALID_EVENT_PARAMETERS');
+  }
+
+  for (const hideoutPowerLevel of [1, 9]) {
+    assert.equal(
+      calculateProductionBonus({
+        profile: clone(HIDEOUT_PROFILE),
+        recipeCategory: 'MACE',
+        eventParameters: {
+          ...clone(HIDEOUT_EVENT),
+          hideoutPowerLevel
+        }
+      }).ok,
+      true
+    );
+  }
+
+  for (const hideoutPowerLevel of [undefined, null, 0, 10, 1.5, '1', NaN, Infinity]) {
+    const eventParameters = { ...HIDEOUT_EVENT };
+    if (hideoutPowerLevel === undefined) {
+      delete eventParameters.hideoutPowerLevel;
+    } else {
+      eventParameters.hideoutPowerLevel = hideoutPowerLevel;
+    }
+
+    assertInvalidProductionInput({
+      profile: clone(HIDEOUT_PROFILE),
+      recipeCategory: 'MACE',
+      eventParameters
+    }, 'INVALID_EVENT_PARAMETERS');
+  }
+});
+
+test('production bonus validation priority distinguishes invalid event from location mismatch', () => {
+  assertInvalidProductionInput({
+    profile: clone(ROYAL_PROFILE),
+    recipeCategory: 'MACE',
+    eventParameters: {
+      ...clone(ROYAL_EVENT),
+      locationId: 'martlock',
+      dailyBonusPercent: 5
+    }
+  }, 'INVALID_EVENT_PARAMETERS');
+
+  assertInvalidProductionInput({
+    profile: clone(ROYAL_PROFILE),
+    recipeCategory: 'MACE',
+    eventParameters: {
+      ...clone(ROYAL_EVENT),
+      locationId: 'martlock'
+    }
+  }, 'LOCATION_MISMATCH');
+
+  assertInvalidProductionInput({
+    profile: {
+      ...clone(ROYAL_PROFILE),
+      region: 'swamp'
+    },
+    recipeCategory: 'mace',
+    eventParameters: {
+      ...clone(ROYAL_EVENT),
+      locationId: 'martlock',
+      dailyBonusPercent: 5
+    }
+  }, 'INVALID_PROFILE');
+});
+
+test('production bonus hideout focus and daily bonuses add on top of the specialized matrix result', () => {
+  const result = calculateProductionBonus({
+    profile: {
+      ...clone(HIDEOUT_PROFILE),
+      regionQuality: 6
+    },
+    recipeCategory: 'MACE',
+    eventParameters: {
+      ...clone(HIDEOUT_EVENT),
+      hideoutPowerLevel: 9,
+      focusEnabled: true,
+      dailyBonusPercent: 10
+    }
+  });
+
+  assertProductionSuccess(result, {
+    locationBaseLpb: 26,
+    specializationProfileLpb: 56,
+    focusLpb: 59,
+    dailyLpb: 10,
+    totalLpbPercent: 151
+  });
 });
 
 test('production bonus validation returns one prioritized error and never mutates profile or event input', () => {
@@ -491,6 +722,90 @@ test('regional material consumption manual override is opt-in and ignores stale 
     }).appliedConsumedQuantity,
     0
   );
+});
+
+test('regional material consumption validation matrix covers base craft RRR and override boundaries', () => {
+  for (const baseQuantity of [0, -1, 1.5, NaN, Infinity, '1', null, undefined]) {
+    assertInvalidConsumptionInput({
+      baseQuantity,
+      craftQuantity: 10,
+      rrr: 0.5
+    }, 'INVALID_BASE_QUANTITY');
+  }
+
+  for (const craftQuantity of [0, -1, 1.5, NaN, Infinity, '1', null, undefined]) {
+    assertInvalidConsumptionInput({
+      baseQuantity: 5,
+      craftQuantity,
+      rrr: 0.5
+    }, 'INVALID_CRAFT_QUANTITY');
+  }
+
+  for (const rrr of [-0.01, 1, 1.01, NaN, Infinity, '0.5', null, undefined]) {
+    assertInvalidConsumptionInput({
+      baseQuantity: 5,
+      craftQuantity: 10,
+      rrr
+    }, 'INVALID_RRR');
+  }
+
+  for (const rrr of [0, 0.999999]) {
+    assert.equal(
+      calculateRegionalMaterialConsumption({
+        baseQuantity: 5,
+        craftQuantity: 10,
+        rrr
+      }).ok,
+      true
+    );
+  }
+
+  const validOverrideInputs = [
+    undefined,
+    { overrideEnabled: false },
+    {
+      overrideEnabled: false,
+      overrideConsumedQuantity: 'stale-invalid-value'
+    },
+    {
+      overrideEnabled: true,
+      overrideConsumedQuantity: 0
+    }
+  ];
+
+  for (const override of validOverrideInputs) {
+    assert.equal(
+      calculateRegionalMaterialConsumption({
+        baseQuantity: 5,
+        craftQuantity: 10,
+        rrr: 0.5,
+        override
+      }).ok,
+      true
+    );
+  }
+
+  const invalidOverrideInputs = [
+    null,
+    {},
+    { overrideEnabled: 'false' },
+    { overrideEnabled: true },
+    { overrideEnabled: true, overrideConsumedQuantity: '' },
+    { overrideEnabled: true, overrideConsumedQuantity: -1 },
+    { overrideEnabled: true, overrideConsumedQuantity: 1.5 },
+    { overrideEnabled: true, overrideConsumedQuantity: NaN },
+    { overrideEnabled: true, overrideConsumedQuantity: Infinity },
+    { overrideEnabled: true, overrideConsumedQuantity: '1' }
+  ];
+
+  for (const override of invalidOverrideInputs) {
+    assertInvalidConsumptionInput({
+      baseQuantity: 5,
+      craftQuantity: 10,
+      rrr: 0.5,
+      override
+    }, 'INVALID_OVERRIDE');
+  }
 });
 
 test('regional material consumption validation prioritizes one error and keeps inputs immutable', () => {
