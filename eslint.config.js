@@ -9,7 +9,9 @@ export default [
       'src/calculators/**/*.js',
       'src/presenters/**/*.js',
       'src/services/inventoryTransferService.js',
-      'tests/inventory-transfer-service.test.js'
+      'src/services/specialMaterialInventoryService.js',
+      'tests/inventory-transfer-service.test.js',
+      'tests/special-material-inventory-service.test.js'
     ],
     languageOptions: {
       ecmaVersion: 'latest',
