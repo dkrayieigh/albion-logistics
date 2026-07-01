@@ -15,12 +15,13 @@ npm test
 - 指令：`npm.cmd test`
 - Current totals 以 `npm test` 和 `PROJECT_HANDOFF.md` 為準。
 - 本節只描述 regression suite 的 coverage scope，不保存最新測試總數、checkpoint 或 commit metadata。
-- 手測案例中的 `locationId` 是 future/location-model 對照標記；current UI/storage 仍可能使用 legacy city display key 或 `qtyByCity`。
+- 手測案例中的 `locationId` 是 location-model 對照標記；current persisted v2 已有 `locationRegistry` 與 canonical `qtyByLocation`，但 runtime component 仍透過 `qtyByCity` 與 display-name compatibility 操作。
+- Current production v2 baseline: production startup/read-write path, backup export/import, clean initialization, persisted `locationRegistry`, and persisted canonical `qtyByLocation` are integrated.
 - 新增 covered scope: Location read-only adapter legacy direct map and `qtyByCity` wrapper normalization.
-- 新增 covered scope: Location read-only adapter future `qtyByLocation` sample normalization as adapter-only compatibility, not current storage support.
+- 新增 covered scope: Location read-only adapter canonical `qtyByLocation` normalization as reader/normalizer compatibility.
 - 新增 covered scope: Location read-only adapter invalid/non-finite unresolved reporting, zero/negative finite preservation, literal/custom key preservation, input immutability, and output copy behavior.
 - 新增 covered scope: legacy backup location preservation through import, `loadState`, and adapter read, including multi-item/multi-location `qtyByCity`, custom location string arrays, `globalAvgCost`, and zero quantity preservation.
-- This does not implement `qtyByLocation` storage, Location Registry, backup migration, purchase/transport writer migration, or legacy fallback removal.
+- Location adapter coverage does not mean runtime components fully adopt stable `locationId`, historical transactions are migrated, resolver UI coverage is complete, automatic legacy backup migration is implemented, or legacy fallback removal has started.
 - 新增 covered scope: pure inventory transfer service success through `applyInventoryTransfer()`.
 - 新增 covered scope: inventory transfer service input item / `qtyByCity` immutability and total quantity preservation.
 - 新增 covered scope: inventory transfer service custom display-name location compatibility.
@@ -28,9 +29,9 @@ npm test
 - Existing inventory transfer integration regressions still cover legacy save path, WAC preservation, cash/debt preservation, transaction preservation, no `qtyByLocation` writer, and no Location Registry creation.
 - This does not implement canonical `TRANSFER_ITEM`, transfer transaction writing, `qtyByLocation` writer migration, Location ID migration, save failure rollback for transfer, or storage schema changes.
 - 新增 covered scope: Location identity resolver exact system city mapping, `LaborerIsland` to `laborer_island`, residual `Hideout` unresolved with `deprecatedLegacyKey`, explicit custom mapping, unknown/fuzzy unresolved, malformed mapping unresolved, normalized-name conflict detection, immutability, and system mapping precedence.
-- This future identity output does not implement Location Registry persistence, does not make `qtyByLocation` current storage, does not migrate `customLocations` from `string[]`, and does not connect resolver output to writers, storage, backup import/export, or migration.
+- Location identity resolver exists and has read-only regression coverage. It does not mean component writers have fully switched to stable `locationId`, historical payload migration is complete, inactive-location UI is complete, shared resolver coverage is complete, automatic legacy backup migration is implemented, or legacy fallback removal has started.
 - 新增 covered scope: Location migration validator read-only research / verification utility.
-- Selected Location strategy is single-user clean cutover；future tests should focus on new schema writers, new backup export/import, manual initialization flow, selected seed data validation, and first-launch confirmation before any writer/storage switch.
+- Selected Location strategy is single-user clean cutover. New-schema persistence, backup, initializer, first-launch, and production read/write are complete. Remaining tests/work should focus on full component stable `locationId` adoption, shared resolver and UI coverage, historical transaction strategy, automatic legacy backup migration, inactive-location UI, custom crafting profiles, legacy fallback removal gates, and future schema / backup compatibility upgrades.
 - Full legacy snapshot equality is no longer the selected clean-cutover release gate.
 - 新增 covered scope: crafting material planning aggregates expected consumption and safe-start stock by material key + city.
 - 新增 covered scope: crafting accounting uses user-entered actual material consumption; blank/invalid actual consumption blocks before mutation.
