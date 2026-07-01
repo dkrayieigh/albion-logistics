@@ -146,6 +146,8 @@ This means 0.4.4 is documented here as released. It does not mean Stable Item ID
 - Explicit legacy mode can still read and write legacy data paths.
 - Formal special-material inventory is not implemented.
 - Artifact / alchemy queue fields are still per-queue unit-cost planning inputs.
+- Special Material account-total `totalQty` is the selected future target, but it is not current production behavior.
+- Location-based Special Material quantity and transfer are not the selected target.
 - Basic custom-warehouse management UI and stable custom-location lifecycle are implemented, but inactive-location management, canonical inventory identity, shared resolver coverage, and custom crafting profiles remain incomplete.
 - Stable Item ID migration remains future work.
 - Canonical transaction migration remains future work.
@@ -162,9 +164,10 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 4. Inventory Transfer exact-file ESLint coverage — completed.
 5. Custom warehouse boundary specification and inventory — completed.
 6. Custom warehouse deletion UX contract regression and fix — completed.
-7. Special material inventory contract reconciliation — active.
+7. Special material inventory contract reconciliation — completed.
+8. Tests-first special-material pure contract — active.
 
-Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory and deletion UX contract fix are complete. The active checkpoint is Special Material inventory contract reconciliation: it documents the conflict between account-total / no-transfer and location-based / transfer-supported target candidates. It does not authorize Special Material tests, source helpers, schema/storage roots, writer/backup/UI integration, version metadata updates, release work, or a 0.4.5 implementation branch.
+Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory and deletion UX contract fix are complete. Special Material inventory contract reconciliation is complete: the selected future target is account-total `totalQty`, account-wide `globalAvgCost`, no location bucket, and no transfer. Formal Special Material inventory remains unimplemented; current Crafting still uses manual Artifact / Alchemy cost inputs. The active checkpoint is Tests-first special-material pure contract. It may define pure-domain tests and contract boundaries, but it does not authorize production source helpers, schema/storage roots, writer/backup/UI integration, Crafting integration, version metadata updates, release work, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 

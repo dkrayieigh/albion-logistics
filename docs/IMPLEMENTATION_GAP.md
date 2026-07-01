@@ -439,21 +439,35 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 - Current implementation：runtime bridge / codec do not yet model account-total products。
 - Future target：crafted products become account-total inventory with `totalQty` only; crafting city and sale city remain event metadata, not inventory location.
 
-### Special Material Schema（High risk / Special material inventory contract reconciliation required）
+### Special Material Schema（Resolved target / implementation still pending）
 
 - Special material storage is not implemented as separate artifact / alchemy account-total lists.
 - Artifact and alchemy material identity is not yet modeled as Tier-only inventory.
 - Special material purchase unit-price / total-price entry is not yet a separate schema path.
 - Special materials currently remain part of crafting workflow behavior, not a dedicated persisted inventory module.
-- Formal special-material production implementation is not complete. Target docs currently conflict: `BUSINESS_RULES.md` records an account-total / no-transfer candidate, while `SPECIAL_MATERIAL_INVENTORY.md` preserves a location-based `qtyByLocation` / transfer-supported candidate. Neither shape may be treated as final implementation authority until Spec Lead reconciliation is complete.
+- Formal special-material production implementation is not complete. Spec Lead selected account-total `totalQty`, account-wide `globalAvgCost`, no location bucket, and no transfer as the target.
 - Current recipe / Planner / Crafting support is calculation/display-oriented and does not create special-material inventory, WAC storage, intake transactions, or backup/export fields.
 
-Contract conflict gate:
+Selected target:
 
-- Current implementation has Artifact / Alchemy recipe metadata, Planner cost estimates, and Crafting queue cost display only.
-- Current implementation has no formal special-material inventory root, no formal quantity storage, no special-material purchase writer, no special-material transfer, and no special-material backup section.
-- Blocked downstream work includes identity tests that assume a location model, inventory shape tests, intake command tests, transfer tests, crafting-location deduction tests, codec/backup shape, and writer integration.
-- Implementing before reconciliation is High risk because the decision affects storage shape, WAC denominator, location identity, crafting deduction, backup schema, and transaction contract.
+- `totalQty`.
+- Account-wide `globalAvgCost`.
+- No location bucket.
+- No transfer.
+- Purchase / craft location may be future transaction metadata only.
+
+Remaining gap:
+
+- identity catalog.
+- pure helper/tests.
+- storage root.
+- writer.
+- cash.
+- transaction.
+- backup.
+- UI.
+- formal Crafting integration.
+- manual/formal compatibility.
 
 ### Ledger English Presentation Mapping（Current / Low–Medium implementation risk）
 
@@ -473,7 +487,8 @@ Contract conflict gate:
 
 - English display mapping：Low–Medium implementation risk because it is presentation-only and currently test-covered, but it still affects Ledger filtering/grouping and user interpretation.
 - Product inventory transition：High risk because it changes inventory shape, crafting output, sale consumption, transport eligibility, dashboard valuation, runtime bridge, codec, and backup expectations.
-- Special material schema：High risk because it introduces new persisted inventory classes and purchase/costing rules.
+- Special material pure helper/tests：Low–Medium implementation risk because the selected target is pure account-total quantity/WAC, but correctness still affects future costing.
+- Special material production schema/writer/backup integration：High risk because it introduces new persisted inventory classes, purchase/costing rules, transactions, backup shape, and Crafting integration.
 - Cost adjustment canonical event：High risk because it affects cost basis, valuation, Ledger display, transaction semantics, and historical interpretation.
 
 ## v0.4.4 Release Checkpoint Scope
@@ -545,7 +560,7 @@ Known limitations at the time of the historical draft:
 
 ## Special Material Inventory Gap
 
-主規格狀態：待 Spec Lead reconciliation。`BUSINESS_RULES.md` 與 `SPECIAL_MATERIAL_INVENTORY.md` 目前記錄不同 target candidates，不得任一方單獨作為 tests/source implementation authority。
+主規格狀態：Spec Lead reconciliation complete。Selected target is account-total `totalQty`, account-wide `globalAvgCost`, no location bucket, and no transfer. This is still not current production implementation.
 
 Current behavior:
 
@@ -566,11 +581,13 @@ Current gaps:
 - No backup/export schema for special-material inventory。
 - No canonical transaction payload for special-material purchase or consumption。
 
-Target conflict:
+Selected target:
 
-- `BUSINESS_RULES.md` candidate：account-total `totalQty`、no transfer。
-- `SPECIAL_MATERIAL_INVENTORY.md` candidate：location-based `qtyByLocation`、transfer supported。
-- Unresolved decisions：quantity shape, whether `locationId` is required, whether transfer exists, custom location rename effects, crafting consumption source, intake transaction location metadata, backup/schema shape, and final target authority。
+- `totalQty`。
+- Account-wide `globalAvgCost`。
+- No location bucket。
+- No transfer。
+- Purchase / craft location may be future transaction metadata only。
 
 Risk:
 
@@ -580,8 +597,9 @@ Remaining implementation decisions / gates:
 
 - Production writer / UI / storage integration order。
 - Stable special-material ID format。
-- Whether purchase location is inventory location or transaction metadata。
-- Whether account-total or location-based quantity is the final model。
-- Whether Special Material transfer is supported or explicitly rejected。
+- Pure helper/tests。
+- Storage root。
+- Cash / transaction / backup integration。
+- Formal Crafting integration。
 - Compatibility period between manual-cost crafting and formal inventory。
 - Backup/export and rollback strategy。

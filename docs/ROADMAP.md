@@ -29,7 +29,7 @@
 - Current、legacy-compatible、future、migration boundary 已重新對齊。
 - Backup/import/reset/release 相關舊 planning 內容已改列 completed / historical。
 - Location persisted/runtime boundary 已修正。
-- Special Material target conflict 已列入 reconciliation gate。
+- Special Material account-total target decision 已完成。
 - Active planning 文件不再把已完成 baseline 誤列為 current gap。
 
 ### Completed Checkpoint：Phase-1 refactor planning and inventory
@@ -209,30 +209,25 @@
 - Production source scope 只改 `src/components/inventory.js` confirmation copy。
 - 未修改 `src/core/state.js`、registry lifecycle、save/rollback、storage schema、runtime bridge、backup、transaction payload 或 legacy fallback。
 
-### Active Checkpoint：Special material inventory contract reconciliation
+### Completed Checkpoint：Special material inventory contract reconciliation
 
 目標：
 
-- 盤點並協調 Special Material inventory 的 target contract 衝突。
-- `BUSINESS_RULES.md` 目前記錄 account-total / no transfer candidate。
-- `SPECIAL_MATERIAL_INVENTORY.md` 目前保留 location-based `qtyByLocation` / transfer-supported candidate。
-- 在 Spec Lead 決策前，不選定 `totalQty` 或 `qtyByLocation`，也不授權 tests/source implementation。
+- 協調 Special Material inventory 的 target contract 衝突。
+- Spec Lead 已選 account-total `totalQty`。
+- `globalAvgCost` 為 account-wide。
+- 不建立 location bucket。
+- 不支援 Special Material inventory transfer。
+- Location 未來只可作為 transaction metadata，不可作為 inventory bucket。
+- Location-based candidate 已改列 rejected historical alternative。
+- Storage、transaction、backup、UI 仍待後續設計。
 
-需決定：
+完成摘要：
 
-- Quantity shape：`totalQty` 或 `qtyByLocation`。
-- 是否要求 `locationId`。
-- Special Material transfer 是否存在。
-- Custom location rename 對 Special Material inventory 的影響。
-- Crafting consumption source。
-- Intake transaction location metadata。
-- Backup / schema shape。
-- 哪一份文件成為 target authority。
-
-交付邊界：
-
-- 交回 Spec Lead 做 contract decision。
-- Reconciliation 完成後，才可產出 tests-first pure contract。
+- `BUSINESS_RULES.md` 與 `SPECIAL_MATERIAL_INVENTORY.md` 已同步為 account-total target。
+- Selected target：`totalQty`、account-wide `globalAvgCost`、no location bucket、no transfer。
+- Current implementation 仍未建立 formal Special Material inventory。
+- Production integration 仍未核准。
 
 不包含：
 
@@ -248,6 +243,26 @@
 - Planner / Crafting integration。
 - 移除 manual-cost compatibility。
 - version / release work。
+
+### Active Checkpoint：Tests-first special-material pure contract
+
+目標：
+
+- 先定義 pure helper 輸入/輸出與失敗語義。
+- 先建立 regression contract。
+- 不接 production state。
+
+不包含：
+
+- Production source integration。
+- Storage root / schemaVersion。
+- Catalog implementation。
+- Cash / transaction writer。
+- Backup。
+- UI。
+- Crafting integration。
+- Special Material transfer。
+- Version / release work。
 
 ### Completed Baseline：v0.4.4 backup/reset/release stabilization
 
@@ -268,11 +283,11 @@ Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migrati
 
 目前 approved sequence：
 
-1. Special material inventory contract reconciliation — active.
-2. Tests-first special-material pure contract — blocked pending reconciliation.
-3. Any Special Material source/helper implementation — requires separate approval.
+1. Tests-first special-material pure contract — active.
+2. Bounded pure helper implementation — blocked until tests contract review.
+3. Production integration — not approved.
 
-只有第一項是 active。其餘項目仍需獨立 approval、tests 與 implementation boundary；此清單不代表 Special Material tests/source、schema/storage、writer/backup/UI、0.4.5 implementation 或 release work 已開始。
+只有第一項是 active。第二項仍需 tests contract review；第三項未核准。此清單不代表 production schema/storage、writer/backup/UI、Crafting integration、0.4.5 implementation 或 release work 已開始。
 
 ## Phase-1 Refactor Boundary
 

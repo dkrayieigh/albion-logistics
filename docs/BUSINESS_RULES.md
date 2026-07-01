@@ -235,7 +235,13 @@ mainMaterialCost
 - 特殊材料維護 `globalAvgCost`。
 - 特殊材料不考慮返還率，製作消耗時以固定需求量扣除。
 - 特殊材料採購入庫必須允許輸入單價或整批總額，系統再計算等價的單位成本。
-- Formal special-material inventory scope 尚未決定；location-based 與 account-wide 兩案請見 `SPECIAL_MATERIAL_INVENTORY.md`。
+- Artifact 與 Alchemy 是 account-total inventory；兩者各自有獨立 inventory collection，但 root encoding 仍待後續設計。
+- Special Material inventory 只使用 `totalQty` 與 `globalAvgCost`，不得建立 per-location quantity。
+- Selected target: account-total `totalQty`, account-wide `globalAvgCost`, no location bucket, no transfer.
+- Purchase location 與 craft location 未來可作為 transaction metadata；metadata 不得建立 inventory bucket。
+- Crafting 消耗直接扣 account-total `totalQty`，不套用 RRR / return rate。
+- Spec Lead selected account-total quantity as the target.
+- Location-based quantity is rejected for the current Special Material model.
 - Current implementation 尚未建立 dedicated Artifact / Alchemy inventory root、special-material purchase writer、formal WAC storage 或 backup/export schema。
 
 ### Laborer Inventory

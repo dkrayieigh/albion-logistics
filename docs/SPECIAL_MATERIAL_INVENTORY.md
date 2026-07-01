@@ -1,26 +1,31 @@
 # Albion Logistics ERP Special Material Inventory Specification
 
-Status: Target under reconciliation
-Authority: Candidate target specification pending Spec Lead reconciliation
+Status: Target
+Authority: Approved specification
 Current implementation: Not implemented
-Implementation status: Blocked by quantity/location model conflict
+Implementation status: Tests-first pure contract approved; production integration not approved
 Last reviewed: 2026-07-01
 
-本文件保留 Artifact / Alchemy 特殊材料庫存的 candidate target specification。這不是 current implementation 宣告，也不代表 schema、storage、writer、backup、transaction payload 或 UI 已完成。
+本文件記錄 Artifact / Alchemy 特殊材料庫存的 approved target specification。這不是 current implementation 宣告，也不代表 schema、storage、writer、backup、transaction payload 或 UI 已完成。
 
 本文件不得被解讀為要求立即修改 `src`、tests、storage key、`schemaVersion`、backup format、transaction payload、custom location implementation 或 release/version metadata。
 
-Blocked means this target is not active implementation work. No tests, helper, writer/storage, UI, or crafting integration is authorized by this file. Special-material implementation is blocked until the account-total / location-based quantity and transfer contract conflict is reconciled.
+Tests-first pure contract approved means the next checkpoint may define executable pure-domain tests and minimum pure contract helpers when separately approved. This file does not authorize production helper wiring, writer/storage integration, UI, backup, Crafting integration, transaction payload changes, or release/version metadata work.
 
-## Conflict Notice
+## Decision Record
 
-Active checkpoint: Special material inventory contract reconciliation.
+- Spec Lead selected account-total `totalQty` as the Special Material quantity model.
+- Location-based quantity is rejected for the current Special Material model.
+- Selected target: account-total `totalQty`, account-wide `globalAvgCost`, no location bucket, no transfer.
+- This decision reduces the first pure scope to inventory quantity and WAC behavior.
+- The selected target is not current production implementation.
+- Production integration remains unapproved.
 
-This document currently preserves a location-based `qtyByLocation` target candidate for Special Material inventory. `BUSINESS_RULES.md` currently records an account-total `totalQty` / no-transfer target candidate. Both cannot be active implementation authority at the same time.
+Rationale:
 
-Until Spec Lead reconciliation is complete, this file must not be used as the sole authority for executable tests, source helpers, schema/storage changes, writer/UI integration, crafting deduction, transfer behavior, backup changes, or transaction payload changes. Backup/reset prerequisites being complete does not resolve the Special Material quantity/location model conflict.
-
-The remaining sections preserve the Contract B location-based candidate for review. They are not current implementation and are not the selected final model until reconciliation chooses the quantity shape, location requirement, transfer policy, custom-location rename behavior, crafting consumption source, intake location metadata, and backup/schema shape.
+- Special materials do not need inventory buckets by purchase or crafting city.
+- Location-based scope would entangle this feature with Location migration, custom-location lifecycle, transfer behavior, backup shape, and crafting-location deduction before the pure inventory/WAC contract is stable.
+- Purchase and craft location may still be recorded later as transaction metadata, but metadata must not create inventory buckets.
 
 ## A. Current Implementation Summary
 
@@ -62,9 +67,9 @@ Therefore, documentation must not describe formal special-material inventory as 
 
 ## B. Inventory Scope Decision
 
-Decision: **Location-based quantity + account-wide global WAC**.
+Decision: **Account-total quantity + account-wide global WAC**.
 
-Special materials use location-based quantity so purchase location, crafting location, transfer, and custom location identity can be represented explicitly. Their cost basis remains account-wide through one `globalAvgCost` per stable material identity.
+Special materials use account-total quantity so Artifact / Alchemy inventory remains independent from location buckets, custom-location rename/deactivate/delete behavior, and ERP transfer logic. Their cost basis remains account-wide through one `globalAvgCost` per stable material identity.
 
 Target contract:
 
@@ -77,29 +82,33 @@ SpecialMaterialIdentity = {
 
 SpecialMaterialInventoryEntry = {
   identity,
-  qtyByLocation,
+  totalQty,
   globalAvgCost
 }
 ```
 
 Rules:
 
-1. `qtyByLocation` keys must use stable `locationId`.
-2. `globalAvgCost` is not location-specific.
-3. This decision does not define final storage root key or `schemaVersion`.
-4. Account-wide quantity is a rejected alternative for the selected target. It may be retained only as historical context, not as an open schema decision.
-5. `qtyByLocation` here is target specification only. It is not current implementation for special materials.
+1. `totalQty` must be a finite number.
+2. The pure contract may require integer quantity where purchase/consumption commands need discrete item counts.
+3. `globalAvgCost` must be a finite number or `null`.
+4. `globalAvgCost` is not location-specific.
+5. `qtyByLocation`, `qtyByCity`, and fake account-total locations are not allowed in the selected target.
+6. Artifact and Alchemy do not have an enchant dimension.
+7. This decision does not define final storage root key or `schemaVersion`.
 
 Rejected alternative:
 
 ```js
 specialMaterialInventory[itemId] = {
-  quantity: 15,
+  qtyByLocation: {
+    bridgewatch: 15
+  },
   globalAvgCost: 12345
 }
 ```
 
-This account-wide quantity shape is not the selected target because it cannot represent purchase/crafting location buckets or stable custom-location inventory identity.
+Location-based quantity is rejected for the current target. It may be retained only as historical candidate context, not as an open schema decision.
 
 ## C. Identity Contract
 
@@ -133,26 +142,25 @@ This document intentionally does not invent final Albion item IDs.
 
 ## D. Location Contract
 
-Intake must provide `locationId`.
+Inventory helpers must not require `locationId`.
 
-Allowed location targets:
+Metadata boundary:
 
-- fixed system location
-- active custom location
+- Purchase location may be recorded later as transaction metadata.
+- Craft location may be recorded later as transaction metadata.
+- Location metadata must not change `totalQty`.
+- Location metadata must not create an inventory bucket.
 
-Blocked location targets:
+Custom location boundary:
 
-- missing location
-- unknown location
-- inactive custom location
-- ambiguous legacy display name
+- Custom location rename does not affect Special Material quantity.
+- Custom location deactivate does not affect Special Material quantity.
+- Custom location delete does not affect Special Material quantity.
 
 Rules:
 
-- `locationId` determines the inventory bucket.
-- Purchase transaction may also store location metadata, but metadata does not replace the inventory bucket key.
-- Custom location rename must not move or split inventory because inventory is keyed by stable `locationId`.
-- Transfer changes quantity by location and must not change WAC.
+- No Special Material transfer service is part of the selected target.
+- No Special Material transfer event is part of the selected target.
 - Custom location crafting profile is a separate future topic and is not defined by this document.
 
 ## E. WAC Contract
@@ -163,7 +171,7 @@ Rules:
 
 1. Purchase creates or updates special-material `globalAvgCost`.
 2. WAC uses account-wide quantity, not per-location quantity.
-3. Transfer does not change WAC.
+3. Special Material has no inventory transfer in the selected target.
 4. Craft consumption does not change WAC.
 5. Manual correction does not change WAC unless a separate approved cost-basis adjustment rule exists.
 6. When quantity becomes zero, keep the dormant anchor.
@@ -178,12 +186,23 @@ Future special-material intake should be a dedicated command boundary, not an in
 
 Command input:
 
-- `identity`
+```js
+{
+  entry,
+  identity,
+  quantity,
+  totalCost
+}
+```
+
+Not part of the pure command input:
+
 - `locationId`
-- `quantity`
-- `totalCost`
-- optional `date`
-- optional `note`
+- `date`
+- `note`
+- transaction payload
+- cash
+- storage
 
 UI may accept unit cost or total cost. The command boundary receives normalized `totalCost`.
 
@@ -193,21 +212,19 @@ Validation:
 - `quantity` must be a positive integer.
 - `totalCost` must be finite and `> 0`.
 - Zero-cost quantity increases are not purchases and require a separately approved adjustment or import rule.
-- `locationId` must resolve to an allowed active location.
-- cash handling follows the normal purchase rule.
 - no partial mutation is allowed.
+- input must not be mutated.
 
 Success behavior:
 
-- update `qtyByLocation`
+- increase account-total `totalQty`
 - update WAC
-- deduct cash
-- create transaction
-- perform a single save
+- return a structured result
 
 Failure behavior:
 
-- inventory, cash, transaction, and storage effects remain unchanged.
+- inventory result remains unchanged.
+- no cash, transaction, save, storage, or UI effect occurs in the pure contract.
 
 This is a command boundary, not a canonical event payload definition.
 
@@ -226,13 +243,14 @@ Future crafting must support two explicitly separated modes during compatibility
 
 ### `formal-inventory`
 
-- Validates required Artifact / Alchemy quantity at the crafting location.
+- Validates required Artifact / Alchemy quantity against account-total `totalQty`.
 - Does not apply RRR / return rate.
-- Deducts special-material quantity.
+- Deducts fixed special-material quantity from account-total `totalQty`.
 - Uses `globalAvgCost` in crafted output cost.
 - Does not read manual cost input.
 - Does not treat Planner estimate as inventory cost basis.
 - Does not mix usage fee with material inventory cost.
+- Does not turn crafting city into an inventory bucket.
 
 Rules:
 
@@ -243,39 +261,45 @@ Rules:
 
 ## H. Implementation Gates
 
-Allowed first gates:
+Approved gate:
 
-- pure identity resolver
-- pure inventory / WAC helpers
-- tests-only contract
-- read-only projection
+**Tests-first pure Special Material inventory/WAC contract**.
 
-Forbidden first gates:
+Expected pure coverage:
 
+- identity shape validation
+- purchase WAC calculation
+- account-total quantity increment
+- fixed-quantity consumption
+- insufficient quantity rejection
+- unknown cost rejection
+- zero-quantity dormant anchor
+- input immutability
+- structured result contract
+
+Not included in the approved gate:
+
+- catalog implementation
+- storage
+- cash
+- transactions
+- save
+- backup
+- UI
+- Crafting integration
 - production schema switch
-- writer integration
-- UI enablement
-- backup schema change
-- crafting deduction integration
 - legacy fallback removal
 
-Writer/UI integration is not allowed until all of the following exist:
-
-1. identity catalog tests
-2. location validation tests
-3. WAC tests
-4. rollback tests
-5. new-schema codec support
-6. backup export/import round-trip
-7. crafting atomicity tests
-8. manual/formal mode isolation tests
+Production writer/UI integration is not allowed until pure tests and the pure result contract are reviewed separately.
 
 ## I. Remaining Unresolved Decisions
 
 Resolved decisions:
 
-- Inventory scope is location-based quantity + account-wide global WAC.
-- Intake requires `locationId`.
+- Inventory scope is account-total `totalQty` + account-wide global WAC.
+- Inventory helpers do not require `locationId`.
+- Location metadata may be added later to transaction payloads, but it must not create inventory buckets.
+- Special Material inventory transfer is not part of the selected target.
 - Identity uses stable internal catalog identity with `stableId`, `category`, and `tier`.
 - Artifact / Alchemy do not have enchant dimension.
 - Display name, runtime slug, and parsed storage key are not identity.
@@ -293,20 +317,22 @@ Remaining unresolved decisions:
 - Backup envelope / version.
 - UI layout.
 
-All remaining unresolved decisions can be deferred to tests-only pure contract work.
+All remaining unresolved decisions can be deferred to tests-first pure contract work.
 
 ## J. Next Approved Step
 
-Next approved step after data-safety stabilization: **Tests-only special-material pure contract**.
+Next approved step: **Tests-first special-material pure contract**.
 
 Scope:
 
 - identity validation
-- location-based quantity helper
+- account-total quantity helper
 - WAC purchase calculation
+- fixed-quantity consumption validation
+- structured no-mutation failure result
 - consumption validation
 - no `src` integration
 - no storage writer
 - no UI
 
-This next step may add tests or pure helper contracts only when separately approved. This document itself does not start implementation.
+This next step may add executable tests and pure helper contracts only when separately approved. This document itself does not start source, storage, writer, backup, UI, or Crafting integration.
