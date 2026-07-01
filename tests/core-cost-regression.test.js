@@ -2893,6 +2893,40 @@ test('transport with zero quantity is blocked without mutating state or writing 
   assert.equal(state.transactions.some(transaction => transaction.type === 'TRANSFER_ITEM'), false);
 });
 
+test('transport with negative quantity is blocked without mutation or persistence', { concurrency: false }, () => {
+  resetState();
+  const key = 'TransferMaterial_6.1';
+  state.assets.cash = 5000;
+  state.assets.debt = 200;
+  state.inventory[key] = {
+    qtyByCity: {
+      Thetford: 10,
+      Bridgewatch: 3
+    },
+    globalAvgCost: 12000
+  };
+  state.transactions = [{ type: '買材料', item: 'TransferMaterial' }];
+  getElement('trans-item').value = key;
+  getElement('trans-qty').value = '-4';
+  getElement('trans-from').value = LOCATION;
+  getElement('trans-to').value = 'Bridgewatch';
+  const before = transportStateSnapshot();
+  const beforeTransactions = JSON.stringify(state.transactions);
+
+  Inventory.submitTransport();
+
+  assert.equal(transportStateSnapshot(), before);
+  assert.equal(state.inventory[key].qtyByCity.Thetford, 10);
+  assert.equal(state.inventory[key].qtyByCity.Bridgewatch, 3);
+  assert.equal(state.inventory[key].globalAvgCost, 12000);
+  assert.equal(state.assets.cash, 5000);
+  assert.equal(state.assets.debt, 200);
+  assert.equal(JSON.stringify(state.transactions), beforeTransactions);
+  assert.equal(toasts.at(-1)?.type, 'error');
+  assert.equal(state.transactions.some(transaction => transaction.type === 'TRANSFER_ITEM'), false);
+  assert.equal(localStorage.getItem('albion_crafting_stocks'), null);
+});
+
 test('transport with the same source and destination is blocked without mutating state', { concurrency: false }, () => {
   resetState();
   const key = 'TransferMaterial_6.1';
