@@ -67,10 +67,14 @@ globalThis.localStorage = {
 
 let toasts = [];
 let confirmResult = true;
+let confirmMessages = [];
 function recordToast(message, type) {
   toasts.push({ message, type });
 }
-globalThis.confirm = () => confirmResult;
+globalThis.confirm = message => {
+  confirmMessages.push(String(message));
+  return confirmResult;
+};
 globalThis.window = {
   showToast: recordToast,
   updateDashboardUI: () => {},
@@ -110,6 +114,7 @@ function resetState() {
   elements.clear();
   toasts = [];
   confirmResult = true;
+  confirmMessages = [];
   globalThis.window.showToast = recordToast;
   setCurrentBuyQuality('');
   setCurrentCraftQuality('');
@@ -132,6 +137,15 @@ function formatForRegex(value) {
 function transportStateSnapshot() {
   return JSON.stringify({
     assets: state.assets,
+    inventory: state.inventory,
+    transactions: state.transactions
+  });
+}
+
+function customLocationDeletionSnapshot() {
+  return JSON.stringify({
+    customLocations: state.customLocations,
+    locationRegistry: state.locationRegistry,
     inventory: state.inventory,
     transactions: state.transactions
   });
@@ -487,6 +501,106 @@ test('empty custom location can be deleted without affecting other state', { con
   assert.equal(state.assets.cash, 12345);
   assert.equal(toasts.at(-1)?.type, 'success');
   assert.notEqual(JSON.stringify(state.inventory), inventoryBefore);
+});
+
+test('custom warehouse delete confirmation describes the non-empty deletion guard without warning of inventory loss', { concurrency: false }, () => {
+  resetState();
+  const location = '測試倉庫';
+  state.locationRegistry = {
+    'custom:test-warehouse': {
+      locationId: 'custom:test-warehouse',
+      displayName: location,
+      type: 'custom',
+      active: true
+    }
+  };
+  state.customLocations = [location];
+  state.inventory['布料_6.1'] = {
+    qtyByCity: {
+      [location]: 0
+    },
+    globalAvgCost: 6000
+  };
+  confirmResult = false;
+  const before = customLocationDeletionSnapshot();
+
+  Inventory.deleteLocation(location);
+
+  assert.equal(confirmMessages.length, 1);
+  const message = confirmMessages[0];
+  assert.match(message, new RegExp(location));
+  assert.match(message, /空的自訂倉庫.*刪除|自訂倉庫.*空.*刪除/s);
+  assert.match(message, /仍有庫存.*阻擋刪除|庫存.*阻擋刪除/s);
+  assert.doesNotMatch(message, /庫存.*(永久|一併|一起|同時).*(移除|刪除|清除)|庫存.*清空|庫存.*遺失/s);
+  assert.equal(customLocationDeletionSnapshot(), before);
+  assert.equal(toasts.length, 0);
+});
+
+test('confirmed deletion of a non-empty custom warehouse remains blocked', { concurrency: false }, () => {
+  resetState();
+  const location = '測試倉庫';
+  state.locationRegistry = {
+    'custom:test-warehouse': {
+      locationId: 'custom:test-warehouse',
+      displayName: location,
+      type: 'custom',
+      active: true
+    }
+  };
+  state.customLocations = [location];
+  state.inventory = {
+    '布料_6.1': {
+      qtyByCity: {
+        [location]: 7
+      },
+      globalAvgCost: 6000
+    }
+  };
+  confirmResult = true;
+  const before = customLocationDeletionSnapshot();
+
+  Inventory.deleteLocation(location);
+
+  assert.equal(customLocationDeletionSnapshot(), before);
+  assert.equal(state.locationRegistry['custom:test-warehouse'].active, true);
+  assert.equal(state.customLocations.includes(location), true);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity[location], 7);
+  assert.equal(toasts.at(-1)?.type, 'error');
+  assert.match(toasts.at(-1)?.message || '', /庫存|轉移|清空/);
+  assert.equal(toasts.some(toast => toast.type === 'success'), false);
+});
+
+test('confirmed deletion of an empty custom warehouse preserves current successful behavior', { concurrency: false }, () => {
+  resetState();
+  const location = '測試倉庫';
+  state.locationRegistry = {
+    'custom:test-warehouse': {
+      locationId: 'custom:test-warehouse',
+      displayName: location,
+      type: 'custom',
+      active: true
+    }
+  };
+  state.customLocations = [location];
+  state.inventory = {
+    '布料_6.1': {
+      qtyByCity: {
+        Thetford: 3,
+        [location]: 0
+      },
+      globalAvgCost: 6000
+    }
+  };
+  confirmResult = true;
+
+  Inventory.deleteLocation(location);
+
+  assert.equal(confirmMessages.length, 1);
+  assert.equal(state.locationRegistry['custom:test-warehouse'].active, false);
+  assert.equal(state.customLocations.includes(location), false);
+  assert.equal(Object.hasOwn(state.inventory['布料_6.1'].qtyByCity, location), false);
+  assert.equal(state.inventory['布料_6.1'].qtyByCity.Thetford, 3);
+  assert.equal(toasts.at(-1)?.type, 'success');
 });
 
 test('purchase without explicit quality is blocked without mutation', { concurrency: false }, () => {
