@@ -2,21 +2,23 @@
 **設計守則：**
 本文件定義了「實體庫存地點」、「地區加成屬性」與「動態製作變數」的三層分離架構。**絕對禁止**在 `Inventory` 或 `Location Registry` 中直接儲存 RRR（返還率）數值。所有 RRR 必須在 `CRAFT_COMPLETE` 事件發生時，透過 Local Production Bonus (LPB) 公式動態運算。
 
-> ⚠️ Migration boundary：Location ID、`qtyByLocation` 與 Location Registry 是 future target / migration target。
-> Current implementation 仍使用 legacy `qtyByCity` 與 custom location name key；`customLocations` 尚未全面遷移為 registry object。
-> 不得將本文件解讀為 `qtyByLocation` 已取代 `qtyByCity`。遷移順序請見 `MIGRATION_PLAN.md`。
+> ⚠️ Current / migration boundary：production v2 persisted state now includes `locationRegistry` and canonical `qtyByLocation` storage, but runtime components still operate through legacy-compatible `qtyByCity` and display-name location keys.
+> This means the persisted v2 contract exists, while full runtime/component `locationId` adoption, historical transaction canonicalization, shared resolver completion, inactive-location management UI, custom crafting profiles, and legacy fallback removal remain future work.
+> 不得將本文件解讀為所有 writer、component、transaction 或 legacy mode 已完成 Location ID migration。遷移順序請見 `MIGRATION_PLAN.md`。
 
 ## Current Implementation Note
 
-目前自訂倉庫仍以顯示名稱字串作為 legacy key。
+目前 runtime component 仍以顯示名稱字串作為 legacy-compatible key。
 
-目前庫存地點仍以 literal city/custom location string keys 搭配 `qtyByCity` 儲存。Current implementation 不使用 `qtyByLocation` 作為 storage，也尚未建立 Location Registry object。
+Current production v2 persisted state includes `locationRegistry` and canonical `qtyByLocation` inventory. The runtime bridge projects canonical `qtyByLocation` into runtime `qtyByCity`, and the v2 save path projects runtime state back to canonical persisted state.
+
+Current components still display and edit location through display names and runtime `qtyByCity` compatibility. This is why `qtyByLocation` persisted storage does not mean all UI, writer, transaction, backup, or legacy fallback paths have completed canonical Location ID migration.
 
 目前已存在 read-only Location Adapter normalization checkpoint：adapter 可讀取 legacy direct map、legacy `qtyByCity` wrapper 與 future `qtyByLocation` sample wrapper，並輸出 `sourceFormat`、`quantities`、`unresolvedLocations`。此能力只代表 reader/normalizer compatibility，不代表 writer、storage、backup schema 或 migration 已開始。
 
-Future target 仍是 Location Registry + stable `locationId`。在 Location Registry business rules、system/custom mapping、conflict/rename identity rules、unresolved mapping policy、writer API、backup migration、rollback 與 fallback removal gate 完成前，不得把 future target 寫成 current implementation。
+Future full-runtime target remains stable `locationId` adoption across components, writers, historical transaction interpretation, backup upgrade, resolver completion, inactive-location UI, custom crafting profile, rollback, and fallback removal gates.
 
-Selected Location strategy is single-user clean cutover, not full automatic legacy storage migration. Location Registry、`qtyByLocation` storage、new writers、backup implementation 與 migration runner 仍未實作；舊 backup 只作 external archive，初始 inventory / cash / reliable cost basis 由使用者人工輸入。
+Selected Location strategy is single-user clean cutover, not full automatic legacy storage migration. The v2 persisted root and production startup/read-write path are implemented; automatic legacy backup migration, writer/component full `locationId` adoption, historical transaction migration, custom crafting profile, and fallback removal remain incomplete.
 
 封版前已加入資料安全限制：非空自訂倉庫不得刪除，使用者必須先轉移或清空該倉庫庫存。
 
@@ -53,12 +55,12 @@ Selected Location strategy is single-user clean cutover, not full automatic lega
 - **合法範例：** `thetford`, `fort_sterling`, `bridgewatch`, `martlock`, `lymhurst`, `hideout_001`, `laborer_island`。
 - **⛔ 絕對禁止：** 使用顯示名稱（如 `"紫城"`, `"公會T8地堡"`）或夾帶加成屬性作為 Key。
 
-## 🟡 第二層：地點實體註冊表 (Location Registry) — Future Target
+## 🟡 第二層：地點實體註冊表 (Location Registry) — Current persisted v2 contract / future full-runtime target
 記錄地點的「靜態物理屬性」。皇家城市固定不可變；future custom locations 記錄於 `locationRegistry` object。Current legacy custom locations 仍是 `state.customLocations` string array。
 
-> Boundary：本節是 future target / migration boundary。Current implementation 仍使用 literal city/custom location string keys、`qtyByCity` 與 `customLocations` string array。Location Registry 尚未實作，writer/storage migration 尚未開始。
+> Boundary：production v2 persisted state includes `locationRegistry`, but runtime components still use literal city/custom location display names through `qtyByCity` compatibility. Full writer/component Location ID adoption, historical transaction canonicalization, shared resolver completion, inactive-location management UI, custom crafting profile, and legacy fallback removal remain future work.
 
-### Clean-Cutover Location Registry Shape — Future Target
+### Clean-Cutover Location Registry Shape — Current persisted v2 contract / future full-runtime target
 
 Single-user clean cutover 的 new schema 使用 `locationRegistry` object，並以 `locationId` 作為 object key。不得使用 array 作為 registry storage shape。
 
@@ -146,7 +148,7 @@ Fixed system registry entries：
 | `brecilien` | `Brecilien` | `system` |
 | `laborer_island` | `Laborer Island` | `system-special` |
 
-### Clean-Cutover Inventory Shape — Future Target
+### Clean-Cutover Inventory Shape — Current persisted v2 contract / future full-runtime target
 
 Location clean cutover 只切換 Location dimension，不同時做 Stable Item ID migration。
 

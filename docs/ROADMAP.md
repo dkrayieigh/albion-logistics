@@ -6,12 +6,14 @@
 
 ## Active Roadmap
 
-### Phase 1：Docs consolidation closeout
+### Active Checkpoint：Docs consolidation closeout
 
 目標：
 
-- 完成 docs entrypoint 與 current status 導覽。
-- 清理 planning / historical 文件的誤導性 current wording。
+- 確保 active planning 文件不保留過時 current claims。
+- 區分 historical plan、completed release baseline、current execution plan 與 future target。
+- 統一 current、legacy-compatible、test-covered、future、migration boundary 的語義。
+- 不啟動 Phase-1 source refactor 或其他 production implementation。
 - 保留 confirmed business rules、regression expectations、confirmed bug reports 與 user-confirmed specification 的優先權。
 
 不包含：
@@ -19,8 +21,60 @@
 - production code 修改。
 - migration implementation。
 - release/version metadata 修改。
+- service / adapter implementation。
+- storage schema、backup format 或 transaction payload 修改。
 
-### Phase 2：Backup/reset contract
+### Completed Baseline：v0.4.4 backup/reset/release stabilization
+
+以下 phase 已屬 completed baseline，不再是 active execution phase：
+
+- Backup/reset contract.
+- Tests-first backup regression.
+- Pure backup envelope / classification / export service.
+- Production v2 export integration.
+- Validated atomic v2 import.
+- Scoped Factory Reset.
+- Manual smoke / rollback / release procedure.
+- v0.4.4 release publication.
+
+Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migration、schema switch、service extraction 或 release metadata 修改。
+
+## Approved Next Order
+
+Docs consolidation closeout 完成後，下一個已排序但尚未啟動的 checkpoint 順序：
+
+1. Phase-1 refactor closeout.
+2. Incremental quality tooling.
+3. Custom warehouse boundary specification / completion.
+4. Tests-first special-material pure contract.
+
+此清單是 approved sequence，不代表任何一項已是 active workstream。
+
+## Phase-1 Refactor Boundary
+
+目標是先抽出可測、可回滾的小型 service boundary，不改使用者可見行為、不改 storage schema、不改 backup format、不改 transaction payload。
+
+候選範圍：
+
+- Inventory purchase / WAC service boundary.
+- Inventory transfer service boundary.
+- Crafting completion service boundary.
+- Shared location validation.
+- Selectors / query boundary.
+- Structured service result.
+- Component 保留 DOM / input / presentation responsibility.
+
+不包含：
+
+- Stable Item ID migration.
+- Canonical transaction migration.
+- `qtyByLocation` writer/storage migration.
+- Legacy fallback removal.
+- Special Material production inventory.
+- Vite / CSP / SQLite.
+- 一次性重寫 `state.js`。
+
+## Historical v0.4.4 Plan：Backup/reset contract
 
 目標：
 
@@ -35,7 +89,7 @@
 - reset implementation。
 - storage key/schema 修改。
 
-### Phase 3：Tests-first local regression
+### Historical Phase：Tests-first local regression
 
 目標：
 
@@ -54,7 +108,7 @@
 - rollback implementation。
 - scoped Factory Reset。
 
-### Phase 4：Minimum pure backup envelope / classification / export service
+### Historical Phase：Minimum pure backup envelope / classification / export service
 
 目標：
 
@@ -74,7 +128,7 @@
 - rollback implementation。
 - scoped Factory Reset。
 
-### Phase 5：Export integration
+### Historical Phase：Export integration
 
 目標：
 
@@ -82,7 +136,7 @@
 - 保留 legacy backup policy。
 - 建立 manual smoke / rollback procedure。
 
-### Phase 6：Validated atomic import
+### Historical Phase：Validated atomic import
 
 目標：
 
@@ -90,7 +144,7 @@
 - invalid input 必須 zero mutation。
 - write failure 必須 rollback。
 
-### Phase 7：Scoped Factory Reset
+### Historical Phase：Scoped Factory Reset
 
 目標：
 
@@ -98,7 +152,7 @@
 - Preserve unrelated `localStorage` keys。
 - 明確區分 active v2 與 explicit legacy mode。
 
-### Phase 8：Manual smoke / rollback / release procedure
+### Historical Phase：Manual smoke / rollback / release procedure
 
 目標：
 
@@ -106,14 +160,14 @@
 - 完成 rollback procedure。
 - 確認 release checklist。
 
-### Phase 9：Selected bounded service implementation
+### Historical Phase：Selected bounded service implementation
 
 目標：
 
 - 只在 docs、tests、pure service 與 smoke gates 完成後，才選擇下一個 bounded service implementation。
 - 不得一次接入 export/import/reset 全 production path。
 
-## Later Backlog
+## Later / Paused
 
 以下項目目前不是 active workstream：
 

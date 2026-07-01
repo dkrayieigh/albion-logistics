@@ -4,22 +4,21 @@
 
 本文件定義下一階段 migration boundary。它不是執行 migration 的指令，也不要求立即修改 production code。
 
-目前 v0.4.2 應視為 legacy-compatible stable release：
+Current baseline: v0.4.4 is a released legacy-compatible stabilization baseline.
 
-- current implementation 仍支援 legacy 中文 item key。
-- current implementation 仍支援 `qtyByCity`。
-- current implementation 仍使用 legacy transaction 欄位。
-- regression tests 保護目前穩定版資料安全與核心成本規則。
+- Current implementation still supports legacy Chinese item keys.
+- Production v2 persisted state exists and includes `locationRegistry` / canonical `qtyByLocation` storage.
+- Runtime components still operate through legacy-compatible `qtyByCity` and display-name location keys.
+- Current implementation still supports legacy transaction fields.
+- Regression tests protect current purchase, crafting, transport, cost, ledger, startup, backup/import, reset, and custom-location behavior.
 
 ## Non-Goals
 
-本階段不做：
-
-- 不做 `localStorage` schema migration。
+- 不做 automatic legacy `localStorage` schema migration。
 - 不移除 legacy fallback。
 - 不改成本規則。
 - 不改 WAC。
-- 不全域替換 `qtyByCity`。
+- 不全域替換 runtime `qtyByCity` compatibility。
 - 不全域替換 legacy 中文 item key。
 - 不全域改寫 transaction payload。
 - 不把 future spec 寫成 current implementation。
@@ -38,7 +37,36 @@
 
 Adapter 前置測試矩陣見 `ADAPTER_TEST_PLAN.md`。任何 migration track 開始前，必須先確認對應 compatibility tests 已完成，或已明確標註為 Adapter-only。這不代表 migration 已開始。
 
-Adapter API draft: `ADAPTER_API.md`。該文件是 future API draft，不代表 migration 已開始，也不代表 adapter 已是 current implementation。
+Adapter API reference: `ADAPTER_API.md`. Some isolated helpers and production v2 startup/read-write paths are now implemented, but this does not mean Stable Item ID migration, canonical transaction migration, full component `locationId` adoption, historical data migration, or legacy fallback removal has started.
+
+## Implemented Clean-Cutover Foundation
+
+Current implemented foundation:
+
+- `createCleanInitialState()`.
+- v2 storage codec.
+- injected v2 repository.
+- browser storage backend.
+- browser new-schema repository composition.
+- startup loader / decision boundary.
+- runtime bridge.
+- runtime controller.
+- production startup/read-write cutover.
+- canonical v2 backup export.
+- validated atomic v2 import.
+- scoped Factory Reset.
+- stable custom-location lifecycle.
+
+Remaining compatibility boundary:
+
+- Stable Item ID migration is not started.
+- Canonical transaction migration is not started.
+- Full runtime/component `locationId` adoption is not complete.
+- Legacy fallback removal is not started.
+- Historical data automatic migration is not implemented.
+- Custom crafting profiles are not defined.
+- Formal Special Material persistence is not implemented.
+- Future schema / backup upgrade design remains separate.
 
 ## Single-User Clean Cutover Decision
 
@@ -84,13 +112,13 @@ Adapter API draft: `ADAPTER_API.md`。該文件是 future API draft，不代表 
 
 ### Clean Initialization Contract
 
-Future clean cutover uses a pure initializer contract:
+Clean cutover uses a pure initializer contract:
 
 ```js
 createCleanInitialState(input, options?)
 ```
 
-The initializer contract is future target only. It is not implemented, does not write storage, does not read or mutate legacy state, and does not start writer/storage migration.
+The initializer contract is implemented as a pure helper and is part of the completed v2 clean-cutover foundation. It does not read or mutate legacy state, does not auto-migrate legacy backups, and does not start Stable Item ID, canonical transaction, or full component `locationId` migration.
 
 Input shape:
 

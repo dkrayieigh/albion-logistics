@@ -46,8 +46,8 @@ npm test
 - **Current implementation:** production startup/read-write cutover exists for the new-schema runtime path. The app can start from `albion-logistics-v2-state`, project canonical data to runtime `qtyByCity`, hydrate runtime defaults, and route `saveState()` through the new-schema save path when the runtime controller is active.
 - **Target behavior:** single-user clean cutover with new Location schema, `albion-logistics-v2-state`, manually initialized inventory/cash/cost basis, empty initial transactions, and external legacy backup archive.
 - **Schema contract status:** Location Registry shape, new root state, `qtyByLocation` inventory shape, clean initialization input/output, storage codec validation/serialization, injected repository load/save semantics, explicit browser Storage backend binding semantics, browser new-schema repository composition semantics, startup loader/decision semantics, runtime bridge semantics, runtime controller semantics, state API integration, first-launch confirmation, error codes, and backup boundary are defined. Production startup/read-write cutover is implemented and covered by regression tests.
-- **Remaining gaps:** backup import/export remains legacy-only, Factory Reset still uses broad `localStorage.clear()`, custom location crafting profile is not defined, release smoke checklist is not complete, and production cutover docs/release process is not finalized.
-Current status override for clean initializer implementation:
+- **Remaining gaps:** legacy backup is not auto-migrated into v2, legacy-backup user-facing feedback may be unclear, custom location crafting profile is not defined, future schema / backup compatibility upgrades remain design work, and MSI installation smoke is not documented.
+Completed clean-cutover safety layers:
 
 - **Current implemented:** schema contract exists, pure `createCleanInitialState()` exists, pure `encodeNewSchemaState()` / `decodeNewSchemaState()` exists, pure `createNewSchemaStorageRepository(backend)` exists, pure `createBrowserStorageBackend(storage)` exists, pure `createBrowserNewSchemaRepository(storage)` exists, pure `loadBrowserNewSchemaState(storage)` exists, pure `resolveBrowserNewSchemaStartup(storage)` exists, pure `projectNewSchemaToRuntime(newSchemaState)` exists, pure `projectRuntimeToNewSchema(runtimeState)` exists, `createBrowserNewSchemaRuntimeController(storage)` exists, `enableNewSchemaRuntime(storage)` exists, `initializeNewSchemaRuntime(storage, input, options)` exists, and these groups have regression coverage.
 - **Browser Storage backend covered behavior:** accepts only an explicit Storage-like object, preserves storage method `this`, forwards key/value unchanged, returns `INVALID_BROWSER_STORAGE` for factory validation failure, leaves operation throws to repository classification, and does not scan/delete/inspect unrelated keys.
@@ -57,8 +57,8 @@ Current status override for clean initializer implementation:
 - **Runtime controller / production startup covered behavior:** ready reads the new key, projects through the runtime bridge, hydrates runtime defaults, and routes `saveState()` to the new key. Confirmed initialize creates clean canonical state, saves the new key, and activates runtime. Cancelled initialize explicitly uses legacy mode. Blocked invalid/error startup does not silently fall back and does not overwrite with empty data.
 - **Custom location current status:** add / rename / remove now uses stable custom location IDs with active/inactive registry behavior. Runtime display includes active custom entries, inactive entries retain their displayName as evidence, re-adding an inactive name creates a new ID, and save failure rollback is covered.
 - **Covered behavior:** initializer output uses the new root shape, fixed registry, `qtyByLocation`, future canonical `滿日誌` laborer defaults, ordered/unique errors, atomic failure, and input/localStorage immutability. The codec validates schemaVersion 1, assets, fixed/custom Location Registry, `qtyByLocation`, JSON-safe transactions/logs, canonical laborer inventory, legacy-field rejection, malformed JSON, and purity/atomicity. The repository uses injected synchronous backend access with fixed key `albion-logistics-v2-state`, load statuses `loaded` / `missing` / `invalid` / `error`, save statuses `saved` / `invalid` / `error`, codec error passthrough, invalid-state no-write, backend getter/method/thenable safety, and legacy key isolation.
-- **Production boundary:** production startup/read-write integration exists, but it is not migration. It does not convert legacy backups, does not migrate historical transactions, does not update backup import/export, does not define custom location crafting profiles, and does not remove legacy fallback behavior.
-- **Remaining gaps:** backup import/export, Factory Reset scope, custom location crafting profile, release smoke checklist, production cutover docs/release process.
+- **Production boundary:** production startup/read-write integration, canonical v2 backup export, validated atomic v2 import, and scoped Factory Reset exist, but they are not migration. They do not convert legacy backups, do not migrate historical transactions, do not define custom location crafting profiles, and do not remove legacy fallback behavior.
+- **Remaining gaps:** legacy backup auto-migration is not implemented, legacy-backup user-facing feedback may be unclear, custom location crafting profile is not defined, future schema / backup compatibility upgrade design remains open, and MSI installation smoke is not documented.
 
 - **Risk：** High。涉及 storage schema、inventory、cash、backup 與 rollback 行為。
 - **Dependencies：** new schema docs/tests, writer tests, backup export/import tests, manual initialization contract, old backup archive, and explicit confirmation before ignoring legacy local data.
@@ -408,7 +408,7 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 - Artifact and alchemy material identity is not yet modeled as Tier-only inventory.
 - Special material purchase unit-price / total-price entry is not yet a separate schema path.
 - Special materials currently remain part of crafting workflow behavior, not a dedicated persisted inventory module.
-- Formal special-material inventory scope is not decided. `SPECIAL_MATERIAL_INVENTORY.md` records location-based and account-wide target options without selecting a schema.
+- Formal special-material production implementation is not complete. The approved target is location-based quantity with account-wide `globalAvgCost`; `SPECIAL_MATERIAL_INVENTORY.md` records the target contract and remaining implementation boundary.
 - Current recipe / Planner / Crafting support is calculation/display-oriented and does not create special-material inventory, WAC storage, intake transactions, or backup/export fields.
 
 ### Ledger English Presentation Mapping（Current / Low–Medium implementation risk）
@@ -447,16 +447,32 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 - Ledger English category / item presentation, raw-value search, alias display deduplication, and raw-payload preservation are covered as presentation behavior.
 - Custom location stable ID add / rename / remove, active/inactive registry behavior, restart round-trip, and save failure rollback are covered.
 
+### Completed v0.4.4 Baseline
+
+- Production v2 startup/read-write.
+- Canonical v2 backup export.
+- Validated atomic v2 import.
+- Invalid input zero mutation.
+- Write / verification failure rollback.
+- Scoped Factory Reset using owned Albion Logistics keys.
+- v0.4.4 release publication.
+
 ### Remaining Implementation Gaps
 
-- New-schema backup/export lifecycle.
-- Factory Reset / reset lifecycle.
+- Legacy backup auto-migration.
+- Legacy-backup user-facing feedback.
+- Future schema / backup compatibility upgrade design.
+- MSI installation smoke evidence.
 - Account-total product inventory.
 - Formal special-material inventory.
 - Cost adjustment semantic correction.
 - Custom location crafting profile, including per-location hideout map bonus / focus RRR metadata.
 - Canonical transaction payload.
 - Migration and legacy fallback removal.
+
+### Historical v0.4.4 Planning Checkpoint
+
+This section records historical release-note planning text. It is superseded by `RELEASE_NOTES_0.4.4.md` and must not be read as current release status.
 
 ### v0.4.4 Release Notes Draft Scope
 
@@ -475,8 +491,8 @@ Improved:
 - Crafting Location wording.
 - Inactive custom location handling.
 
-Known limitations:
-- No new-schema backup/reset lifecycle.
+Known limitations at the time of the historical draft:
+- No new-schema backup/reset lifecycle. This is superseded by the completed v0.4.4 baseline above.
 - No persisted quotation history.
 - No per-location hideout profile.
 - No account-total product inventory.
@@ -499,7 +515,7 @@ Current gaps:
 
 - No formal `artifactInventory` root。
 - No formal `alchemyInventory` root。
-- No special-material `qtyByCity` / `qtyByLocation` storage。
+- No production special-material `qtyByLocation` storage。
 - No special-material `globalAvgCost` storage。
 - No special-material purchase / intake writer。
 - No formal special-material deduction from inventory during crafting。
@@ -510,9 +526,9 @@ Risk:
 
 - High。Formal special-material inventory affects identity, inventory quantity, WAC, cash, crafting cost, transaction semantics, backup/export and rollback。
 
-Spec Lead decisions still required:
+Remaining implementation decisions / gates:
 
-- Location-based vs account-wide target inventory。
+- Production writer / UI / storage integration order。
 - Stable special-material ID format。
 - Whether purchase location is inventory location or transaction metadata。
 - Compatibility period between manual-cost crafting and formal inventory。
