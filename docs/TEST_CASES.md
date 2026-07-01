@@ -33,6 +33,13 @@ npm test
 - 新增 covered scope: Location migration validator read-only research / verification utility.
 - Selected Location strategy is single-user clean cutover. New-schema persistence, backup, initializer, first-launch, and production read/write are complete. Remaining tests/work should focus on full component stable `locationId` adoption, shared resolver and UI coverage, historical transaction strategy, automatic legacy backup migration, inactive-location UI, custom crafting profiles, legacy fallback removal gates, and future schema / backup compatibility upgrades.
 - Full legacy snapshot equality is no longer the selected clean-cutover release gate.
+- 新增 covered scope: Custom warehouse deletion UX contract.
+- Custom warehouse delete confirmation now mentions the current non-empty deletion guard and directs users to transfer or clear inventory before deletion.
+- Cancellation leaves custom locations, registry, inventory, transactions, and toast state unchanged.
+- Confirmed non-empty deletion remains blocked, keeps registry entry active, keeps runtime custom location, preserves inventory, and shows an error toast.
+- Confirmed empty deletion deactivates the registry entry, removes runtime custom location and `qtyByCity` bucket, preserves unrelated inventory, and shows a success toast.
+- Scope: Custom warehouse deletion UX contract. Current status: current master / legacy-compatible UI safety. Test protection status: Tested. Test source: `tests/core-cost-regression.test.js`.
+- This does not implement inactive-location UI, full component stable `locationId` adoption, `qtyByLocation` writer migration, automatic legacy migration, or legacy fallback removal.
 - 新增 covered scope: crafting material planning aggregates expected consumption and safe-start stock by material key + city.
 - 新增 covered scope: crafting accounting uses user-entered actual material consumption; blank/invalid actual consumption blocks before mutation.
 - 新增 covered scope: purchase and crafting require explicit quality selection and no longer default to `4.0`.
@@ -592,6 +599,11 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 **Automation：Covered**
 - `tests/core-cost-regression.test.js`
 - 覆蓋非空自訂倉庫不得刪除，以及空自訂倉庫可刪除且不影響其他狀態。
+- 覆蓋 delete confirmation wording 與 current non-empty deletion guard 一致。
+- 覆蓋 cancellation no-mutation：custom locations、registry、inventory、transactions 不變，且不顯示 success/error toast。
+- 覆蓋 confirmed non-empty deletion blocked：registry entry 維持 active、runtime custom location 保留、inventory 不變，並顯示 error toast。
+- 覆蓋 confirmed empty deletion success：registry entry deactivated、runtime custom location 與 `qtyByCity` bucket 移除、unrelated inventory 保留，並顯示 success toast。
+- Boundary：這不代表 inactive-location UI、full component stable `locationId` adoption、`qtyByLocation` writer migration、automatic legacy migration 或 legacy fallback removal 已完成。
 
 **📥 [前置狀態]**
 * 建立一個自訂倉庫。

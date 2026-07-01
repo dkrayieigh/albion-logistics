@@ -54,13 +54,15 @@ Current planning entry:
 - Completed checkpoint: Incremental quality tooling planning and boundary.
 - Completed checkpoint: Inventory Transfer exact-file ESLint coverage.
 - Completed checkpoint: Custom warehouse boundary specification and inventory.
-- Current active checkpoint: Custom warehouse deletion UX contract regression and fix.
+- Completed checkpoint: Custom warehouse deletion UX contract regression and fix.
+- Current active checkpoint: Special material inventory contract reconciliation.
 - [Implementation Gap](./IMPLEMENTATION_GAP.md) remains the current coupling / gap inventory source.
 - [Architecture](./ARCHITECTURE.md) records target boundaries and current-master service boundaries where explicitly labeled.
 - Inventory Transfer bounded service extraction is current master post-release behavior, distinct from the published v0.4.4 artifact.
 - Inventory Transfer exact-file ESLint coverage is current master post-release tooling behavior, distinct from the published v0.4.4 artifact.
 - Exact-file ESLint coverage does not mean repo-wide lint or `checkJs` is complete.
-- Custom warehouse deletion UX contract work is a bounded UI wording checkpoint; it does not mean Location migration, inactive-location UI, custom crafting profile, schema migration, version metadata, or release artifacts have changed.
+- Custom warehouse deletion UX contract work is completed current-master behavior; it does not mean Location migration, inactive-location UI, custom crafting profile, schema migration, version metadata, or release artifacts have changed.
+- Special Material active work is docs-only contract reconciliation. It does not start tests, helper creation, schema/storage work, writer/backup/UI integration, crafting deduction, transfer implementation, or release work.
 
 ## Reading Order For Production Work
 
@@ -79,5 +81,5 @@ Current planning entry:
 - Keep legacy-compatible behavior, presentation-only mapping, migration boundaries, and future targets separate.
 - A docs-only release checkpoint must not imply source, tests, package metadata, Tauri config, tags, or artifacts changed.
 - Docs consolidation closeout is complete.
-- Phase-1 refactor planning, Inventory Transfer bounded service extraction, Incremental quality tooling planning, Inventory Transfer exact-file ESLint coverage, and Custom warehouse boundary specification and inventory are completed checkpoints.
-- Custom warehouse deletion UX contract regression and fix is the current active checkpoint; it does not start broad source changes, schema changes, migration, inactive-location UI, custom crafting profile, 0.4.5 implementation, or release work.
+- Phase-1 refactor planning, Inventory Transfer bounded service extraction, Incremental quality tooling planning, Inventory Transfer exact-file ESLint coverage, Custom warehouse boundary specification and inventory, and Custom warehouse deletion UX contract regression and fix are completed checkpoints.
+- Special material inventory contract reconciliation is the current active checkpoint; it does not start tests, source changes, helper creation, schema/storage changes, migration, backup/UI integration, crafting deduction, transfer implementation, 0.4.5 implementation, or release work.

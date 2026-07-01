@@ -97,16 +97,15 @@ Current implemented:
 - Empty custom warehouse deletion deactivates the registry entry and preserves inactive registry evidence.
 - Save failure rollback is covered.
 
-Current UI mismatch:
+Completed bounded fix:
 
-- Delete confirmation wording still warns that inventory may be permanently lost.
-- Current safety rule blocks non-empty deletion before mutation, so the confirmation copy overstates the current deletion risk.
-
-Selected bounded candidate:
-
-- `Custom warehouse deletion UX contract regression and fix`.
-- Low risk.
-- Tests-first scope should be limited to confirmation wording and observable component behavior.
+- Delete confirmation wording now matches the current safety rule and tells users to transfer or clear inventory before deletion.
+- Cancellation leaves custom locations, registry, inventory, transactions, and toast state unchanged.
+- Confirmed non-empty deletion remains blocked, preserves registry/runtime/inventory state, and shows an error toast.
+- Confirmed empty deletion preserves the successful behavior: inactive registry evidence is kept, runtime custom location / `qtyByCity` bucket are removed, unrelated inventory is preserved, and a success toast is shown.
+- Regression coverage exists for confirmation wording, cancellation no-mutation, confirmed non-empty blocked, and confirmed empty success.
+- Production source scope changed only `src/components/inventory.js` confirmation copy.
+- `src/core/state.js`, registry lifecycle, save/rollback behavior, storage schema, runtime bridge, backup, transaction payload, and legacy fallback remain unchanged.
 
 Deferred gaps:
 
@@ -440,14 +439,21 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 - Current implementation：runtime bridge / codec do not yet model account-total products。
 - Future target：crafted products become account-total inventory with `totalQty` only; crafting city and sale city remain event metadata, not inventory location.
 
-### Special Material Schema（High risk）
+### Special Material Schema（High risk / Special material inventory contract reconciliation required）
 
 - Special material storage is not implemented as separate artifact / alchemy account-total lists.
 - Artifact and alchemy material identity is not yet modeled as Tier-only inventory.
 - Special material purchase unit-price / total-price entry is not yet a separate schema path.
 - Special materials currently remain part of crafting workflow behavior, not a dedicated persisted inventory module.
-- Formal special-material production implementation is not complete. The approved target is location-based quantity with account-wide `globalAvgCost`; `SPECIAL_MATERIAL_INVENTORY.md` records the target contract and remaining implementation boundary.
+- Formal special-material production implementation is not complete. Target docs currently conflict: `BUSINESS_RULES.md` records an account-total / no-transfer candidate, while `SPECIAL_MATERIAL_INVENTORY.md` preserves a location-based `qtyByLocation` / transfer-supported candidate. Neither shape may be treated as final implementation authority until Spec Lead reconciliation is complete.
 - Current recipe / Planner / Crafting support is calculation/display-oriented and does not create special-material inventory, WAC storage, intake transactions, or backup/export fields.
+
+Contract conflict gate:
+
+- Current implementation has Artifact / Alchemy recipe metadata, Planner cost estimates, and Crafting queue cost display only.
+- Current implementation has no formal special-material inventory root, no formal quantity storage, no special-material purchase writer, no special-material transfer, and no special-material backup section.
+- Blocked downstream work includes identity tests that assume a location model, inventory shape tests, intake command tests, transfer tests, crafting-location deduction tests, codec/backup shape, and writer integration.
+- Implementing before reconciliation is High risk because the decision affects storage shape, WAC denominator, location identity, crafting deduction, backup schema, and transaction contract.
 
 ### Ledger English Presentation Mapping（Current / Low–Medium implementation risk）
 
@@ -539,7 +545,7 @@ Known limitations at the time of the historical draft:
 
 ## Special Material Inventory Gap
 
-主規格：`SPECIAL_MATERIAL_INVENTORY.md`。
+主規格狀態：待 Spec Lead reconciliation。`BUSINESS_RULES.md` 與 `SPECIAL_MATERIAL_INVENTORY.md` 目前記錄不同 target candidates，不得任一方單獨作為 tests/source implementation authority。
 
 Current behavior:
 
@@ -553,12 +559,18 @@ Current gaps:
 
 - No formal `artifactInventory` root。
 - No formal `alchemyInventory` root。
-- No production special-material `qtyByLocation` storage。
+- No formal special-material quantity storage。
 - No special-material `globalAvgCost` storage。
 - No special-material purchase / intake writer。
 - No formal special-material deduction from inventory during crafting。
 - No backup/export schema for special-material inventory。
 - No canonical transaction payload for special-material purchase or consumption。
+
+Target conflict:
+
+- `BUSINESS_RULES.md` candidate：account-total `totalQty`、no transfer。
+- `SPECIAL_MATERIAL_INVENTORY.md` candidate：location-based `qtyByLocation`、transfer supported。
+- Unresolved decisions：quantity shape, whether `locationId` is required, whether transfer exists, custom location rename effects, crafting consumption source, intake transaction location metadata, backup/schema shape, and final target authority。
 
 Risk:
 
@@ -569,5 +581,7 @@ Remaining implementation decisions / gates:
 - Production writer / UI / storage integration order。
 - Stable special-material ID format。
 - Whether purchase location is inventory location or transaction metadata。
+- Whether account-total or location-based quantity is the final model。
+- Whether Special Material transfer is supported or explicitly rejected。
 - Compatibility period between manual-cost crafting and formal inventory。
 - Backup/export and rollback strategy。

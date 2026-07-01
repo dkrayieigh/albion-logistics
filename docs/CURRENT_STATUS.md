@@ -9,7 +9,7 @@ Last verified against commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`
 
 ## Current Master Review
 
-- Current master implementation reviewed against commit: `ee73406b9b5e58d221081f220abd8a2bcaa0bc4e`.
+- Current master implementation reviewed against commit: `9cf3e7be2039619b51584baa34421f744e9b938f`.
 - Release baseline remains the tagged 0.4.4 release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`.
 - Post-release master includes the Inventory Transfer bounded service extraction. This is current master behavior, not a v0.4.4 release artifact.
 - Post-release master includes Inventory Transfer exact-file ESLint coverage. This is a tooling gate update, not a runtime feature.
@@ -86,7 +86,11 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - Custom warehouse current boundary: persisted v2 keeps `locationRegistry` and canonical `qtyByLocation`, while runtime components still use `customLocations` and display-name `qtyByCity` compatibility.
 - Custom warehouse add / rename / remove uses stable custom IDs where `locationRegistry` is present.
 - Custom warehouse removal blocks non-empty locations, deactivates empty registry entries, preserves inactive registry evidence, and has save rollback coverage.
-- Current delete confirmation wording still implies inventory loss even though non-empty deletion is blocked; this is a low-risk UI contract mismatch, not a schema or state lifecycle issue.
+- Custom warehouse delete confirmation now matches the current non-empty deletion guard and tells users to transfer or clear inventory before deletion.
+- Custom warehouse deletion cancellation leaves custom locations, registry, inventory, transactions, and toast state unchanged.
+- Confirmed non-empty custom warehouse deletion remains blocked without mutation and shows an error toast.
+- Confirmed empty custom warehouse deletion preserves the successful behavior: the registry entry is deactivated, runtime custom location / `qtyByCity` bucket are removed, unrelated inventory is preserved, and a success toast is shown.
+- This checkpoint changed only component confirmation copy and tests; it did not change schema, state lifecycle, registry lifecycle, storage, backup, runtime bridge, transaction payload, or legacy fallback.
 
 ## Current Tooling Boundary
 
@@ -157,9 +161,10 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 3. Incremental quality tooling planning and boundary — completed.
 4. Inventory Transfer exact-file ESLint coverage — completed.
 5. Custom warehouse boundary specification and inventory — completed.
-6. Custom warehouse deletion UX contract regression and fix — active.
+6. Custom warehouse deletion UX contract regression and fix — completed.
+7. Special material inventory contract reconciliation — active.
 
-Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory is complete. The active checkpoint is a tests-first UI contract regression and wording fix for custom warehouse deletion confirmation; it does not authorize broader custom warehouse implementation, state API changes, schema changes, migration, registry lifecycle changes, backup/storage work, version metadata updates, release work, or a 0.4.5 implementation branch.
+Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The custom warehouse boundary inventory and deletion UX contract fix are complete. The active checkpoint is Special Material inventory contract reconciliation: it documents the conflict between account-total / no-transfer and location-based / transfer-supported target candidates. It does not authorize Special Material tests, source helpers, schema/storage roots, writer/backup/UI integration, version metadata updates, release work, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 

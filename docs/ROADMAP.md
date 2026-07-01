@@ -29,7 +29,7 @@
 - Current、legacy-compatible、future、migration boundary 已重新對齊。
 - Backup/import/reset/release 相關舊 planning 內容已改列 completed / historical。
 - Location persisted/runtime boundary 已修正。
-- Special Material approved target 已補正。
+- Special Material target conflict 已列入 reconciliation gate。
 - Active planning 文件不再把已完成 baseline 誤列為 current gap。
 
 ### Completed Checkpoint：Phase-1 refactor planning and inventory
@@ -178,7 +178,7 @@
 - 已確認刪除 confirmation copy 與 current safety rule 存在低風險 UX contract mismatch。
 - 已選定一個 bounded candidate。
 
-### Active Checkpoint：Custom warehouse deletion UX contract regression and fix
+### Completed Checkpoint：Custom warehouse deletion UX contract regression and fix
 
 目標：
 
@@ -197,6 +197,56 @@
 - full component `locationId` adoption。
 - legacy fallback removal。
 - automatic legacy migration。
+- version / release work。
+
+完成摘要：
+
+- 自訂倉庫刪除 confirmation wording 已改為符合 current safety rule：非空倉庫必須先轉移或清空後才能刪除。
+- Cancellation path 已受 regression test 保護：取消確認不修改 custom locations、registry、inventory、transactions，也不顯示 success/error toast。
+- Confirmed non-empty deletion 仍會被阻擋，保留 registry entry、runtime custom location 與 inventory，並顯示 error toast。
+- Confirmed empty deletion 保留既有成功行為：deactivate registry entry、移除 runtime custom location / `qtyByCity` bucket、保留其他庫存，並顯示 success toast。
+- Regression coverage 包含 confirmation wording、cancellation no-mutation、confirmed non-empty blocked、confirmed empty success。
+- Production source scope 只改 `src/components/inventory.js` confirmation copy。
+- 未修改 `src/core/state.js`、registry lifecycle、save/rollback、storage schema、runtime bridge、backup、transaction payload 或 legacy fallback。
+
+### Active Checkpoint：Special material inventory contract reconciliation
+
+目標：
+
+- 盤點並協調 Special Material inventory 的 target contract 衝突。
+- `BUSINESS_RULES.md` 目前記錄 account-total / no transfer candidate。
+- `SPECIAL_MATERIAL_INVENTORY.md` 目前保留 location-based `qtyByLocation` / transfer-supported candidate。
+- 在 Spec Lead 決策前，不選定 `totalQty` 或 `qtyByLocation`，也不授權 tests/source implementation。
+
+需決定：
+
+- Quantity shape：`totalQty` 或 `qtyByLocation`。
+- 是否要求 `locationId`。
+- Special Material transfer 是否存在。
+- Custom location rename 對 Special Material inventory 的影響。
+- Crafting consumption source。
+- Intake transaction location metadata。
+- Backup / schema shape。
+- 哪一份文件成為 target authority。
+
+交付邊界：
+
+- 交回 Spec Lead 做 contract decision。
+- Reconciliation 完成後，才可產出 tests-first pure contract。
+
+不包含：
+
+- 修改 source。
+- 新增或修改 tests。
+- identity catalog。
+- WAC helper。
+- inventory helper。
+- schemaVersion。
+- storage root。
+- backup。
+- transaction payload。
+- Planner / Crafting integration。
+- 移除 manual-cost compatibility。
 - version / release work。
 
 ### Completed Baseline：v0.4.4 backup/reset/release stabilization
@@ -218,11 +268,11 @@ Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migrati
 
 目前 approved sequence：
 
-1. Custom warehouse deletion UX contract regression and fix — active.
-2. Custom warehouse checkpoint closeout.
-3. Tests-first special-material pure contract.
+1. Special material inventory contract reconciliation — active.
+2. Tests-first special-material pure contract — blocked pending reconciliation.
+3. Any Special Material source/helper implementation — requires separate approval.
 
-只有第一項是 active。其餘項目仍需獨立 approval、tests 與 implementation boundary；此清單不代表 0.4.5 implementation 已開始。
+只有第一項是 active。其餘項目仍需獨立 approval、tests 與 implementation boundary；此清單不代表 Special Material tests/source、schema/storage、writer/backup/UI、0.4.5 implementation 或 release work 已開始。
 
 ## Phase-1 Refactor Boundary
 

@@ -1,16 +1,26 @@
 # Albion Logistics ERP Special Material Inventory Specification
 
-Status: Target
-Authority: Approved specification
+Status: Target under reconciliation
+Authority: Candidate target specification pending Spec Lead reconciliation
 Current implementation: Not implemented
-Implementation status: Paused
-Last reviewed: 2026-06-30
+Implementation status: Blocked by quantity/location model conflict
+Last reviewed: 2026-07-01
 
-本文件定義 Artifact / Alchemy 特殊材料庫存的 approved target specification。這不是 current implementation 宣告，也不代表 schema、storage、writer、backup、transaction payload 或 UI 已完成。
+本文件保留 Artifact / Alchemy 特殊材料庫存的 candidate target specification。這不是 current implementation 宣告，也不代表 schema、storage、writer、backup、transaction payload 或 UI 已完成。
 
 本文件不得被解讀為要求立即修改 `src`、tests、storage key、`schemaVersion`、backup format、transaction payload、custom location implementation 或 release/version metadata。
 
-Paused means this target is not active implementation work. No tests, helper, writer/storage, UI, or crafting integration is authorized by this file. Special-material implementation is blocked until new-schema backup lifecycle, import atomicity, and scoped reset are complete.
+Blocked means this target is not active implementation work. No tests, helper, writer/storage, UI, or crafting integration is authorized by this file. Special-material implementation is blocked until the account-total / location-based quantity and transfer contract conflict is reconciled.
+
+## Conflict Notice
+
+Active checkpoint: Special material inventory contract reconciliation.
+
+This document currently preserves a location-based `qtyByLocation` target candidate for Special Material inventory. `BUSINESS_RULES.md` currently records an account-total `totalQty` / no-transfer target candidate. Both cannot be active implementation authority at the same time.
+
+Until Spec Lead reconciliation is complete, this file must not be used as the sole authority for executable tests, source helpers, schema/storage changes, writer/UI integration, crafting deduction, transfer behavior, backup changes, or transaction payload changes. Backup/reset prerequisites being complete does not resolve the Special Material quantity/location model conflict.
+
+The remaining sections preserve the Contract B location-based candidate for review. They are not current implementation and are not the selected final model until reconciliation chooses the quantity shape, location requirement, transfer policy, custom-location rename behavior, crafting consumption source, intake location metadata, and backup/schema shape.
 
 ## A. Current Implementation Summary
 
