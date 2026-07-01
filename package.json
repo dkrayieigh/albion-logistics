@@ -7,7 +7,7 @@
     "tauri": "tauri",
     "test": "node scripts/run-tests.mjs",
     "test:watch": "node --watch scripts/run-tests.mjs",
-    "lint": "eslint \"src/calculators/**/*.js\" \"src/presenters/**/*.js\" \"src/services/inventoryTransferService.js\" \"tests/inventory-transfer-service.test.js\" \"src/services/specialMaterialInventoryService.js\" \"tests/special-material-inventory-service.test.js\" \"scripts/**/*.mjs\"",
+    "lint": "eslint \"src/calculators/**/*.js\" \"src/data/specialMaterialCatalog.js\" \"src/presenters/**/*.js\" \"src/services/inventoryTransferService.js\" \"src/services/specialMaterialIdentityResolver.js\" \"tests/inventory-transfer-service.test.js\" \"src/services/specialMaterialInventoryService.js\" \"tests/special-material-inventory-service.test.js\" \"tests/special-material-catalog.test.js\" \"tests/special-material-identity-resolver.test.js\" \"scripts/**/*.mjs\"",
     "format:check": "prettier --check package.json eslint.config.js \"scripts/**/*.mjs\" \".github/workflows/**/*.yml\" .prettierrc.json"
   },
   "devDependencies": {

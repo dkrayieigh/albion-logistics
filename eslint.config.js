@@ -7,9 +7,13 @@ export default [
   {
     files: [
       'src/calculators/**/*.js',
+      'src/data/specialMaterialCatalog.js',
       'src/presenters/**/*.js',
       'src/services/inventoryTransferService.js',
+      'src/services/specialMaterialIdentityResolver.js',
       'src/services/specialMaterialInventoryService.js',
+      'tests/special-material-catalog.test.js',
+      'tests/special-material-identity-resolver.test.js',
       'tests/inventory-transfer-service.test.js',
       'tests/special-material-inventory-service.test.js'
     ],
