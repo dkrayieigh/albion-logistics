@@ -380,6 +380,10 @@ Legacy fallback 只能在以下條件全部滿足後移除：
 
 ## Future Transition Outline：Account-total Products / Special Materials / Ledger English
 
+Status: Superseded for product inventory by the 0.5.0 Crafting Domain Model.
+
+This historical outline is retained as planning context only. Account-total Product Inventory is rejected for 0.5.0; Product Inventory remains location-based. Do not use Phase 2 through Phase 4 below as the selected product migration strategy.
+
 本段是 future transition outline，不是 migration 執行指令。它不得覆蓋 single-user clean-cutover boundary，也不得宣稱會自動轉換既有 production data。舊資料是否重建仍以人工 clean initialization 與 Spec Lead 決策為準。
 
 ### Phase 1：English Ledger Presentation Mapping
@@ -425,3 +429,35 @@ Legacy fallback 只能在以下條件全部滿足後移除：
 - 記錄 `valuationImpact`、`oldUnitCost`、`newUnitCost`、`quantityBasis`。
 - 修正 Ledger 顯示，避免把估值調整誤讀為現金支出。
 - 不回溯重寫歷史 transactions，除非 Spec Lead 另行批准資料修復策略。
+## 0.5.0 Selected Crafting Transition Outline
+
+Canonical decision source: [0.5.0 Crafting Domain Model](./CRAFTING_DOMAIN_MODEL.md).
+
+Version strategy:
+
+- Do not publish a formal 0.4.5 release.
+- Keep package/app metadata at `0.4.4` until a future 0.5.0 release-preparation task.
+- Do not tag, build, or release 0.4.5.
+
+Selected product strategy:
+
+- Product Inventory remains location-based.
+- Crafting output writes to selected production `locationId`.
+- Sale consumes from selected product location.
+- Product transfer remains valid logistics behavior.
+- Do not create account-total product storage or an `AccountTotal` fake location.
+
+Selected migration / implementation order:
+
+1. Tests-first production bonus/profile/consumption pure contract.
+2. General material purchase/WAC service extraction.
+3. Craft requirement resolver.
+4. Craft completion calculation modules.
+5. Craft operation composer.
+6. Development build identifier.
+7. Progressive `checkJs` and CI gates.
+8. Production storage/backup/transaction design.
+9. Production integration.
+10. 0.5.0 release preparation.
+
+Production Profile storage migration remains future high risk. Existing custom locations without profiles are warehouse-only and must not be silently promoted into craft locations.

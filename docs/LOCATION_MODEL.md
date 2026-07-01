@@ -6,6 +6,62 @@
 > This means the persisted v2 contract exists, while full runtime/component `locationId` adoption, historical transaction canonicalization, shared resolver completion, inactive-location management UI, custom crafting profiles, and legacy fallback removal remain future work.
 > 不得將本文件解讀為所有 writer、component、transaction 或 legacy mode 已完成 Location ID migration。遷移順序請見 `MIGRATION_PLAN.md`。
 
+## 0.5.0 Location / Production Profile Boundary
+
+Canonical decision source: [0.5.0 Crafting Domain Model](./CRAFTING_DOMAIN_MODEL.md).
+
+Current persisted v2 already has `locationRegistry` and canonical `qtyByLocation`, while runtime components still use `qtyByCity` and display-name compatibility. The 0.5.0 target adds a separate Production Profile model; it does not store production fields inside the Location Registry.
+
+Location Registry remains identity/display state:
+
+```js
+{
+  locationId,
+  displayName,
+  type,
+  active
+}
+```
+
+Production Profile target:
+
+```js
+{
+  locationId,
+  facilityType,
+  region,
+  regionQuality
+}
+```
+
+Rules:
+
+- `facilityType` is `royal-city` or `hideout`.
+- A custom location without a profile is a warehouse only.
+- A custom location without a profile is not a craft location.
+- Profile identity is keyed by `locationId`; rename must not change it.
+- Do not derive profile `region` or `regionQuality` from display name.
+- Do not write profile fields into Location Registry entries.
+
+0.5.0 craft event parameters are event-only:
+
+```js
+{
+  locationId,
+  hideoutPowerLevel,
+  focusEnabled,
+  dailyBonusPercent
+}
+```
+
+Boundary:
+
+- `hideoutPowerLevel` is an integer `1..9`, not a raw decimal bonus.
+- `dailyBonusPercent` uses percent points, normally `0`, `10`, or `20`.
+- Do not store RRR, LPB, `hideoutPowerLevel`, `focusEnabled`, or `dailyBonusPercent` in Location Registry or Production Profile.
+- Legacy fields such as `hideoutPower` and `dailyBonus` are current/superseded naming context only.
+- Full component `locationId` migration is still not complete.
+
 ## Current Implementation Note
 
 目前 runtime component 仍以顯示名稱字串作為 legacy-compatible key。

@@ -767,7 +767,9 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 - Unknown item fallback：未知品項顯示原始值且不 crash。
 - Stored transaction unchanged：英文顯示不得改寫 stored transaction payload。
 
-### Product Account-total Inventory（Future）
+### Product Account-total Inventory（Rejected / Superseded Proposal）
+
+0.5.0 decision: Product Inventory remains location-based. These account-total product tests are retained only as historical proposal context and are not the selected target.
 
 - Crafting output increases product `totalQty`。
 - Sale decreases product `totalQty`。
@@ -786,7 +788,38 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 - Global WAC is maintained for special materials。
 - Manufacturing consumption is fixed and does not apply return rate。
 - Special materials do not create regional inventory and cannot be transported。
-- Formal location-based vs account-wide inventory scope must be decided before executable tests are written。
+- Special Material scope is selected as account-total `totalQty`; executable production-integration tests still require separate approval。
+
+## Future Test Plan：0.5.0 Production Bonus / Profile / Consumption Pure Contract
+
+Status: Planned / not yet test-covered.
+
+Canonical decision source: [0.5.0 Crafting Domain Model](./CRAFTING_DOMAIN_MODEL.md).
+
+The next active checkpoint should add pure tests only. These tests must not touch DOM, runtime state, storage, backup, UI, cash, transactions, or production Crafting integration.
+
+Planned coverage:
+
+- Royal city general recipe LPB.
+- Royal city specialized recipe LPB.
+- Hideout general power-level table parity.
+- Hideout specialized `regionQuality` / power-level matrix parity.
+- Focus adds `59` LPB percent points.
+- Daily bonus accepts `0`, `10`, and `20` percent points.
+- Matching vs non-matching region specialization.
+- Invalid Production Profile rejected.
+- Invalid event parameters rejected.
+- RRR formula uses `1 - 1 / (1 + totalLpbPercent / 100)`.
+- RRR is not rounded in the domain layer.
+- Batch regional material consumption uses `gross - floor(gross * rrr)`.
+- Manual override validates non-negative integer input.
+- Manual override returns calculated and applied consumption.
+- Manual override result shape includes `overrideEnabled`, `calculatedConsumedQuantity`, `appliedConsumedQuantity`, and `consumptionSource: 'manual-override'`.
+- Stale override values must not be silently copied to another queue row.
+- Special Material receives no RRR and no manual override.
+- Input objects remain immutable.
+- Results are structured success/failure objects.
+- Pure functions do not access DOM, state, storage, backup, UI, cash, transactions, or `saveState()`.
 
 ### Cost Adjustment（Future）
 
@@ -860,10 +893,10 @@ The explicit `createBrowserNewSchemaRepository(storage)` composition helper is c
 
 ### Location
 
-17. System location behavior if location-based scope is selected。
+17. Purchase / craft location may be recorded as metadata only and must not create a Special Material inventory bucket。
 18. Active custom location behavior。
 19. Inactive custom location is blocked。
-20. Rename preserves inventory by stable ID if location-based scope is selected。
+20. Custom location rename does not affect Special Material account-total quantity。
 
 ### Compatibility
 

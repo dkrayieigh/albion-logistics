@@ -429,6 +429,13 @@ Adapter 前置測試缺口詳見 `ADAPTER_TEST_PLAN.md`。Stable ID / `qtyByLoca
 
 本節記錄新增 business rules 後的 high-risk gap。這些項目目前只是規格差異與後續計畫，不代表 `src`、storage schema、runtime bridge、codec、backup 或 transaction payload 已修改。
 
+0.5.0 reconciliation note:
+
+- Account-total Product Inventory is a rejected / superseded proposal.
+- Product Inventory remains location-based for 0.5.0.
+- The remaining product gap is not account-total migration; it is production craft execution with stable production `locationId`, product output at that location, sale from selected location, product logistics, and craft-location metadata.
+- Canonical decision source: [0.5.0 Crafting Domain Model](./CRAFTING_DOMAIN_MODEL.md).
+
 ### Product Inventory Transition（High risk）
 
 - Current implementation：products still use `qtyByCity`。
@@ -458,8 +465,7 @@ Selected target:
 
 Remaining gap:
 
-- identity catalog.
-- pure catalog / resolver contract.
+- production integration of completed catalog / resolver.
 - storage root.
 - writer.
 - cash.
@@ -486,11 +492,39 @@ Remaining gap:
 ### Risk Split
 
 - English display mapping：Low–Medium implementation risk because it is presentation-only and currently test-covered, but it still affects Ledger filtering/grouping and user interpretation.
-- Product inventory transition：High risk because it changes inventory shape, crafting output, sale consumption, transport eligibility, dashboard valuation, runtime bridge, codec, and backup expectations.
+- Product inventory transition：High risk because production craft execution must coordinate location identity, crafting output, sale consumption, transport eligibility, dashboard valuation, runtime bridge, codec, and backup expectations.
 - Special material pure helper/tests：Completed current-master pure boundary. `src/services/specialMaterialInventoryService.js` and `tests/special-material-inventory-service.test.js` cover purchase, consumption, WAC, dormant anchor, validation, location-shaped input rejection, input immutability, error priority, structured results, and public API isolation.
-- Special material catalog docs/tests/pure resolver：Low–Medium implementation risk because it is still non-production catalog/resolver work.
+- Special material catalog docs/tests/pure resolver：Completed current-master pure boundary; still not production integration.
 - Special material production schema/writer/backup integration：High risk because it introduces new persisted inventory classes, purchase/costing rules, transactions, backup shape, and Crafting integration.
 - Cost adjustment canonical event：High risk because it affects cost basis, valuation, Ledger display, transaction semantics, and historical interpretation.
+
+## 0.5.0 Crafting Domain Remaining Gaps
+
+Completed pure boundaries:
+
+- Special Material identity catalog.
+- Pure Special Material identity resolver.
+- Pure Special Material inventory service.
+
+Remaining gaps:
+
+- Production Bonus calculator.
+- Production Profile validator.
+- Event parameter validator for `hideoutPowerLevel`, `focusEnabled`, and `dailyBonusPercent`.
+- Batch regional material consumption calculator.
+- Manual override model.
+- General material purchase / WAC service extraction.
+- Craft requirement resolver.
+- Craft completion calculator.
+- Craft operation composer.
+- Development build identifier.
+- Production profile storage.
+- Special Material production storage.
+- Backup integration.
+- Cash / transaction integration.
+- UI integration.
+
+These gaps are target-only. They do not authorize source, storage, writer, backup, transaction, UI, version, or release changes.
 
 ## v0.4.4 Release Checkpoint Scope
 

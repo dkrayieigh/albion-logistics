@@ -1,5 +1,23 @@
 # Albion Logistics ERP Business Rules
 
+## 0.5.0 Crafting Domain Business Rules
+
+Canonical decision source: [0.5.0 Crafting Domain Model](./CRAFTING_DOMAIN_MODEL.md).
+
+These rules are approved 0.5.0 target rules, not current production integration:
+
+- Product inventory remains location-based. Crafting output is created at the selected production `locationId`, sale consumes from a selected location, and product transfer remains valid logistics behavior.
+- Account-total Product Inventory is rejected for 0.5.0 and must not be represented as an `AccountTotal` fake location.
+- Location Registry and Production Profile are separate models. Registry stores identity/display state; profile stores `facilityType`, `region`, and `regionQuality`.
+- Craft event parameters are event-only: `locationId`, `hideoutPowerLevel`, `focusEnabled`, and `dailyBonusPercent`.
+- Domain LPB inputs use percent points, not decimal ratios. RRR is derived as `1 - 1 / (1 + totalLpbPercent / 100)`.
+- Royal city LPB is `18` base, plus `15` specialization for matching recipes, plus optional focus `59` and daily bonus points.
+- Hideout production bonus uses the approved general power table and specialized `regionQuality` / power-level matrix in `CRAFTING_DOMAIN_MODEL.md`.
+- Regional material consumption is batch-based: `gross - floor(gross * rrr)`.
+- Manual override is allowed for regional material consumption only, must be explicit per material line, and records calculated/applied quantities.
+- Special Material remains account-total, account-wide WAC, no location bucket, no transfer, no RRR, fixed crafting deduction, and no manual override.
+- Current `actualMainQty` / `actualSubQty` are legacy-compatible behavior and are not the final 0.5.0 domain model.
+
 本文件定義成本、現金流、庫存、工人島產出與作業日誌的核心商業規則。
 
 > ⚠️ Current / future boundary：
@@ -217,7 +235,9 @@ mainMaterialCost
 - 數量依地點保存；future schema 使用 `qtyByLocation`，current legacy 路徑仍可能使用 `qtyByCity`。
 - 製作城市會影響一般材料扣除、返還率與製作費。
 
-### Account-total Product Inventory
+### Account-total Product Inventory（Rejected / Superseded Proposal）
+
+0.5.0 decision: Product Inventory remains location-based. This older account-total product section is retained only as historical proposal context and must not be read as the selected 0.5.0 target.
 
 - 適用於製作完成的成品。
 - 支援 T4.0～T8.4，包含 tier 與 enchant level。

@@ -158,3 +158,21 @@
 特殊材料正式庫存規格見 `SPECIAL_MATERIAL_INVENTORY.md`。該文件是 future architecture target，不代表目前已新增 Artifact / Alchemy inventory root、purchase writer、crafting deduction writer、backup schema 或 transaction payload。
 
 Current implementation 仍只在 recipe metadata、Planner calculation、crafting queue / shopping-list display 與 current crafting cost calculation 中使用 Artifact / Alchemy 資訊。未來若實作，應先建立 bounded service/helper 並以 regression tests 保護後，再接 UI、inventory、cash、ledger 與 storage。
+## 0.5.0 Crafting Domain Architecture Boundary
+
+Canonical decision source: [0.5.0 Crafting Domain Model](./CRAFTING_DOMAIN_MODEL.md).
+
+0.5.0 target architecture separates pure domain modules from production component side effects:
+
+1. Requirement Resolver: `resolveCraftRequirements({ recipe, itemLevel, craftQuantity })`
+2. Production Bonus Calculator: `calculateProductionBonus({ profile, recipeCategory, eventParameters })`
+3. Regional Material Consumption Calculator: `calculateRegionalMaterialConsumption({ baseQuantity, craftQuantity, rrr, override })`
+4. Craft Completion Calculator: `calculateCraftCompletion({ requirements, productionBonus, regionalMaterialCosts, specialMaterialCosts, usageFee })`
+5. Operation Composer: `prepareCraftCompletionOperation({ calculation, inventories, cash, targetLocationId })`
+6. Component Adapter: DOM input, toast, state assignment, queue removal, `saveState()`, and UI refresh.
+
+Boundary:
+
+- Pure modules must not read DOM, mutate state, write storage, call `saveState()`, show toast, or remove queue rows.
+- Component adapters remain responsible for UI and side effects.
+- Current master has Special Material pure foundations, but production Crafting integration is not implemented.

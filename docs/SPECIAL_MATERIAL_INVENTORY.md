@@ -3,7 +3,7 @@
 Status: Target with pure contract implemented
 Authority: Approved specification
 Current implementation: Pure service only; production integration not implemented
-Implementation status: Pure inventory/WAC contract complete; identity catalog review active
+Implementation status: Pure inventory/WAC contract and pure catalog/resolver contract complete; production integration not implemented
 Last reviewed: 2026-07-01
 
 本文件記錄 Artifact / Alchemy 特殊材料庫存的 approved target specification。這不是 current implementation 宣告，也不代表 schema、storage、writer、backup、transaction payload 或 UI 已完成。
@@ -274,14 +274,16 @@ Completed:
 - Location-shaped input rejection.
 - Exact-file ESLint coverage.
 
-Current active:
+Completed current-master pure boundaries:
 
-**Special material identity catalog review**.
+- Special material identity catalog review.
+- Tests-first pure catalog/resolver contract.
+- Pure Special Material purchase / consumption service.
 
 Still not approved:
 
-- production catalog source
-- catalog implementation
+- production catalog/resolver integration
+- state/storage wiring
 - storage
 - cash
 - transactions
@@ -321,22 +323,19 @@ Remaining unresolved decisions:
 - Backup envelope / version.
 - UI layout.
 
-Pure helper/tests are completed and no longer the active checkpoint.
+Pure helper/tests and pure catalog/resolver tests are completed and no longer the active checkpoint.
 
 ## J. Next Approved Step
 
-Next approved step: **Special material identity catalog review**.
+Next approved step: **Tests-first production bonus, profile validation, and material consumption contract**.
 
 Scope:
 
-- review candidate stable IDs
-- review recipe metadata conflicts
-- decide catalog source boundary
-- decide whether/when resolver tests should be added
-- no production catalog
-- no production resolver
+- pure production bonus/profile/consumption tests
+- no production bonus UI
+- no production profile storage
 - no storage writer
 - no UI
 - no Crafting integration
 
-This next step is docs/catalog review only unless separately approved. This document itself does not start source, storage, writer, backup, UI, or Crafting integration.
+This next step is pure/domain-only unless separately approved. This document itself does not start state, storage, writer, backup, UI, cash/transaction, or Crafting integration.

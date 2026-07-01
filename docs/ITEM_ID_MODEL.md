@@ -106,7 +106,7 @@ Current implementation note：
 ### Future Identity Dimensions
 
 - Material item：一般材料使用 material item identity + `itemLevel`；`itemLevel` 包含 tier/enchant，例如 T4.0～T8.4。
-- Product item：成品使用 stable product ID + `itemLevel`；future product storage 不使用 `locationId`，只保存 account-total quantity。
+- Product item：成品使用 stable product ID + `itemLevel`；0.5.0 selected target keeps product inventory location-based, so product storage must retain a location dimension.
 - Artifact item：神器使用 stable artifact ID + tier；artifact 不存在 enchant dimension。
 - Alchemy item：煉金材料使用 stable alchemy ID + tier；alchemy 不存在 enchant dimension。
 
@@ -123,7 +123,7 @@ Current implementation note：
 
 - Stable product ID catalog 已完成。
 - Artifact / alchemy Stable ID catalog 已完成。
-- Product storage 已改為 account-total。
+- Product account-total storage is a rejected / superseded proposal for 0.5.0; product inventory remains location-based.
 - Artifact / alchemy storage 已完成。
 - Legacy 中文 item key 已被取代。
 - Concrete Stable ID 字串格式已定案。

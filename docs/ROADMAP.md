@@ -6,6 +6,12 @@
 
 ## Active Roadmap
 
+## 0.5.0：Formal Crafting and Black-Zone Hideout System
+
+0.4.4 is the released planning/manual-accounting baseline. 0.5.0 is the next planned public feature release and introduces formal craft execution. 0.4.5 will not be published as a formal release.
+
+Out of 0.5.0 scope unless separately approved: Vite, CSP hardening, SQLite, Stable Item ID migration, canonical transaction migration, and legacy fallback removal.
+
 ### Completed Checkpoint：Docs consolidation closeout
 
 目標：
@@ -284,7 +290,11 @@
 - 沒有修改 lint rules、globals、dependencies 或 CI workflow。
 - 這不是 repo-wide lint，也不是 `checkJs`。
 
-### Active Checkpoint：Special material identity catalog review
+### Completed Checkpoint：Special material identity catalog review
+
+Status: Completed / superseded by the 0.5.0 crafting domain contract reconciliation.
+
+Pure catalog/resolver work is complete on current master. This section is retained as historical checkpoint context only.
 
 目標：
 
@@ -319,15 +329,47 @@
 
 Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migration、schema switch、service extraction 或 release metadata 修改。
 
+### Completed Checkpoint：0.5.0 crafting domain contract reconciliation
+
+Scope:
+
+- Version strategy: 0.4.5 will not be published; next planned public feature release is 0.5.0.
+- Product Inventory remains location-based; Account-total Product Inventory is rejected for 0.5.0.
+- Location Registry and Production Profile are separate models.
+- Crafting event parameters are event-only: `locationId`, `hideoutPowerLevel`, `focusEnabled`, `dailyBonusPercent`.
+- LPB inputs use percent points; RRR is derived by formula.
+- Batch regional material consumption uses `gross - floor(gross * rrr)`.
+- Manual override is explicit per regional material line.
+- Special Material pure catalog/resolver/inventory boundaries are complete, but production integration is not.
+- Development build identifier target: `0.4.4-dev+<short-sha>`, `Development master`, and `Not a released build`.
+
+### Active Checkpoint：Tests-first production bonus, profile validation, and material consumption contract
+
+Scope:
+
+- pure tests first
+- production bonus/profile validation
+- LPB/RRR math
+- batch regional material consumption
+- manual override validation
+- no DOM/state/storage/backup/UI integration
+
 ## Approved Next Order
 
-目前 approved sequence：
+Current approved sequence:
 
-1. Special material identity catalog review — active.
-2. Tests-first pure catalog/resolver contract — blocked pending catalog review.
-3. Production Special Material integration — not approved.
+1. Tests-first production bonus/profile/consumption pure contract — active.
+2. General material purchase/WAC service extraction.
+3. Craft requirement resolver.
+4. Craft completion calculation modules.
+5. Craft operation composer.
+6. Development build identifier.
+7. Progressive `checkJs` and CI gates.
+8. Production storage/backup/transaction design.
+9. Production integration.
+10. 0.5.0 release preparation.
 
-只有第一項是 active。第二項仍需 catalog review；第三項未核准。此清單不代表 production catalog、resolver、storage/schema、writer/backup/UI、Crafting integration、Stable Item ID migration、0.4.5 implementation 或 release work 已開始。
+Only the first item is active. This order does not authorize source changes outside the active checkpoint, production integration, Stable Item ID migration, canonical transaction migration, legacy fallback removal, 0.4.5 release work, or 0.5.0 release preparation.
 
 ## Phase-1 Refactor Boundary
 
