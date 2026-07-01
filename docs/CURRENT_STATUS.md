@@ -2,17 +2,18 @@
 
 Status: Current
 Authority: Current implementation summary
-Last reviewed: 2026-06-30
+Last reviewed: 2026-07-01
 Last verified against commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`
 
 `Last verified against commit` is the tagged 0.4.4 release commit. This file documents current production behavior and release state; it does not imply that this docs-only update changed source, tests, package metadata, build output, tags, or release artifacts.
 
 ## Current Master Review
 
-- Current master implementation reviewed against commit: `f9106743617a72a7f19499868a366ffaab9634ae`.
+- Current master implementation reviewed against commit: `ee73406b9b5e58d221081f220abd8a2bcaa0bc4e`.
 - Release baseline remains the tagged 0.4.4 release commit: `d87a5bf7824192f3d734b7c89710fd4336fd5652`.
 - Post-release master includes the Inventory Transfer bounded service extraction. This is current master behavior, not a v0.4.4 release artifact.
-- This docs sync does not change source, tests, package metadata, build output, tags, release assets, storage schema, backup format, or transaction payload.
+- Post-release master includes Inventory Transfer exact-file ESLint coverage. This is a tooling gate update, not a runtime feature.
+- This docs sync does not change source, tests, dependencies, lockfile, CI workflow, version metadata, build output, tags, release assets, storage schema, backup format, or transaction payload.
 
 ## Production Runtime
 
@@ -83,6 +84,26 @@ Do not record a fixed test count here. Treat exact counts as run-specific eviden
 - Inventory transfer extraction refactors existing behavior; it does not add transport capability.
 - Runtime inventory transfer remains legacy-compatible through `qtyByCity` display-name keys and does not start Location migration.
 
+## Current Tooling Boundary
+
+Current partial ESLint scope:
+
+- `src/calculators/**/*.js`
+- `src/presenters/**/*.js`
+- `src/services/inventoryTransferService.js`
+- `tests/inventory-transfer-service.test.js`
+- `scripts/**/*.mjs`
+
+Tooling boundary:
+
+- `npm run lint` uses the partial scope above.
+- CI still runs the existing `npm run lint` step.
+- `format:check` scope is unchanged and remains limited to package/config/scripts/workflow formatting targets.
+- `npm test` still uses recursive test discovery through `scripts/run-tests.mjs`.
+- This is not repo-wide lint coverage.
+- Progressive `checkJs` is not enabled.
+- Vite, CSP, and SQLite remain future hardening work.
+
 ## Release Readiness
 
 - Release: `v0.4.4`.
@@ -129,9 +150,11 @@ For limitation details, see [Current Limitations](./CURRENT_LIMITATIONS.md) and 
 
 1. Phase-1 refactor planning and inventory — completed.
 2. Inventory Transfer bounded service extraction — completed.
-3. Incremental quality tooling planning and boundary — active.
+3. Incremental quality tooling planning and boundary — completed.
+4. Inventory Transfer exact-file ESLint coverage — completed.
+5. Custom warehouse boundary specification and inventory — active.
 
-Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction. The active checkpoint is read-only tooling inventory and task definition: it may inspect ESLint / Prettier / test runner boundaries, but it does not authorize tooling config changes, source refactor, schema changes, migration, dependency/runtime behavior changes, version metadata updates, release work, or a 0.4.5 implementation branch.
+Docs consolidation closeout is complete. Phase-1 planning selected Inventory Transfer as the first bounded extraction, and current master now contains that completed pure-service extraction plus exact-file ESLint coverage for the transfer service and service test. The active checkpoint is custom warehouse boundary specification and inventory: it may inspect current custom warehouse behavior and define one bounded next task, but it does not authorize custom warehouse implementation, source changes, tests, schema changes, migration, dependency/runtime behavior changes, version metadata updates, release work, or a 0.4.5 implementation branch.
 
 ## Reviewed Core Specifications
 

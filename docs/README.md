@@ -48,11 +48,15 @@ Current planning entry:
 - [Roadmap](./ROADMAP.md) is the active sequence authority.
 - Completed checkpoint: Phase-1 refactor planning and inventory.
 - Completed checkpoint: Inventory Transfer bounded service extraction.
-- Current active checkpoint: Incremental quality tooling planning and boundary.
+- Completed checkpoint: Incremental quality tooling planning and boundary.
+- Completed checkpoint: Inventory Transfer exact-file ESLint coverage.
+- Current active checkpoint: Custom warehouse boundary specification and inventory.
 - [Implementation Gap](./IMPLEMENTATION_GAP.md) remains the current coupling / gap inventory source.
 - [Architecture](./ARCHITECTURE.md) records target boundaries and current-master service boundaries where explicitly labeled.
 - Inventory Transfer bounded service extraction is current master post-release behavior, distinct from the published v0.4.4 artifact.
-- Tooling planning does not mean ESLint config, `checkJs`, Vite, package scripts, source, tests, storage schema, backup format, transaction payload, version metadata, or release artifacts have changed.
+- Inventory Transfer exact-file ESLint coverage is current master post-release tooling behavior, distinct from the published v0.4.4 artifact.
+- Exact-file ESLint coverage does not mean repo-wide lint or `checkJs` is complete.
+- Custom warehouse planning does not mean source, tests, schema, migration, UI implementation, version metadata, or release artifacts have changed.
 
 ## Reading Order For Production Work
 
@@ -71,5 +75,5 @@ Current planning entry:
 - Keep legacy-compatible behavior, presentation-only mapping, migration boundaries, and future targets separate.
 - A docs-only release checkpoint must not imply source, tests, package metadata, Tauri config, tags, or artifacts changed.
 - Docs consolidation closeout is complete.
-- Phase-1 refactor planning and Inventory Transfer bounded service extraction are completed checkpoints.
-- Incremental quality tooling planning and boundary is the current active planning checkpoint; it does not start source refactor, tooling config implementation, 0.4.5 implementation, migration, or release work.
+- Phase-1 refactor planning, Inventory Transfer bounded service extraction, Incremental quality tooling planning, and Inventory Transfer exact-file ESLint coverage are completed checkpoints.
+- Custom warehouse boundary specification and inventory is the current active planning checkpoint; it does not start source changes, tests, schema changes, migration, UI implementation, 0.4.5 implementation, or release work.

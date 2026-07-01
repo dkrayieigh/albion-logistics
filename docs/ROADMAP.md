@@ -86,7 +86,7 @@
 - cash/debt、transaction、backup、storage 或 `globalAvgCost` 行為變更。
 - v0.4.4 release artifact 變更。
 
-### Active Checkpoint：Incremental quality tooling planning and boundary
+### Completed Checkpoint：Incremental quality tooling planning and boundary
 
 目標：
 
@@ -105,6 +105,70 @@
 - source refactor。
 - dependency/runtime behavior change。
 - version bump、release、tag 或 artifact work。
+
+完成摘要：
+
+- 已盤點 ESLint、Prettier、test runner 與 CI gate。
+- 已確認現有 lint 覆蓋 calculators、presenters 與 scripts。
+- 已確認 repo-wide `checkJs` 與 `@ts-check` boundary 尚未啟用。
+- 已選定 Inventory Transfer pure service 與 service test 作為第一個 exact-file lint 擴張範圍。
+- 已交付 bounded implementation 任務包。
+
+### Completed Checkpoint：Inventory Transfer exact-file ESLint coverage
+
+目標：
+
+- 只擴張 incremental ESLint coverage，不啟動 repo-wide lint。
+- 將 Inventory Transfer pure service 與對應 service test 納入 exact-file lint gate。
+- 保持 runtime behavior、source、tests、Prettier scope、CI workflow、dependencies、version 與 release assets 不變。
+
+完成摘要：
+
+- `eslint.config.js` 已納入 `src/services/inventoryTransferService.js` 與 `tests/inventory-transfer-service.test.js`。
+- `package.json` 的 `lint` script 已納入相同 exact paths。
+- 原本 scope 仍包含 `src/calculators/**/*.js`、`src/presenters/**/*.js` 與 `scripts/**/*.mjs`。
+- CI 仍透過既有 `npm run lint` step 執行，沒有新增 workflow step。
+- Rules 維持 `no-dupe-keys`、`no-fallthrough`、`no-undef`、`no-unreachable`。
+- 未新增 globals、plugins、ignores、dependencies 或 warning-only 規則。
+- 未修改 source、tests、Prettier scope 或 CI workflow。
+
+不包含：
+
+- `src/services/**/*.js` 全範圍 coverage。
+- `src/components/**/*.js` coverage。
+- `tests/**/*.test.js` 全 suite coverage。
+- repo-wide lint。
+- `checkJs`。
+- TypeScript。
+- Vite、CSP、SQLite。
+- runtime / business behavior change。
+- version / release work。
+
+### Active Checkpoint：Custom warehouse boundary specification and inventory
+
+目標：
+
+- 盤點目前 custom warehouse / custom location production behavior。
+- 釐清 persisted v2 `locationRegistry`、runtime `customLocations`、runtime inventory `qtyByCity`、persisted canonical `qtyByLocation` 的邊界。
+- 盤點 add、rename、remove、inactive registry、non-empty deletion guard 與 rollback coverage。
+- 盤點 custom warehouse UI 目前已完成與未完成項目。
+- 盤點 shared resolver、inactive-location UI、custom crafting profile、full component `locationId` adoption 缺口。
+- 找出一個 bounded candidate。
+- 準備 risk、tests-first boundary 與交接任務包。
+
+不包含：
+
+- 修改 source。
+- 修改 tests。
+- 修改 storage schema。
+- 將 component writer 全面切到 `qtyByLocation`。
+- 移除 legacy fallback。
+- automatic legacy migration。
+- 修改 backup。
+- 新增 custom crafting profile。
+- Stable Item ID / transaction migration。
+- Special Material production implementation。
+- version / release work。
 
 ### Completed Baseline：v0.4.4 backup/reset/release stabilization
 
@@ -125,10 +189,9 @@ Completed baseline 只描述已完成的 v0.4.4 範圍，不授權新的 migrati
 
 目前 approved sequence：
 
-1. Incremental quality tooling planning and boundary — active.
-2. Incremental quality tooling bounded implementation.
-3. Custom warehouse boundary specification / completion.
-4. Tests-first special-material pure contract.
+1. Custom warehouse boundary specification and inventory — active.
+2. Custom warehouse bounded implementation.
+3. Tests-first special-material pure contract.
 
 只有第一項是 active。其餘項目仍需獨立 approval、tests 與 implementation boundary；此清單不代表 0.4.5 implementation 已開始。
 

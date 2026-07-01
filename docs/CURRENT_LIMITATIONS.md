@@ -1,7 +1,7 @@
 # Albion Logistics ERP Current Limitations
 
 Status: Current
-Last reviewed: 2026-06-30
+Last reviewed: 2026-07-01
 
 This document lists active limitations only. It should not preserve stale pre-integration claims when production behavior has already changed.
 
@@ -120,6 +120,13 @@ Status: Future work
 Risk: Medium
 Affected area: Build / Packaging / Security hardening
 
+Current partial tooling baseline:
+
+- ESLint gate currently covers `src/calculators/**/*.js`, `src/presenters/**/*.js`, `scripts/**/*.mjs`, `src/services/inventoryTransferService.js`, and `tests/inventory-transfer-service.test.js`.
+- Inventory Transfer pure service and service test are covered through exact-file ESLint paths.
+- CI runs `npm run lint` and `npm run format:check`.
+- This is post-v0.4.4 current master tooling behavior, not a published v0.4.4 artifact.
+
 Current limitation:
 
 - Production Tauri build completed for 0.4.4.
@@ -129,9 +136,11 @@ Current limitation:
 - The official published installer asset is `albion-logistics_0.4.4_x64-setup.exe`.
 - `SHA256SUMS.txt` is not listed in the published GitHub Release asset list.
 - MSI is not part of the documented official installation-smoke verified artifact set.
+- Repo-wide lint is not complete.
+- Components, core, adapters, remaining services, and the full test suite are not all covered by lint.
 - Progressive `checkJs` is not enabled as a release gate.
 - Vite migration is not complete.
 - CSP hardening is not complete; CSP is still effectively not a packaged-artifact gate.
 - SQLite is not implemented.
 
-These items are not part of the current docs-only closeout.
+The exact-file ESLint expansion is implemented in current post-release master. The remaining hardening items above are not implemented by that bounded change.
